@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video to Text API</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; text-align: center; }
+        .upload-section { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; padding: 20px; border: 2px dashed #bdc3c7; border-radius: 8px; align-items: center; }
+        button { background-color: #3498db; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 5px; font-size: 16px; transition: background 0.3s; }
+        button:hover { background-color: #2980b9; }
+        button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .progress-container { width: 100%; background-color: #e0e0e0; border-radius: 5px; margin-top: 20px; display: none; }
+        .progress-bar { width: 0%; height: 20px; background-color: #2ecc71; border-radius: 5px; text-align: center; color: white; line-height: 20px; font-size: 14px; transition: width 0.3s; }
+        .status { margin-top: 10px; font-weight: bold; color: #e67e22; }
+        .result { margin-top: 20px; padding: 15px; background: #ecf0f1; border-radius: 5px; white-space: pre-wrap; font-size: 15px; max-height: 400px; overflow-y: auto; }
+        .segment { margin-bottom: 5px; }
+        .segment span { color: #7f8c8d; font-size: 12px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Video to Text Transcription</h1>
+        <div class="upload-section">
+            <input type="file" id="fileInput" accept="video/*,audio/*" />
+            <button id="uploadBtn" onclick="uploadFile()">Upload & Transcribe</button>
+        </div>
+        
+        <div class="status" id="statusText"></div>
+        
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar">0%</div>
+        </div>
+
+        <div class="result" id="resultArea">
+            <!-- Text lines will appear here in real-time -->
+        </div>
+    </div>
+
+    <script>
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert("Please select a file first.");
+                return;
+            }
+
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            document.getElementById('statusText').innerText = "Uploading file...";
+            document.getElementById('resultArea').innerHTML = "";
+            document.getElementById('progressContainer').style.display = "block";
+            document.getElementById('progressBar').style.width = "0%";
+            document.getElementById('progressBar').innerText = "0%";
+
+            const formData = new FormData();
+            formData.append("file", file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const taskId = data.task_id;
+                document.getElementById('statusText').innerText = "File uploaded. Connecting to WebSocket...";
+                connectWebSocket(taskId);
+            })
+            .catch(error => {
+                console.error("Error uploading file:", error);
+                document.getElementById('statusText').innerText = "Upload failed.";
+                btn.disabled = false;
+            });
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h > 0 ? h + ':' : ''}${m < 10 && h > 0 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function connectWebSocket(taskId) {
+            // Determine ws or wss protocol based on current connection
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws/progress/${taskId}`);
+
+            ws.onopen = function() {
+                document.getElementById('statusText').innerText = "Transcription started. Waiting for AI...";
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.status === "processing") {
+                    if (data.message) {
+                        document.getElementById('statusText').innerText = data.message;
+                    }
+                    if (data.progress !== undefined) {
+                        const prog = data.progress;
+                        document.getElementById('progressBar').style.width = prog + "%";
+                        document.getElementById('progressBar').innerText = prog + "%";
+                        document.getElementById('statusText').innerText = "Transcribing...";
+                    }
+                    if (data.current_segment) {
+                        const seg = data.current_segment;
+                        const resultArea = document.getElementById('resultArea');
+                        const p = document.createElement("div");
+                        p.className = "segment";
+                        p.innerHTML = `<span>[${formatTime(seg.start)} - ${formatTime(seg.end)}]</span>${seg.text}`;
+                        resultArea.appendChild(p);
+                        // Auto scroll to bottom
+                        resultArea.scrollTop = resultArea.scrollHeight;
+                    }
+                } 
+                else if (data.status === "completed") {
+                    document.getElementById('statusText').innerText = "Transcription completed successfully!";
+                    document.getElementById('progressBar').style.width = "100%";
+                    document.getElementById('progressBar').innerText = "100%";
+                    document.getElementById('uploadBtn').disabled = false;
+                    ws.close();
+                }
+                else if (data.status === "failed") {
+                    document.getElementById('statusText').innerText = "Error: " + data.error;
+                    document.getElementById('uploadBtn').disabled = false;
+                    ws.close();
+                }
+            };
+
+            ws.onerror = function(error) {
+                console.error("WebSocket error:", error);
+                document.getElementById('statusText').innerText = "WebSocket error occurred.";
+                document.getElementById('uploadBtn').disabled = false;
+            };
+        }
+    </script>
+</body>
+</html>

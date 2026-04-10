@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  video-text-api:
+    image: minhtumtn/video-to-text-api:latest
+    container_name: video_to_text_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HF_HOME=/app/models
+    volumes:
+      # Mount models folder to prevent the app from re-downloading the AI model on every restart
+      - ./models:/app/models
+      # Mount the outputs directory so you can access the JSON results directly on the VPS
+      - ./outputs:/app/outputs
