@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      {
+        source: "/api/proxy/:path*",
+        destination: `${process.env.BACKEND_URL || "http://20.194.32.60:8080/api"}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
