@@ -253,7 +253,7 @@ async def upload_video(background_tasks: BackgroundTasks, file: UploadFile = Fil
 
     return {
         "task_id": task_id,
-        "websocket_url": f"ws://localhost:8000/ws/progress/{task_id}"
+        "websocket_url": f"ws://100.114.196.98:8000/ws/progress/{task_id}"
     }
 
 # ======================
