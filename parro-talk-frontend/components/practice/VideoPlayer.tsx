@@ -12,8 +12,18 @@ interface Segment {
 export default function VideoPlayer({ src, activeSegment }: { src?: string, activeSegment?: Segment }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [isLooping, setIsLooping] = useState(true);
+  const [isLooping, setIsLooping] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("parrotalk_video_loop");
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return false;
+  });
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    localStorage.setItem("parrotalk_video_loop", JSON.stringify(isLooping));
+  }, [isLooping]);
   const [progressPercent, setProgressPercent] = useState(0);
 
   const handleReplay = useCallback(() => {

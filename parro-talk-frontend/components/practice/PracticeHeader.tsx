@@ -1,9 +1,12 @@
 "use client";
 
-import { Settings, HelpCircle, User } from "lucide-react";
+import { Settings, HelpCircle, User as UserIcon } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
 
 export default function PracticeHeader() {
+  const { user } = useAuth();
+  
   return (
     <header className="h-16 bg-white border-b border-gray-100 px-6 flex items-center justify-between sticky top-0 z-10">
       <div className="flex items-center gap-8">
@@ -27,8 +30,8 @@ export default function PracticeHeader() {
           <button className="p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-50 rounded-xl transition-all">
               <HelpCircle size={18} />
           </button>
-          <div className="w-8 h-8 rounded-lg bg-gray-100 overflow-hidden border-2 border-white shadow-sm ml-1">
-              <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="User" />
+          <div className="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center font-black text-xs border-2 border-white shadow-sm ml-1 uppercase">
+              {user?.fullName?.charAt(0) || "U"}
           </div>
       </div>
     </header>

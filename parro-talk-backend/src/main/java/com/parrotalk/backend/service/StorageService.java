@@ -2,6 +2,8 @@ package com.parrotalk.backend.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -9,14 +11,21 @@ import java.io.IOException;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class StorageService {
-    private final Cloudinary cloudinary;
+    private Cloudinary cloudinary;
 
-    public StorageService(
-            @Value("${app.cloudinary.cloud_name:dummy_cloud}") String cloudName,
-            @Value("${app.cloudinary.api_key:dummy_key}") String apiKey,
-            @Value("${app.cloudinary.api_secret:dummy_secret}") String apiSecret
-    ) {
+    @Value("${app.cloudinary.cloud_name:dummy_cloud}") 
+    private String cloudName;
+    
+    @Value("${app.cloudinary.api_key:dummy_key}") 
+    private String apiKey;
+    
+    @Value("${app.cloudinary.api_secret:dummy_secret}") 
+    private String apiSecret;
+
+    @PostConstruct
+    public void init() {
         this.cloudinary = new Cloudinary(ObjectUtils.asMap(
                 "cloud_name", cloudName,
                 "api_key", apiKey,

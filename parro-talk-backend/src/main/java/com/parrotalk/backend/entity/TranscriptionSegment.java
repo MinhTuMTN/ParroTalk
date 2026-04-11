@@ -1,17 +1,33 @@
 package com.parrotalk.backend.entity;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 import java.util.UUID;
 
 @Entity
 @Table(name = "transcription_segments")
-public class TranscriptionSegment {
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@SQLDelete(sql = "UPDATE transcription_segments SET is_deleted = true WHERE id = ?")
+@SQLRestriction("is_deleted = false")
+public class TranscriptionSegment extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
-    private UUID jobId;
+    private UUID lessonId;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String text;
@@ -22,54 +38,4 @@ public class TranscriptionSegment {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SegmentType type;
-
-    public TranscriptionSegment() {}
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public UUID getJobId() {
-        return jobId;
-    }
-
-    public void setJobId(UUID jobId) {
-        this.jobId = jobId;
-    }
-
-    public String getText() {
-        return text;
-    }
-
-    public void setText(String text) {
-        this.text = text;
-    }
-
-    public double getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(double startTime) {
-        this.startTime = startTime;
-    }
-
-    public double getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(double endTime) {
-        this.endTime = endTime;
-    }
-
-    public SegmentType getType() {
-        return type;
-    }
-
-    public void setType(SegmentType type) {
-        this.type = type;
-    }
 }

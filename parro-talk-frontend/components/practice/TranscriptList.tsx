@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { getDictationMatching } from "@/lib/utils";
 
 interface Segment {
@@ -18,7 +18,18 @@ interface TranscriptListProps {
 }
 
 export default function TranscriptList({ segments, activeIndex, completedIndices, inputs, onSelectSentence }: TranscriptListProps) {
-  
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const activeElement = document.getElementById(`segment-${activeIndex}`);
+    if (activeElement) {
+        activeElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+        });
+    }
+  }, [activeIndex]);
+
   const maskText = (text: string) => {
     return text.replace(/[a-zA-Z0-9]/g, "•");
   };
@@ -33,7 +44,7 @@ export default function TranscriptList({ segments, activeIndex, completedIndices
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-4 w-full">
+    <div ref={containerRef} className="flex-1 flex flex-col gap-4 w-full">
       <div className="flex items-center justify-between pb-2">
           <h2 className="text-lg font-black text-gray-800">Session Transcript</h2>
           <div className="flex bg-gray-50 p-1 rounded-xl gap-0.5">
@@ -52,6 +63,7 @@ export default function TranscriptList({ segments, activeIndex, completedIndices
           return (
             <div 
                 key={index}
+                id={`segment-${index}`}
                 onClick={() => onSelectSentence(index)}
                 className={`
                     p-4 rounded-2xl border transition-all relative duration-500 cursor-pointer

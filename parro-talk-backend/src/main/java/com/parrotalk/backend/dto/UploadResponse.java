@@ -1,29 +1,19 @@
 package com.parrotalk.backend.dto;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
 import java.util.UUID;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UploadResponse {
-    private UUID jobId;
+    private UUID lessonId;
     private String message;
-
-    public UploadResponse(UUID jobId, String message) {
-        this.jobId = jobId;
-        this.message = message;
-    }
-
-    public UUID getJobId() {
-        return jobId;
-    }
-
-    public void setJobId(UUID jobId) {
-        this.jobId = jobId;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
 }

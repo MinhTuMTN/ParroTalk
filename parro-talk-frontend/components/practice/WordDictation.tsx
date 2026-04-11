@@ -61,7 +61,7 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
           const isActive = idx == currentIdx;
           const isAfterActive = idx > currentIdx;
 
-          let className = "text-gray-200 bg-gray-50/50 border border-gray-100 rounded-xl px-2 py-1 inline-flex items-center justify-center min-h-[32px]";
+          let className = "text-gray-500 bg-gray-50/50 border border-gray-200 rounded-xl px-2 py-1 inline-flex items-center justify-center min-h-[32px]";
           
           if (!isAfterActive && fullInput.length > 0) {
             className =

@@ -8,4 +8,5 @@ downloads/
 *.mp4
 
 docker-command.txt
+outputs
 models/

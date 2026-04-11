@@ -1,16 +1,10 @@
 import Link from "next/link";
 import { Play } from "lucide-react";
 
-interface Job {
-  id: string;
-  status: string;
-  progress: number;
-  currentStep: string;
-  fileUrl: string;
-  createdAt: string;
-}
+import { Lesson } from "@/lib/services/lessonService";
 
-export default function FeaturedLesson({ job }: { job: Job }) {
+export default function FeaturedLesson({ job }: { job: Lesson }) {
+
     // Extract a mock title from the fileUrl
     const urlParts = job.fileUrl.split('/');
     const rawName = urlParts[urlParts.length - 1] || "Untitled Lesson";
@@ -18,14 +12,14 @@ export default function FeaturedLesson({ job }: { job: Job }) {
 
     // Logic routing
     const href = job.status === "DONE" ? `/practice/${job.id}` : "#";
-    
+
     return (
         <div className="relative w-full bg-gray-900 rounded-[2rem] overflow-hidden shadow-2xl flex flex-col md:flex-row group mb-8">
             {/* Background Image with Overlay */}
             <div className="absolute inset-0 z-0">
-                <img 
-                    src="https://m.media-amazon.com/images/I/71z9av0Rs1L.jpg" 
-                    alt="Featured bg" 
+                <img
+                    src="https://m.media-amazon.com/images/I/71z9av0Rs1L.jpg"
+                    alt="Featured bg"
                     className="w-full h-full object-cover opacity-20 group-hover:opacity-30 transition-opacity duration-700 blur border-0"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/90 to-transparent" />
@@ -61,12 +55,12 @@ export default function FeaturedLesson({ job }: { job: Job }) {
                     </button>
                 </div>
             </div>
-            
+
             {/* Right side graphical focus */}
             <div className="relative z-10 w-full md:w-2/5 min-h-[300px] hidden md:flex items-center justify-center p-8 lg:p-12">
-                <img 
-                    src="https://m.media-amazon.com/images/I/71z9av0Rs1L.jpg" 
-                    alt="Cover" 
+                <img
+                    src="https://m.media-amazon.com/images/I/71z9av0Rs1L.jpg"
+                    alt="Cover"
                     className="w-full h-auto max-h-[300px] object-cover rounded-2xl shadow-2xl rotate-2 group-hover:rotate-0 transition-transform duration-500 border border-white/10"
                     style={{ aspectRatio: "16/9" }}
                 />

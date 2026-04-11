@@ -1,6 +1,8 @@
-import { Mic, Play, Book, FileText, BarChart2, Star, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Mic, Play, Book, FileText, Star, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -9,6 +11,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   const menuItems = [
     { icon: Play, label: "Library", path: "/library", active: true },
@@ -20,16 +23,43 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   return (
     <aside className={`bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0 transition-all duration-300 ${isCollapsed ? "w-20" : "w-64"}`}>
       <div className={`p-6 ${isCollapsed ? "flex flex-col items-center" : ""}`}>
-        <div className={`flex items-center justify-between mb-10 ${isCollapsed ? "w-full flex-col gap-4" : ""}`}>
-          <div className="flex items-center gap-2">
-            <div className="bg-green-500 p-2 rounded-xl text-white shadow-lg shadow-green-100 shrink-0">
-              <Mic size={20} />
-            </div>
-            {!isCollapsed && <span className="text-xl font-black tracking-tight text-gray-800 transition-all">ParroTalk</span>}
-          </div>
-          <button 
+        <div
+          className={`flex mb-10 ${isCollapsed
+            ? "flex-col items-center gap-4"
+            : "items-center justify-between"
+            }`}
+        >
+          {/* Logo */}
+          <Link href="/" className="flex items-center justify-center group outline-none">
+            {isCollapsed ? (
+              <div className="relative w-14 h-14">
+                <Image
+                  src="/logo.png"
+                  alt="ParroTalk Logo"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority
+                  className="object-contain"
+                />
+              </div>
+            ) : (
+              <div className="relative w-45 h-16">
+                <Image
+                  src="/logo_long.png"
+                  alt="ParroTalk Logo"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  priority
+                  className="object-contain object-left"
+                />
+              </div>
+            )}
+          </Link>
+
+          {/* Toggle button */}
+          <button
             onClick={onToggle}
-            className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-90"
+            className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-90 z-10"
           >
             {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
@@ -51,14 +81,14 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {/* Menu */}
         <nav className={`flex flex-col gap-2 ${isCollapsed ? "items-center" : ""}`}>
           {menuItems.map((item, index) => (
-            <Link 
+            <Link
               key={index}
               href={item.path}
               title={isCollapsed ? item.label : ""}
               className={`
                 flex items-center gap-4 px-3 py-2.5 rounded-xl font-bold transition-all relative group
-                ${item.active 
-                  ? "bg-green-500 text-white shadow-lg shadow-green-100" 
+                ${item.active
+                  ? "bg-green-500 text-white shadow-lg shadow-green-100"
                   : "text-gray-400 hover:text-green-500 hover:bg-green-50"}
                 ${isCollapsed ? "w-10 justify-center p-0 h-10" : ""}
               `}
@@ -75,8 +105,11 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           <Star size={16} fill="currentColor" className="shrink-0" />
           {!isCollapsed && "Unlock Pro"}
         </button>
-        
-        <button className={`flex items-center gap-4 text-gray-400 font-bold hover:text-red-500 transition-all ${isCollapsed ? "w-10 h-10 justify-center pr-0" : "px-4 py-2 text-sm"}`}>
+
+        <button
+          onClick={logout}
+          className={`flex items-center gap-4 text-gray-400 font-bold hover:text-red-500 transition-all ${isCollapsed ? "w-10 h-10 justify-center pr-0" : "px-4 py-2 text-sm"}`}
+        >
           <LogOut size={20} className="shrink-0" />
           {!isCollapsed && "Logout"}
         </button>

@@ -1,16 +1,10 @@
 import Link from "next/link";
 import { Headphones, Play } from "lucide-react";
 
-interface Job {
-  id: string;
-  status: string;
-  progress: number;
-  currentStep: string;
-  fileUrl: string;
-  createdAt: string;
-}
+import { Lesson } from "@/lib/services/lessonService";
 
-export default function LessonCard({ job }: { job: Job }) {
+export default function LessonCard({ job }: { job: Lesson }) {
+
     const urlParts = job.fileUrl.split('/');
     const rawName = urlParts[urlParts.length - 1] || "Untitled";
     const title = decodeURIComponent(rawName.substring(rawName.indexOf('_') + 1)).replace(/\.[^/.]+$/, "");

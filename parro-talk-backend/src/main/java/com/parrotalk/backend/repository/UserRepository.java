@@ -1,6 +1,6 @@
 package com.parrotalk.backend.repository;
 
-import com.parrotalk.backend.entity.Job;
+import com.parrotalk.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface JobRepository extends JpaRepository<Job, UUID> {
-    Optional<Job> findByFileHash(String fileHash);
+public interface UserRepository extends JpaRepository<User, UUID> {
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
 }

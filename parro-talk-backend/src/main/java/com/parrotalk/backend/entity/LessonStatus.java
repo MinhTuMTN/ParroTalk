@@ -1,6 +1,6 @@
 package com.parrotalk.backend.entity;
 
-public enum JobStatus {
+public enum LessonStatus {
     PENDING,
     PROCESSING,
     DONE,

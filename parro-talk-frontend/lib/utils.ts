@@ -69,7 +69,7 @@ export function getDictationMatching(userInput: string, targetSentence: string):
         if (tChar.toLowerCase() === uChar.toLowerCase()) {
           displayString += tChar;
         } else {
-          displayString += "*";
+          displayString += "•";
         }
       } else {
         displayString += tChar;

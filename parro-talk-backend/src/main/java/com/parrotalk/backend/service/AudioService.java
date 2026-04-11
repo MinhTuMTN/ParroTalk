@@ -1,7 +1,9 @@
 package com.parrotalk.backend.service;
 
-import com.parrotalk.backend.entity.Job;
-import com.parrotalk.backend.entity.JobStatus;
+import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.entity.Lesson;
+import com.parrotalk.backend.entity.LessonStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -11,39 +13,33 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class AudioService {
 
     private final StorageService storageService;
-    private final JobService jobService;
+    private final LessonService lessonService;
     private final TranscriptionProcessingService processingService;
 
-    public AudioService(StorageService storageService, JobService jobService,
-            TranscriptionProcessingService processingService) {
-        this.storageService = storageService;
-        this.jobService = jobService;
-        this.processingService = processingService;
-    }
-
-    public Job processUpload(MultipartFile file) {
+    public Lesson processUpload(MultipartFile file, User owner) {
         try {
             String fileHash = DigestUtils.md5DigestAsHex(file.getInputStream());
-            Optional<Job> existingJob = jobService.findByFileHash(fileHash);
+            Optional<Lesson> existingLesson = lessonService.findByFileHash(fileHash);
 
-            if (existingJob.isPresent()) {
-                Job job = existingJob.get();
-                if (job.getStatus() != JobStatus.FAILED) {
-                    return job; // Short-circuit, don't re-upload
+            if (existingLesson.isPresent()) {
+                Lesson lesson = existingLesson.get();
+                if (lesson.getStatus() != LessonStatus.FAILED) {
+                    return lesson;
                 }
             }
 
             String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
             String fileUrl = storageService.store(file, filename);
 
-            Job job = jobService.createJob(fileUrl, fileHash);
+            Lesson lesson = lessonService.createLesson(fileUrl, fileHash, owner);
 
-            processingService.startTranscription(job.getId(), file);
+            processingService.startTranscription(lesson.getId(), file);
 
-            return job;
+            return lesson;
         } catch (IOException e) {
             throw new RuntimeException("Failed to generate checksum for file", e);
         }
