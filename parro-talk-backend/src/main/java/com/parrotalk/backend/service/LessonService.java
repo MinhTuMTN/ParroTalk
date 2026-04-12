@@ -7,6 +7,8 @@ import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.LessonStatus;
 import com.parrotalk.backend.repository.LessonRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LessonService {
     private final LessonRepository lessonRepository;
     private final SseService sseService;
@@ -24,10 +27,10 @@ public class LessonService {
     @Transactional
     public Lesson createLesson(String fileUrl, String fileHash, User owner) {
         Lesson lesson = Lesson.builder()
-            .fileUrl(fileUrl)
-            .fileHash(fileHash)
-            .ownerId(owner.getId())
-            .build();
+                .fileUrl(fileUrl)
+                .fileHash(fileHash)
+                .ownerId(owner.getId())
+                .build();
         return lessonRepository.save(lesson);
     }
 
@@ -37,7 +40,7 @@ public class LessonService {
 
     public LessonResponse getLessonResponse(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
-            .orElseThrow(() -> new RuntimeException("Lesson not found"));
+                .orElseThrow(() -> new RuntimeException("Lesson not found"));
         return mapToResponse(lesson);
     }
 
@@ -51,9 +54,9 @@ public class LessonService {
         }
 
         return lessons.stream()
-            .map(this::mapToResponse)
-            .sorted((j1, j2) -> j2.getCreatedAt().compareTo(j1.getCreatedAt()))
-            .collect(Collectors.toList());
+                .map(this::mapToResponse)
+                .sorted((j1, j2) -> j2.getCreatedAt().compareTo(j1.getCreatedAt()))
+                .collect(Collectors.toList());
     }
 
     private LessonResponse mapToResponse(Lesson lesson) {
@@ -72,6 +75,8 @@ public class LessonService {
 
     @Transactional
     public void updateProgress(UUID lessonId, int progress, String step, LessonStatus status) {
+        log.info("Updating progress for lesson: {}, progress: {}, step: {}, status: {}", lessonId, progress, step,
+                status);
         Lesson lesson = lessonRepository.findById(lessonId).orElseThrow(() -> new RuntimeException("Lesson not found"));
         boolean updated = false;
 
@@ -91,10 +96,9 @@ public class LessonService {
         if (updated) {
             lessonRepository.save(lesson);
             sseService.sendEvent(lessonId, Map.of(
-                "status", lesson.getStatus(),
-                "progress", lesson.getProgress(),
-                "step", lesson.getCurrentStep()
-            ));
+                    "status", lesson.getStatus(),
+                    "progress", lesson.getProgress(),
+                    "step", lesson.getCurrentStep()));
         }
     }
 

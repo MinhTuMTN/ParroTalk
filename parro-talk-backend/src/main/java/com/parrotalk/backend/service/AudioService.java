@@ -18,7 +18,7 @@ public class AudioService {
 
     private final StorageService storageService;
     private final LessonService lessonService;
-    private final TranscriptionProcessingService processingService;
+    private final AudioTaskProducer audioTaskProducer;
 
     public Lesson processUpload(MultipartFile file, User owner) {
         try {
@@ -37,7 +37,7 @@ public class AudioService {
 
             Lesson lesson = lessonService.createLesson(fileUrl, fileHash, owner);
 
-            processingService.startTranscription(lesson.getId(), file);
+            audioTaskProducer.sendTranscriptionTask(lesson.getId(), fileUrl);
 
             return lesson;
         } catch (IOException e) {
