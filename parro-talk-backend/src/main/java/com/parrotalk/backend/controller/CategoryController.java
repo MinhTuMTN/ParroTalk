@@ -1,7 +1,6 @@
 package com.parrotalk.backend.controller;
 
 import com.parrotalk.backend.dto.CategoryResponse;
-import com.parrotalk.backend.entity.Category;
 import com.parrotalk.backend.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

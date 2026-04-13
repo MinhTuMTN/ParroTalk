@@ -6,9 +6,10 @@ import lombok.Setter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
-import com.parrotalk.backend.entity.LessonStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
+
+import com.parrotalk.backend.constant.LessonStatus;
 
 @Getter
 @Setter

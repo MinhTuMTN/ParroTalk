@@ -3,8 +3,7 @@ package com.parrotalk.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parrotalk.backend.config.RabbitMQConfig;
-import com.parrotalk.backend.entity.LessonStatus;
-import com.parrotalk.backend.entity.SegmentType;
+import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -74,7 +73,6 @@ public class AudioResultConsumer {
                     .text(seg.get("text").asText().trim())
                     .startTime(seg.get("start").asDouble())
                     .endTime(seg.get("end").asDouble())
-                    .type(SegmentType.SENTENCE)
                     .build();
             segments.add(segment);
         }

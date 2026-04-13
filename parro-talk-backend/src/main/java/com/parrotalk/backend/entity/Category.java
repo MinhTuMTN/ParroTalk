@@ -16,6 +16,11 @@ import org.hibernate.annotations.SQLRestriction;
 
 import java.util.UUID;
 
+/**
+ * Lesson category.
+ * 
+ * @author MinhTuMTN
+ */
 @Entity
 @Table(name = "categories")
 @Getter
@@ -27,10 +32,12 @@ import java.util.UUID;
 @SQLRestriction("is_deleted = false")
 public class Category extends BaseEntity {
 
+    /** Category ID */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Category Name */
     @Column(nullable = false, unique = true)
     private String name;
 }

@@ -15,5 +15,4 @@ import java.util.List;
 @Builder
 public class TranscriptionResponse {
     private List<TranscriptionSegmentDTO> sentences;
-    private List<TranscriptionSegmentDTO> words;
 }

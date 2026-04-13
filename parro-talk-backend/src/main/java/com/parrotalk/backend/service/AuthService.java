@@ -1,8 +1,8 @@
 package com.parrotalk.backend.service;
 
-import com.parrotalk.backend.entity.Role;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.security.JwtUtils;
+import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

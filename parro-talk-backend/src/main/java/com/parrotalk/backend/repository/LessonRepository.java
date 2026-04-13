@@ -11,8 +11,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.entity.Lesson;
-import com.parrotalk.backend.entity.LessonStatus;
 
 /**
  * Lesson repository.

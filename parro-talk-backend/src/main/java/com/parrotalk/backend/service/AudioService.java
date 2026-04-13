@@ -1,8 +1,9 @@
 package com.parrotalk.backend.service;
 
 import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.entity.Lesson;
-import com.parrotalk.backend.entity.LessonStatus;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
@@ -88,6 +89,8 @@ public class AudioService {
         lesson.setCurrentStep("Uploading");
         lessonService.save(lesson);
 
+        // Delete all relative TransactionSegment
+        
         // Send task to RabbitMQ
         audioTaskProducer.sendTranscriptionTask(lesson.getId(), lesson.getFileUrl());
 

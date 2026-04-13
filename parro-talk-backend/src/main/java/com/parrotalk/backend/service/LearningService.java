@@ -1,5 +1,6 @@
 package com.parrotalk.backend.service;
 
+import com.parrotalk.backend.constant.Difficulty;
 import com.parrotalk.backend.dto.SegmentResultRequest;
 import com.parrotalk.backend.dto.SubmitLessonRequest;
 import com.parrotalk.backend.dto.SubmitLessonResponse;

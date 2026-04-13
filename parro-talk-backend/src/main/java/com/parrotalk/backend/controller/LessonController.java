@@ -84,12 +84,11 @@ public class LessonController {
                 .progress(lesson.getProgress())
                 .currentStep(lesson.getCurrentStep())
                 .fileUrl(lesson.getFileUrl())
-                .youtubeUrl(lesson.getYoutubeUrl())
                 .mediaType(lesson.getMediaType().name())
                 .sourceType(lesson.getSourceType().name())
                 .createdAt(lesson.getCreatedAt())
                 .title(lesson.getTitle())
-                .content(lesson.getContent())
+                .content(lesson.getDescription())
                 .duration(lesson.getDuration())
                 .categories(cats)
                 .build();

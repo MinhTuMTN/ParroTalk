@@ -9,8 +9,17 @@ import lombok.Setter;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.constant.MediaType;
+import com.parrotalk.backend.constant.SourceType;
+
 import java.util.UUID;
 
+/**
+ * Lesson entity.
+ * 
+ * @author MinhTuMTN
+ */
 @Entity
 @Table(name = "lessons")
 @Getter
@@ -22,53 +31,62 @@ import java.util.UUID;
 @SQLRestriction("is_deleted = false")
 public class Lesson extends BaseEntity {
 
+    /** Lesson ID */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Audio/Video file URL */
     @Column(nullable = false)
     private String fileUrl;
 
-    @Column(nullable = false, unique = true)
+    /** Audio/Video file hash */
+    @Column(nullable = true, unique = true)
     private String fileHash;
 
+    /** Lesson status */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private LessonStatus status = LessonStatus.PENDING;
 
+    /** Transcription progress */
     @Builder.Default
     private int progress = 0;
 
+    /** Current step */
     @Builder.Default
     private String currentStep = "Initializing...";
 
-    // New Media fields
+    /** Media type */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private MediaType mediaType = MediaType.AUDIO;
 
+    /** Source type */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private SourceType sourceType = SourceType.CLOUDINARY;
 
-    @Column(name = "youtube_url")
-    private String youtubeUrl;
-
+    /** Owner ID */
     @Column(name = "owner_id")
     private UUID ownerId;
 
+    /** Display title */
     @Column
     private String title;
 
+    /** Description */
     @Column(columnDefinition = "TEXT")
-    private String content;
+    private String description;
 
+    /** Lesson duration */
     @Column
     private Integer duration;
 
+    /** List categories */
     @ManyToMany
     @JoinTable(
         name = "lesson_categories",

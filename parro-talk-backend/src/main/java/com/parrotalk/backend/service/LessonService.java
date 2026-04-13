@@ -12,10 +12,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.entity.Lesson;
-import com.parrotalk.backend.entity.LessonStatus;
-import com.parrotalk.backend.entity.Role;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.repository.LessonRepository;
 
@@ -104,7 +104,6 @@ public class LessonService {
                 .createdAt(lesson.getCreatedAt())
                 .mediaType(lesson.getMediaType().name())
                 .sourceType(lesson.getSourceType().name())
-                .youtubeUrl(lesson.getYoutubeUrl())
                 .build();
     }
 
