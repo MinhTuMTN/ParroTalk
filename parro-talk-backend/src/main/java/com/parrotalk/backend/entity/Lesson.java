@@ -60,5 +60,21 @@ public class Lesson extends BaseEntity {
     @Column(name = "owner_id")
     private UUID ownerId;
 
+    @Column
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @Column
+    private Integer duration;
+
+    @ManyToMany
+    @JoinTable(
+        name = "lesson_categories",
+        joinColumns = @JoinColumn(name = "lesson_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private java.util.Set<Category> categories;
 
 }

@@ -38,4 +38,7 @@ public class TranscriptionSegment extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SegmentType type;
+
+    @Enumerated(EnumType.STRING)
+    private Difficulty difficulty;
 }

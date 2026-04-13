@@ -9,7 +9,7 @@ interface Segment {
   text: string;
 }
 
-export default function VideoPlayer({ src, activeSegment }: { src?: string, activeSegment?: Segment }) {
+export default function VideoPlayer({ src, activeSegment, onReplay }: { src?: string, activeSegment?: Segment, onReplay?: () => void }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [isLooping, setIsLooping] = useState(() => {
@@ -31,8 +31,9 @@ export default function VideoPlayer({ src, activeSegment }: { src?: string, acti
        videoRef.current.currentTime = activeSegment.start;
        videoRef.current.play().catch(e => console.log("Playback error", e));
        setIsPlaying(true);
+       if (onReplay) onReplay();
     }
-  }, [activeSegment]);
+  }, [activeSegment, onReplay]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

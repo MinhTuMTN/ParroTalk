@@ -12,9 +12,10 @@ interface WordDictationProps {
   fullInput: string;
   onInputChange: (val: string) => void;
   onSentenceComplete: () => void;
+  onHintUsed?: () => void;
 }
 
-export default function WordDictation({ sentence, fullInput, onInputChange, onSentenceComplete }: WordDictationProps) {
+export default function WordDictation({ sentence, fullInput, onInputChange, onSentenceComplete, onHintUsed }: WordDictationProps) {
   const targetWords = useMemo(() => sentence.split(" "), [sentence]);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +49,24 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onInputChange(e.target.value);
+  };
+
+  const requestHint = () => {
+    if (isAllMatched || currentIdx >= targetWords.length) return;
+    const targetWord = targetWords[currentIdx];
+    if (targetWord) {
+      if (onHintUsed) onHintUsed();
+      // Auto-complete the current word for them
+      const words = fullInput.split(/\s+/).filter(w => w.length > 0);
+      words[currentIdx] = targetWord;
+      const newValue = words.join(" ") + " ";
+      onInputChange(newValue);
+      
+      // Keep focus on input
+      requestAnimationFrame(() => {
+          if (inputRef.current) inputRef.current.focus();
+      });
+    }
   };
 
   return (
@@ -107,6 +126,9 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
             autoFocus
           />
           <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                <button onClick={requestHint} title="Get Hint" className="flex items-center gap-2 px-2 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
+                    HINT
+                </button>
                 <div className="flex items-center gap-2 px-2 py-1 bg-gray-200/50 rounded-lg text-[9px] font-black text-gray-400 uppercase tracking-widest">
                     <span className="bg-white px-1 py-0.5 rounded shadow-sm">ESC</span>
                     Repeat

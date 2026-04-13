@@ -1,43 +1,67 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import LessonCard from "@/components/library/LessonCard";
 import FeaturedLesson from "@/components/library/FeaturedLesson";
-import { Search, Bell, LogOut, Loader2 } from "lucide-react";
+import { Search, Bell, LogOut, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { useDebounce } from "use-debounce";
 
-import { lessonService, Lesson } from "@/lib/services/lessonService";
+import { lessonService, Lesson, Category } from "@/lib/services/lessonService";
 
 export default function LibraryPage() {
     const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
     const router = useRouter();
 
     const [jobs, setJobs] = useState<Lesson[]>([]);
-    const [filter, setFilter] = useState("All");
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [activeCategory, setActiveCategory] = useState<string>("");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearch] = useDebounce(searchQuery, 500);
+    const [page, setPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(true);
+
+    const fetchCategories = useCallback(async () => {
+        try {
+            const data = await lessonService.getCategories();
+            if (data) setCategories(data);
+        } catch (e) {
+            console.error("Failed to load categories", e);
+        }
+    }, []);
+
+    const fetchLessons = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await lessonService.getAllLessons(page, 9, debouncedSearch, activeCategory);
+            setJobs(data.content || []);
+            setTotalPages(data.totalPages || 0);
+        } catch (err) {
+            console.error("Error fetching lessons:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [page, debouncedSearch, activeCategory]);
 
     useEffect(() => {
         if (!isAuthLoading && !isAuthenticated) {
             router.push("/login");
             return;
         }
+        if (isAuthenticated) {
+            fetchCategories();
+        }
+    }, [isAuthenticated, isAuthLoading, router, fetchCategories]);
 
-        const fetchLessons = async () => {
-            try {
-                const data = await lessonService.getAllLessons();
-                setJobs(data);
-            } catch (err) {
-                console.error("Error fetching lessons:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchLessons();
-    }, [isAuthenticated, isAuthLoading, router]);
+    useEffect(() => {
+        if (isAuthenticated) {
+            fetchLessons();
+        }
+    }, [fetchLessons, isAuthenticated]);
 
     if (isAuthLoading) {
         return (
@@ -47,17 +71,8 @@ export default function LibraryPage() {
         );
     }
 
-    const filteredJobs = jobs.filter(job => {
-        if (filter === "All") return true;
-        if (filter === "In Progress") return job.status === "PROCESSING" || job.status === "PENDING";
-        if (filter === "Completed") return job.status === "DONE";
-        if (filter === "Audio") return job.fileUrl.match(/\.(mp3|wav|m4a|aac)$/i);
-        if (filter === "Video") return job.fileUrl.match(/\.(mp4|mkv|mov|avi)$/i);
-        return true;
-    });
-
-    const featuredJob = jobs.length > 0 ? jobs[0] : null;
-    const gridJobs = filteredJobs.filter(job => job.id !== featuredJob?.id);
+    const featuredJob = page === 0 && jobs.length > 0 && !debouncedSearch && !activeCategory ? jobs[0] : null;
+    const gridJobs = jobs.filter(job => job.id !== featuredJob?.id);
 
     return (
         <>
@@ -65,8 +80,7 @@ export default function LibraryPage() {
             <header className="px-8 py-5 flex items-center justify-between border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="hidden md:flex gap-10 text-sm font-bold">
                     <span className="text-green-500 border-b-2 border-green-500 pb-1">Lesson Library</span>
-                    <span className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer">My Progress</span>
-                    <span className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer">Downloads</span>
+                    <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer">My Progress</Link>
                 </div>
 
                 {/* Mobile title */}
@@ -79,6 +93,8 @@ export default function LibraryPage() {
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" />
                         <input
                             type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search lessons..."
                             className="bg-gray-50 border border-gray-100 rounded-full pl-10 pr-4 py-2 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 text-gray-800 transition-all"
                         />
@@ -114,17 +130,27 @@ export default function LibraryPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {["All", "Audio", "Video", "In Progress", "Completed"].map(f => (
+                        <button
+                            onClick={() => { setActiveCategory(""); setPage(0); }}
+                            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 ${
+                                activeCategory === ""
+                                    ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
+                                    : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
+                            }`}
+                        >
+                            All
+                        </button>
+                        {categories.map(cat => (
                             <button
-                                key={f}
-                                onClick={() => setFilter(f)}
+                                key={cat.id}
+                                onClick={() => { setActiveCategory(cat.id); setPage(0); }}
                                 className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 ${
-                                    filter === f
+                                    activeCategory === cat.id
                                         ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
                                         : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
                                 }`}
                             >
-                                {f}
+                                {cat.name}
                             </button>
                         ))}
                     </div>
@@ -141,13 +167,13 @@ export default function LibraryPage() {
                     </div>
                 ) : (
                     <>
-                        {featuredJob && filter === "All" && (
+                        {featuredJob && (
                             <FeaturedLesson job={featuredJob} />
                         )}
 
-                        {filteredJobs.length > 0 ? (
+                        {jobs.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                                {(filter === "All" ? gridJobs : filteredJobs).map(job => (
+                                {gridJobs.map(job => (
                                     <LessonCard key={job.id} job={job} />
                                 ))}
                             </div>
@@ -158,6 +184,26 @@ export default function LibraryPage() {
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900">No lessons found</h3>
                                 <p className="text-gray-500 max-w-sm">We couldn&apos;t find any lessons matching your filter. Try tweaking your filters or uploading more media.</p>
+                            </div>
+                        )}
+
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-center gap-4 py-8">
+                                <button
+                                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                                    disabled={page === 0}
+                                    className="p-3 bg-white border border-gray-100 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <span className="text-sm font-bold text-gray-600">Page {page + 1} of {totalPages}</span>
+                                <button
+                                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                                    disabled={page === totalPages - 1}
+                                    className="p-3 bg-white border border-gray-100 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
                             </div>
                         )}
                     </>

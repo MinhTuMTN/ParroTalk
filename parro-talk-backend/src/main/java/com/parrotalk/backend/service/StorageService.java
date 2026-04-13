@@ -10,39 +10,62 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.Map;
 
+/**
+ * Storage Service.
+ * 
+ * @author MinhTuMTN
+ */
 @Service
 @RequiredArgsConstructor
 public class StorageService {
+
+    /** Cloudinary instance */
     private Cloudinary cloudinary;
 
-    @Value("${app.cloudinary.cloud_name:dummy_cloud}") 
+    /** Cloud name */
+    @Value("${app.cloudinary.cloud_name:dummy_cloud}")
     private String cloudName;
-    
-    @Value("${app.cloudinary.api_key:dummy_key}") 
+
+    /** API key */
+    @Value("${app.cloudinary.api_key:dummy_key}")
     private String apiKey;
-    
-    @Value("${app.cloudinary.api_secret:dummy_secret}") 
+
+    /** API secret */
+    @Value("${app.cloudinary.api_secret:dummy_secret}")
     private String apiSecret;
 
+    /**
+     * Initialize Cloudinary instance.
+     */
     @PostConstruct
     public void init() {
         this.cloudinary = new Cloudinary(ObjectUtils.asMap(
                 "cloud_name", cloudName,
                 "api_key", apiKey,
                 "api_secret", apiSecret,
-                "secure", true
-        ));
+                "secure", true));
     }
 
+    /**
+     * Store file to Cloudinary.
+     * 
+     * @param file        File to store
+     * @param newFilename New filename
+     * @return File URL
+     */
     public String store(MultipartFile file, String newFilename) {
         try {
+            // Check if file is empty
             if (file.isEmpty()) {
                 throw new RuntimeException("Failed to store empty file.");
             }
-            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
-                "public_id", newFilename,
-                "resource_type", "auto" // Auto detects video or audio
-            ));
+
+            // Upload file to Cloudinary
+            Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                    "public_id", newFilename,
+                    "resource_type", "auto"));
+
+            // Return the file url
             return uploadResult.get("secure_url").toString();
         } catch (IOException e) {
             throw new RuntimeException("Failed to store file to Cloudinary: " + e.getMessage(), e);

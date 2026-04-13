@@ -25,4 +25,8 @@ public class LessonResponse {
     private String mediaType;
     private String sourceType;
     private LocalDateTime createdAt;
+    private String title;
+    private String content;
+    private Integer duration;
+    private java.util.List<CategoryResponse> categories;
 }
