@@ -1,8 +1,8 @@
-package com.parrotalk.backend.entity;
+// package com.parrotalk.backend.entity;
 
-import jakarta.persistence.Entity;
+// import jakarta.persistence.Entity;
 
-@Entity
-public class LessonCategory {
-    
-}
+// @Entity
+// public class LessonCategory {
+
+// }

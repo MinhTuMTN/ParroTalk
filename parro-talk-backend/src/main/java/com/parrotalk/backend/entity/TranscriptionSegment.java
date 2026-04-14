@@ -21,7 +21,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SQLDelete(sql = "UPDATE transcription_segments SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
 public class TranscriptionSegment extends BaseEntity {
 

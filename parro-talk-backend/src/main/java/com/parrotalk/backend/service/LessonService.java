@@ -169,12 +169,17 @@ public class LessonService {
      */
     public List<Lesson> findAllBrokenLessons() {
         // One hour before now
-        LocalDateTime oneHourBefore = LocalDateTime.now().minusHours(1);
-        // Pageable with 50 items per page
-        Pageable pageable = PageRequest.of(0, 50);
-        // Find all lessons with status PROCESSING and created at before one hour before
-        // now
-        return lessonRepository.findAllByStatusAndCreatedAtBefore(LessonStatus.PROCESSING, oneHourBefore, pageable)
-                .getContent();
+        LocalDateTime tenHourBefore = LocalDateTime.now().minusHours(10);
+        // // Pageable with 50 items per page
+        // Pageable pageable = PageRequest.of(0, 50);
+        // // Find all lessons with status PROCESSING and created at before one hour
+        // before
+        // // now
+        // return
+        // lessonRepository.findAllByStatusAndCreatedAtBefore(LessonStatus.PROCESSING,
+        // oneHourBefore, pageable)
+        // .getContent();
+        // return lessonRepository.findAll();
+        return lessonRepository.findAllByStatusAndCreatedAtBefore(LessonStatus.DONE, tenHourBefore);
     }
 }

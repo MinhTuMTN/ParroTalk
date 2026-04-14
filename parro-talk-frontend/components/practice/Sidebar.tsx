@@ -7,21 +7,40 @@ import { useAuth } from "@/context/AuthContext";
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  isMobileMenuOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { logout } = useAuth();
 
   const menuItems = [
-    { icon: Play, label: "Library", path: "/library", active: true },
+    { icon: Play, label: "Library", path: "/library", active: pathname === "/library" },
     { icon: Book, label: "Dictionary", path: "#" },
     { icon: FileText, label: "Notes", path: "#" },
     { icon: Mic, label: "Transcript", path: "#" },
   ];
 
   return (
-    <aside className={`bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0 transition-all duration-300 ${isCollapsed ? "w-20" : "w-64"}`}>
+    <aside
+      className={`
+        bg-white border-r border-gray-100 flex flex-col h-screen top-0 z-[70] transition-all duration-300
+        
+        /* MOBILE & TABLET (< lg) */
+        fixed inset-y-0 left-0 shadow-2xl lg:shadow-none
+        w-[280px] sm:w-[320px]
+        ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+        
+        /* DESKTOP (>= lg) */
+        lg:relative lg:sticky lg:translate-x-0
+        ${isCollapsed ? "lg:w-20" : "lg:w-64"}
+      `}
+
+
+
+    >
+
       <div className={`p-6 ${isCollapsed ? "flex flex-col items-center" : ""}`}>
         <div
           className={`flex mb-10 ${isCollapsed
@@ -56,13 +75,22 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             )}
           </Link>
 
-          {/* Toggle button */}
+          {/* Toggle button - Desktop Only */}
           <button
             onClick={onToggle}
-            className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-90 z-10"
+            className="hidden lg:flex p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-90 z-10"
           >
             {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
+
+          {/* Close button - Mobile Only */}
+          <button
+            onClick={onMobileClose}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-90 z-10"
+          >
+            <PanelLeftClose size={20} />
+          </button>
+
         </div>
 
         {/* Level Indicator */}

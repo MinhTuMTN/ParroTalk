@@ -44,12 +44,13 @@ public class AudioResultConsumer {
 
             if ("FAILED".equalsIgnoreCase(status)) {
                 String errorInfo = node.has("error") ? node.get("error").asText() : "Unknown AI error";
-                lessonService.updateProgress(lessonId, 0, "AI Error: " + errorInfo, LessonStatus.FAILED);
+                log.error(errorInfo);
+                lessonService.updateProgress(lessonId, 0, "AI Error", LessonStatus.FAILED);
                 return;
             }
 
             JsonNode resultNode = node.get("result");
-            if (resultNode != null) {
+            if (resultNode != null && resultNode.has("segments")) {
                 saveRealResults(lessonId, resultNode);
                 lessonService.updateProgress(lessonId, 100, "Completed", LessonStatus.DONE);
             }
@@ -62,10 +63,6 @@ public class AudioResultConsumer {
 
     private void saveRealResults(UUID lessonId, JsonNode resultNode) {
         log.info("Saving real results for lesson: {}", lessonId);
-        if (!resultNode.has("segments")) {
-            return;
-        }
-
         List<TranscriptionSegment> segments = new ArrayList<>();
         for (JsonNode seg : resultNode.get("segments")) {
             TranscriptionSegment segment = TranscriptionSegment.builder()

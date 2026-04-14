@@ -6,7 +6,8 @@ import traceback
 import subprocess
 import requests
 import pika
-from faster_whisper import WhisperModel
+from groq import Groq
+
 
 # ======================
 # LOGGING CONFIG
@@ -20,8 +21,8 @@ logger = logging.getLogger("AudioService")
 # ======================
 # MODEL CONFIG
 # ======================
-MODEL_SIZE = "small.en"
-model = WhisperModel(MODEL_SIZE, device="auto", compute_type="int8")
+# MODEL_SIZE = "small.en"
+# model = WhisperModel(MODEL_SIZE, device="auto", compute_type="int8")
 
 # ======================
 # POST-PROCESSING CONFIG
@@ -35,8 +36,12 @@ TERMINAL_PUNCTUATIONS = {".", "?", "!"}
 # AMQP CONFIG
 # ======================
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_HOST = "localhost"
 RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
 RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "guest")
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 PROCESSING_QUEUE = "audio-processing-queue"
 RESULT_QUEUE = "audio-result-queue"
@@ -183,6 +188,15 @@ def send_progress(ch, lesson_id, progress, step):
         body=json.dumps(payload)
     )
 
+def transcribe_with_groq(file_path: str):
+    with open(file_path, "rb") as f:
+        transcription = groq_client.audio.transcriptions.create(
+            file=f,
+            model="whisper-large-v3",  # Groq model
+            response_format="verbose_json"
+        )
+    return transcription
+
 def process_audio(ch, lesson_id: str, file_url: str) -> dict:
     local_file_path = f"temp_{lesson_id}"
     audio_path = f"{local_file_path}.mp3"
@@ -198,70 +212,17 @@ def process_audio(ch, lesson_id: str, file_url: str) -> dict:
         target_path = audio_path if os.path.exists(audio_path) else local_file_path
         
         logger.info(f"Starting Whisper transcription for {lesson_id}")
-        segments, info = model.transcribe(
-            target_path,
-            beam_size=5,
-            vad_filter=True,
-            vad_parameters=dict(min_silence_duration_ms=300),
-            word_timestamps=True
-        )
+        transcription = transcribe_with_groq(target_path)
 
-        full_text = ""
+        full_text = transcription.text
         segments_data = []
-        duration = info.duration
 
-        for segment in segments:
-            raw_text = segment.text
-            words = segment.words if hasattr(segment, 'words') else None
-            
-            # Send progress update based on current segment timestamp
-            progress_pct = 30 + ( (segment.end / duration) * 60 ) # Map 0-duration to 30%-90%
-            send_progress(ch, lesson_id, round(min(progress_pct, 95), 2), "In progress...")
-
-            if not words:
-                sentences = split_sentences(raw_text)
-                for sentence in sentences:
-                    seg_dict = {"start": segment.start, "end": segment.end, "text": sentence}
-                    segments_data.append(seg_dict)
-                    full_text += " " + sentence
-            else:
-                current_sentence = ""
-                current_start = None
-                current_end = None
-
-                for w in words:
-                    if current_start is None: current_start = w.start
-                    current_end = w.end
-                    current_sentence += w.word
-
-                    if re.search(r'[.!?]$', w.word.strip()):
-                        sent_text = current_sentence.strip()
-                        seg_dict = {
-                            "start": current_start, 
-                            "end": current_end, 
-                            "text": sent_text,
-                            "words": [{"word": x.word, "start": x.start, "end": x.end} for x in words if x.start >= current_start and x.end <= current_end]
-                        }
-                        segments_data.append(seg_dict)
-                        full_text += (" " + sent_text) if full_text else sent_text
-                        current_sentence = ""
-                        current_start = None
-
-                if current_sentence.strip():
-                    sent_text = current_sentence.strip()
-                    seg_dict = {
-                        "start": current_start, 
-                        "end": current_end, 
-                        "text": sent_text,
-                        "words": [{"word": x.word, "start": x.start, "end": x.end} for x in words if x.start >= current_start and x.end <= current_end]
-                    }
-                    segments_data.append(seg_dict)
-                    full_text += (" " + sent_text) if full_text else sent_text
-
-        # -----------------------------
-        # Post-processing: Merge segments
-        # -----------------------------
-        segments_data = post_process_segments(segments_data)
+        for seg in transcription.segments:
+            segments_data.append({
+                "start": seg["start"],
+                "end": seg["end"],
+                "text": seg["text"]
+            })
 
         result_data = {"text": full_text.strip(), "segments": segments_data}
         return {"status": "COMPLETED", "result": result_data}
@@ -304,7 +265,6 @@ def callback(ch, method, properties, body):
         logger.info(f"Published result for lessonId: {lesson_id}")
         
         ch.basic_ack(delivery_tag=method.delivery_tag)
-
     except Exception as e:
         logger.error(f"Failed to process message: {e}")
         # In case of message parsing errors or unexpected failures, nack and don't requeue to send to DLQ

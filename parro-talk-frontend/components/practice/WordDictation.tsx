@@ -22,29 +22,29 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
   const { matchingResult, currentIdx, currentTypedPart, isAllMatched } = useMemo(() => {
     const userInput = fullInput.split(/\s+/);
     const result = getDictationMatching(fullInput, sentence);
-    
+
     // Evaluate fully normalized sequence to capture the completed sequence securely
     const isMatched = cleanStringForMatch(sentence) === cleanStringForMatch(fullInput);
 
     const lastPart = userInput[userInput.length - 1] || "";
     const isCurrentlyTyping = fullInput.length > 0 && !fullInput.endsWith(" ");
 
-    return { 
-        matchingResult: result, 
-        currentIdx: userInput.length - 1, 
-        currentTypedPart: isCurrentlyTyping ? lastPart : "",
-        isAllMatched: isMatched
+    return {
+      matchingResult: result,
+      currentIdx: userInput.length - 1,
+      currentTypedPart: isCurrentlyTyping ? lastPart : "",
+      isAllMatched: isMatched
     };
   }, [fullInput, sentence]);
 
   useEffect(() => {
-     if (isAllMatched) {
-        // Minor timeout rendering UI green glow feedback prior to flushing transition
-        const t = setTimeout(() => {
-            onSentenceComplete();
-        }, 150);
-        return () => clearTimeout(t);
-     }
+    if (isAllMatched) {
+      // Minor timeout rendering UI green glow feedback prior to flushing transition
+      const t = setTimeout(() => {
+        onSentenceComplete();
+      }, 150);
+      return () => clearTimeout(t);
+    }
   }, [isAllMatched, onSentenceComplete]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,18 +61,18 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
       words[currentIdx] = targetWord;
       const newValue = words.join(" ") + " ";
       onInputChange(newValue);
-      
+
       // Keep focus on input
       requestAnimationFrame(() => {
-          if (inputRef.current) inputRef.current.focus();
+        if (inputRef.current) inputRef.current.focus();
       });
     }
   };
 
   return (
-    <div className="w-full bg-white border-t border-gray-100 p-6 flex flex-col items-center gap-6 mt-auto">
+    <div className="w-full bg-white border-t border-gray-100 p-4 sm:p-5 flex flex-col items-center gap-4 mt-auto">
       {/* Visual Word Progress */}
-      <div className="flex flex-wrap justify-center gap-x-3 gap-y-4 max-w-4xl">
+      <div className="flex flex-wrap justify-center gap-x-2 gap-y-3 max-w-4xl">
         {targetWords.map((word, idx) => {
           const match = matchingResult[idx];
           const isMatchedLocal = match?.isMatched || false;
@@ -80,18 +80,18 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
           const isActive = idx == currentIdx;
           const isAfterActive = idx > currentIdx;
 
-          let className = "text-gray-500 bg-gray-50/50 border border-gray-200 rounded-xl px-2 py-1 inline-flex items-center justify-center min-h-[32px]";
-          
+          let className = "text-gray-500 bg-gray-50/50 border border-gray-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]";
+
           if (!isAfterActive && fullInput.length > 0) {
             className =
               isMatchedLocal
-                ? "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-1 inline-flex items-center justify-center min-h-[32px]"
-                : "bg-red-200 text-red-500 scale-105 shadow-xl shadow-red-100 rounded-xl px-2 py-1 inline-flex items-center justify-center min-h-[32px]";
+                ? "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]"
+                : "bg-red-200 text-red-500 scale-105 shadow-xl shadow-red-100 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]";
           }
-          
+
           // Complete sentence passed override style map 
-          if(isAllMatched) {
-             className = "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-1 scale-105 transition-all duration-300 inline-flex items-center justify-center min-h-[32px]";
+          if (isAllMatched) {
+            className = "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm scale-105 transition-all duration-300 inline-flex items-center justify-center min-h-[28px]";
           }
 
           return (
@@ -99,9 +99,9 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
               <div className={className}>
                 {match ? match.displayString : cleanWord(word).replace(/[a-zA-Z0-9]/g, "•")}
               </div>
-              
+
               <div className="absolute top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none bg-gray-800 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest">
-                  {word}
+                {word}
               </div>
             </div>
           );
@@ -109,33 +109,33 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
       </div>
 
       {/* Actual Input Field */}
-      <div className="w-full max-w-2xl relative group mb-2">
-          <input 
-            ref={inputRef}
-            type="text"
-            value={fullInput}
-            onChange={handleInputChange}
-            placeholder="Type what you hear..."
-            className={`
-              w-full bg-gray-50 border-2 rounded-2xl p-4 pl-10 pr-32 text-lg font-bold transition-all outline-none
-              ${currentIdx !== -1 && currentTypedPart.length > 0 && targetWords[currentIdx] && !cleanWord(targetWords[currentIdx]).startsWith(cleanWord(currentTypedPart))
-                ? "border-red-400 focus:bg-white focus:ring-4 focus:ring-red-50 text-red-600 shadow-lg shadow-red-100/50"
-                : "border-gray-100 focus:border-green-400 focus:bg-white focus:ring-4 focus:ring-green-50/50 text-gray-800"}
-              ${isAllMatched ? "border-green-400 bg-green-50 shadow-lg shadow-green-100" : ""}
-            `}
-            autoFocus
-          />
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-4">
-                <button onClick={requestHint} title="Get Hint" className="flex items-center gap-2 px-2 py-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
-                    HINT
-                </button>
-                <div className="flex items-center gap-2 px-2 py-1 bg-gray-200/50 rounded-lg text-[9px] font-black text-gray-400 uppercase tracking-widest">
-                    <span className="bg-white px-1 py-0.5 rounded shadow-sm">ESC</span>
-                    Repeat
-                </div>
-          </div>
-          <Keyboard className="absolute left-[-35px] top-1/2 -translate-y-1/2 text-gray-200 group-focus-within:text-green-200 transition-colors" size={20} />
+      <div className="w-full max-w-2xl relative group mb-1">
+        <input
+          ref={inputRef}
+          type="text"
+          value={fullInput}
+          onChange={handleInputChange}
+          placeholder="Type what you hear..."
+          className={`
+            w-full bg-gray-50 border-2 rounded-2xl 
+            py-2 px-3 sm:py-3 sm:px-4 lg:py-3 lg:px-4
+            text-sm sm:text-base lg:text-lg
+            font-bold transition-all outline-none
+            
+            ${currentIdx !== -1 &&
+              currentTypedPart.length > 0 &&
+              targetWords[currentIdx] &&
+              !cleanWord(targetWords[currentIdx]).startsWith(cleanWord(currentTypedPart))
+              ? "border-red-400 focus:bg-white focus:ring-4 focus:ring-red-50 text-red-600 shadow-lg shadow-red-100/50"
+              : "border-gray-100 focus:border-green-400 focus:bg-white focus:ring-4 focus:ring-green-50/50 text-gray-800"
+            }
+            
+            ${isAllMatched ? "border-green-400 bg-green-50 shadow-lg shadow-green-100" : ""}
+          `}
+          autoFocus
+        />
       </div>
     </div>
+
   );
 }

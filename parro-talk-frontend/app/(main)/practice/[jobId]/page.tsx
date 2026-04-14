@@ -6,7 +6,7 @@ import PracticeHeader from "@/components/practice/PracticeHeader";
 import VideoPlayer from "@/components/practice/VideoPlayer";
 import TranscriptList from "@/components/practice/TranscriptList";
 import WordDictation from "@/components/practice/WordDictation";
-import { Save, CheckCircle } from "lucide-react";
+import { Save, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { lessonService, Sentence, SubmitLessonRequest, SegmentResultRequest } from "@/lib/services/lessonService";
 
@@ -30,6 +30,8 @@ export default function PracticePage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [activeTab, setActiveTab] = useState<'practice' | 'transcript'>('practice');
+
 
   // Use refs for latest state during intervals
   const stateRef = useRef({ segments, completedIndices, inputs, segmentStats, activeIndex });
@@ -70,9 +72,9 @@ export default function PracticePage() {
       const result = await lessonService.submitLesson(jobId, payload);
       setLastSaved(new Date());
       if (isFinished) {
-         // Redirect to result screen
-         localStorage.removeItem(`parrotalk_progress_${jobId}`);
-         router.push(`/result?lessonId=${jobId}&score=${result.score}&passed=${result.passed}`);
+        // Redirect to result screen
+        localStorage.removeItem(`parrotalk_progress_${jobId}`);
+        router.push(`/result?lessonId=${jobId}&score=${result.score}&passed=${result.passed}`);
       }
     } catch (e) {
       console.error("Failed to save progress", e);
@@ -170,6 +172,19 @@ export default function PracticePage() {
     saveToStorage(index, completedIndices, inputs, segmentStats);
   };
 
+  const handleNext = () => {
+    if (activeIndex < segments.length - 1) {
+      handleSelectSentence(activeIndex + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (activeIndex > 0) {
+      handleSelectSentence(activeIndex - 1);
+    }
+  };
+
+
   if (loading || isSubmitting) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center font-bold text-gray-500 gap-4 animate-pulse">
@@ -179,48 +194,75 @@ export default function PracticePage() {
     );
   }
 
+  const totalSentences = segments.length;
+  const currentSentence = activeIndex + 1;
+  const percent = totalSentences > 0 ? Math.round((completedIndices.size / totalSentences) * 100) : 0;
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <PracticeHeader />
+      <PracticeHeader
+        currentSentence={currentSentence}
+        totalSentences={totalSentences}
+        percent={percent}
+      />
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden relative">
-        {/* Save Bar */}
-        <div className="absolute top-4 right-4 z-20 flex gap-2">
-            <button onClick={() => saveProgressToDb(false)} className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200 text-xs font-bold text-gray-600 hover:text-green-600 hover:border-green-200 transition-colors flex items-center gap-2">
-                <Save size={14}/>
-                Save Progress
+
+      <div className="flex-1 overflow-hidden relative flex flex-col">
+        {/* Mobile Tabs */}
+        <div className="md:hidden flex border-b border-gray-100 bg-white shrink-0">
+            <button 
+                onClick={() => setActiveTab('practice')}
+                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'practice' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30' : 'text-gray-400'}`}
+            >
+                Practice
             </button>
-            <button onClick={() => {setIsSubmitting(true); saveProgressToDb(true);}} className="bg-green-500 px-4 py-2 rounded-xl shadow-sm text-white text-xs font-bold hover:bg-green-400 transition-colors flex items-center gap-2">
-                <CheckCircle size={14}/>
-                Finish Lesson
+            <button 
+                onClick={() => setActiveTab('transcript')}
+                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'transcript' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30' : 'text-gray-400'}`}
+            >
+                Transcript
             </button>
         </div>
 
-        <div className="h-full p-8 flex flex-col lg:flex-row gap-8 items-start pt-16 lg:pt-8">
-
+        <div className="flex-1 h-full p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-start relative overflow-hidden">
+          
           {/* Left Column: Player and Controls */}
-          <div className="w-full lg:w-[360px] flex-shrink-0 lg:sticky lg:top-0">
-            <VideoPlayer 
-               src={fileUrl} 
-               activeSegment={activeSegment} 
-               onReplay={() => incrementMetric('replayCount')}
+          <div className={`
+            w-full md:w-[320px] lg:w-[360px] flex-shrink-0 md:sticky md:top-0 transition-all duration-300
+            ${activeTab === 'practice' ? 'block' : 'hidden md:block'}
+          `}>
+            <VideoPlayer
+              src={fileUrl}
+              activeSegment={activeSegment}
+              onReplay={() => incrementMetric('replayCount')}
+              onSave={() => saveProgressToDb(false)}
+              onNext={handleNext}
+              onPrevious={handlePrevious}
+              hasNext={activeIndex < segments.length - 1}
+              hasPrevious={activeIndex > 0}
             />
           </div>
 
           {/* Right Column: Transcript */}
-          <div className="flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar pr-4 pb-32">
+          <div className={`
+            flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar md:pr-4 pb-20 sm:pb-32 w-full
+            ${activeTab === 'transcript' ? 'block' : 'hidden md:block'}
+          `}>
+
             <TranscriptList
               segments={segments}
               activeIndex={activeIndex}
               completedIndices={completedIndices}
               inputs={inputs}
-              onSelectSentence={handleSelectSentence}
+              onSelectSentence={(idx) => {
+                handleSelectSentence(idx);
+                if (activeTab === 'transcript') setActiveTab('practice');
+              }}
             />
           </div>
-
         </div>
       </div>
+
 
       {/* Bottom Area: Dictation Input */}
       {activeSegment && (

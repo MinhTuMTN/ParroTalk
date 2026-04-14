@@ -10,5 +10,8 @@ import java.util.UUID;
 @Repository
 public interface TranscriptionSegmentRepository extends JpaRepository<TranscriptionSegment, Long> {
     List<TranscriptionSegment> findByLessonId(UUID lessonId);
+
     List<TranscriptionSegment> findByLessonIdOrderByStartTimeAsc(UUID lessonId);
+
+    void deleteByLessonId(UUID lessonId);
 }

@@ -9,12 +9,17 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useDebounce } from "use-debounce";
+import { useUI } from "@/context/UIContext";
+import { Menu } from "lucide-react";
+
 
 import { lessonService, Lesson, Category } from "@/lib/services/lessonService";
 
 export default function LibraryPage() {
     const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
+    const { openMobileMenu } = useUI();
     const router = useRouter();
+
 
     const [jobs, setJobs] = useState<Lesson[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -77,66 +82,79 @@ export default function LibraryPage() {
     return (
         <>
             {/* Top Header */}
-            <header className="px-8 py-5 flex items-center justify-between border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="hidden md:flex gap-10 text-sm font-bold">
-                    <span className="text-green-500 border-b-2 border-green-500 pb-1">Lesson Library</span>
-                    <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer">My Progress</Link>
+            <header className="px-4 md:px-8 py-4 md:py-5 flex items-center justify-between border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
+                <div className="flex items-center gap-1">
+                    {/* Hamburger menu */}
+                    <button
+                        onClick={openMobileMenu}
+                        className="lg:hidden p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-95"
+                    >
+                        <Menu size={24} />
+                    </button>
+
+                    <div className="hidden lg:flex gap-10 text-sm font-bold">
+                        <span className="text-green-500 border-b-2 border-green-500 pb-1 shrink-0">Lesson Library</span>
+                        <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer shrink-0">My Progress</Link>
+                    </div>
+
+                    {/* Mobile title */}
+                    <div className="lg:hidden relative w-24 h-7 sm:w-28 sm:h-8">
+                        <Image src="/logo_long.png" alt="ParroTalk" fill className="object-contain" />
+                    </div>
                 </div>
 
-                {/* Mobile title */}
-                <div className="md:hidden relative w-28 h-8">
-                    <Image src="/logo_long.png" alt="ParroTalk" fill className="object-contain" />
-                </div>
-
-                <div className="flex items-center gap-6 text-gray-400">
-                    <div className="relative hidden sm:block">
+                <div className="flex items-center gap-3 sm:gap-6 text-gray-400">
+                    <div className="relative hidden md:block">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" />
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search lessons..."
-                            className="bg-gray-50 border border-gray-100 rounded-full pl-10 pr-4 py-2 w-64 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 text-gray-800 transition-all"
+                            placeholder="Search..."
+                            className="bg-gray-50 border border-gray-100 rounded-full pl-10 pr-4 py-2 w-40 lg:w-64 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 text-gray-800 transition-all"
                         />
                     </div>
-                    <Bell className="w-5 h-5 cursor-pointer hover:text-gray-800 transition-colors" />
 
-                    <div className="flex items-center gap-3 pl-4 border-l border-gray-100">
-                        <div className="hidden sm:flex flex-col items-end">
-                            <span className="text-sm font-black text-gray-800 leading-none">{user?.fullName}</span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role}</span>
+                    <div className="flex items-center gap-2 sm:gap-3 lg:gap-6">
+                        <Bell className="w-5 h-5 cursor-pointer hover:text-gray-800 transition-colors" />
+
+                        <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-100">
+                            <div className="hidden sm:flex flex-col items-end">
+                                <span className="text-sm font-black text-gray-800 leading-none">{user?.fullName}</span>
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role}</span>
+                            </div>
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold outline outline-offset-2 outline-white cursor-pointer hover:bg-green-200 transition-colors shadow-sm text-sm sm:text-base">
+                                {user?.fullName?.charAt(0) || "U"}
+                            </div>
+                            <button
+                                onClick={logout}
+                                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100"
+                                title="Logout"
+                            >
+                                <LogOut size={16} />
+                            </button>
                         </div>
-                        <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold outline outline-offset-2 outline-white cursor-pointer hover:bg-green-200 transition-colors shadow-sm">
-                            {user?.fullName?.charAt(0) || "U"}
-                        </div>
-                        <button
-                            onClick={logout}
-                            className="w-10 h-10 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all border border-transparent hover:border-red-100"
-                            title="Logout"
-                        >
-                            <LogOut size={18} />
-                        </button>
                     </div>
                 </div>
             </header>
 
+
             {/* Page Content */}
-            <div className="px-6 md:px-10 py-12 max-w-7xl w-full mx-auto flex flex-col gap-10">
+            <div className="px-4 md:px-8 py-8 md:py-12 max-w-7xl w-full mx-auto flex flex-col gap-6 md:gap-10">
                 {/* Page Headers & Filters */}
-                <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div className="flex flex-col gap-3 max-w-xl">
-                        <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-none">Lesson Library</h1>
-                        <p className="text-gray-500 text-lg">Hone your dictation and pronunciation skills with our curated collection of pristine audio and video lessons.</p>
+                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">Lesson Library</h1>
+                        <p className="text-gray-500 text-base md:text-lg">Hone your dictation and pronunciation skills with our curated collection of pristine audio and video lessons.</p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
                         <button
                             onClick={() => { setActiveCategory(""); setPage(0); }}
-                            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 ${
-                                activeCategory === ""
-                                    ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
-                                    : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
-                            }`}
+                            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === ""
+                                ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
+                                : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
+                                }`}
                         >
                             All
                         </button>
@@ -144,17 +162,17 @@ export default function LibraryPage() {
                             <button
                                 key={cat.id}
                                 onClick={() => { setActiveCategory(cat.id); setPage(0); }}
-                                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 ${
-                                    activeCategory === cat.id
-                                        ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
-                                        : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
-                                }`}
+                                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === cat.id
+                                    ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
+                                    : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
+                                    }`}
                             >
                                 {cat.name}
                             </button>
                         ))}
                     </div>
                 </div>
+
 
                 {loading ? (
                     <div className="w-full flex flex-col gap-8 py-10">

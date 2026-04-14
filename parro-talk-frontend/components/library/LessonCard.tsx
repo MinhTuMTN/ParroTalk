@@ -44,9 +44,10 @@ export default function LessonCard({ job }: { job: Lesson }) {
                     </span>
                 </div>
                 
-                <h3 className="text-xl font-bold text-gray-900 mb-6 line-clamp-2 leading-tight group-hover:text-green-600 transition-colors">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 line-clamp-2 leading-tight group-hover:text-green-600 transition-colors">
                     {title || "Custom Listening Lesson"}
                 </h3>
+
 
                 <div className="mt-auto flex flex-col gap-4">
                     <div className="flex flex-col gap-2">

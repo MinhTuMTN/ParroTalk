@@ -34,6 +34,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
     Page<Lesson> findAllByStatusAndCreatedAtBefore(LessonStatus status, LocalDateTime createdAt, Pageable pageable);
 
+    List<Lesson> findAllByStatusAndCreatedAtBefore(LessonStatus status, LocalDateTime createdAt);
+
     @Query("""
                 SELECT DISTINCT l
                 FROM Lesson l
@@ -42,7 +44,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
                     (
                         :query IS NULL
                         OR LOWER(CAST(l.title AS string)) LIKE LOWER(CAST(:query AS string))
-                        OR LOWER(CAST(l.content AS string)) LIKE LOWER(CAST(:query AS string))
+                        OR LOWER(CAST(l.description AS string)) LIKE LOWER(CAST(:query AS string))
                     )
                     AND (
                         :categoryId IS NULL

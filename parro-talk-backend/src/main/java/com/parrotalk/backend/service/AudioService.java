@@ -1,11 +1,13 @@
 package com.parrotalk.backend.service;
 
 import com.parrotalk.backend.entity.User;
+
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.entity.Lesson;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,6 +30,9 @@ public class AudioService {
 
     /** Lesson service */
     private final LessonService lessonService;
+
+    /** Transcription segment service */
+    private final TranscriptionSegmentService transcriptionSegmentService;
 
     /** Audio task producer */
     private final AudioTaskProducer audioTaskProducer;
@@ -78,6 +83,7 @@ public class AudioService {
      * @param lessonId Lesson id
      * @return Lesson
      */
+    @Transactional
     public Lesson retryLesson(UUID lessonId) {
         // Find lesson by id
         Lesson lesson = lessonService.findById(lessonId)
@@ -90,7 +96,8 @@ public class AudioService {
         lessonService.save(lesson);
 
         // Delete all relative TransactionSegment
-        
+        transcriptionSegmentService.deleteByLessonId(lessonId);
+
         // Send task to RabbitMQ
         audioTaskProducer.sendTranscriptionTask(lesson.getId(), lesson.getFileUrl());
 
@@ -102,6 +109,7 @@ public class AudioService {
      * Retry all processing lessons.
      * Retry all lessons that are in PROCESSING status and created before 1 hour.
      */
+    @Transactional
     public void retryAllProcessingLesson() {
         // Find all broken lessons
         List<Lesson> lessons = lessonService.findAllBrokenLessons();
@@ -113,6 +121,8 @@ public class AudioService {
             lesson.setProgress(0);
             lesson.setCurrentStep("Uploading");
             lessonService.save(lesson);
+
+            transcriptionSegmentService.deleteByLessonId(lesson.getId());
             audioTaskProducer.sendTranscriptionTask(lesson.getId(), lesson.getFileUrl());
         }
     }

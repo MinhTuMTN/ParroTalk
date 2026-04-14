@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api";
+// const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api";
+const API_URL = "https://api.parrotalk.fun/api";
 
 const axiosInstance = axios.create({
   baseURL: API_URL,

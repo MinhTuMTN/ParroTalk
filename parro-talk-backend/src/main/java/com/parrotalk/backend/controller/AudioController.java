@@ -66,6 +66,7 @@ public class AudioController {
      * Retry all lessons that are in PROCESSING status and created before 1 hour.
      * 
      * @return Upload response
+     * @throws InterruptedException
      */
     @GetMapping("/retry-all-processing-lesson")
     public ResponseEntity<UploadResponse> retryAllProcessingLesson() {
