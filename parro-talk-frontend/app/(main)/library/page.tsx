@@ -30,14 +30,14 @@ export default function LibraryPage() {
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(true);
 
-    const fetchCategories = useCallback(async () => {
-        try {
-            const data = await lessonService.getCategories();
-            if (data) setCategories(data);
-        } catch (e) {
-            console.error("Failed to load categories", e);
-        }
-    }, []);
+    // const fetchCategories = useCallback(async () => {
+    //     try {
+    //         const data = await lessonService.getCategories();
+    //         if (data) setCategories(data);
+    //     } catch (e) {
+    //         console.error("Failed to load categories", e);
+    //     }
+    // }, []);
 
     const fetchLessons = useCallback(async () => {
         setLoading(true);
@@ -58,9 +58,9 @@ export default function LibraryPage() {
             return;
         }
         if (isAuthenticated) {
-            fetchCategories();
+            // fetchCategories();
         }
-    }, [isAuthenticated, isAuthLoading, router, fetchCategories]);
+    }, [isAuthenticated, isAuthLoading, router]);
 
     useEffect(() => {
         if (isAuthenticated) {
