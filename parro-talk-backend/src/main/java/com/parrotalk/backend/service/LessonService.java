@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -15,8 +16,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.dto.LessonResponse;
+import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.mapper.LessonMapper;
 import com.parrotalk.backend.repository.LessonRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,8 @@ public class LessonService {
 
     /** SSE service */
     private final SseService sseService;
+
+    private final LessonMapper lessonMapper;
 
     /**
      * Create a new lesson
@@ -76,7 +81,7 @@ public class LessonService {
     public LessonResponse getLessonResponse(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
-        return mapToResponse(lesson);
+        return lessonMapper.toLessonResponse(lesson);
     }
 
     public List<LessonResponse> getAllLessons(User user) {
@@ -89,21 +94,24 @@ public class LessonService {
         }
 
         return lessons.stream()
-                .map(this::mapToResponse)
+                .map(lessonMapper::toLessonResponse)
                 .sorted((j1, j2) -> j2.getCreatedAt().compareTo(j1.getCreatedAt()))
                 .collect(Collectors.toList());
     }
 
-    private LessonResponse mapToResponse(Lesson lesson) {
-        return LessonResponse.builder()
-                .id(lesson.getId())
-                .status(lesson.getStatus())
-                .progress(lesson.getProgress())
-                .currentStep(lesson.getCurrentStep())
-                .fileUrl(lesson.getFileUrl())
-                .createdAt(lesson.getCreatedAt())
-                .mediaType(lesson.getMediaType().name())
-                .sourceType(lesson.getSourceType().name())
+    public PageResponse<LessonResponse> searchLessons(String q, UUID categoryId, Pageable pageable) {
+        Page<Lesson> lessonPage = lessonRepository.searchLessons(q, categoryId, pageable);
+
+        List<LessonResponse> content = lessonPage.getContent().stream()
+                .map(lessonMapper::toLessonResponse)
+                .collect(Collectors.toList());
+
+        return PageResponse.<LessonResponse>builder()
+                .content(content)
+                .page(lessonPage.getNumber())
+                .size(lessonPage.getSize())
+                .totalElements(lessonPage.getTotalElements())
+                .totalPages(lessonPage.getTotalPages())
                 .build();
     }
 

@@ -6,6 +6,7 @@ import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.service.AudioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.UUID;
@@ -52,6 +53,7 @@ public class AudioController {
      * @param lessonId Lesson id
      * @return Upload response
      */
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/retry/{lessonId}")
     public ResponseEntity<UploadResponse> retryLesson(@PathVariable UUID lessonId) {
         Lesson lesson = audioService.retryLesson(lessonId);
@@ -67,6 +69,7 @@ public class AudioController {
      * 
      * @return Upload response
      */
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/retry-all-processing-lesson")
     public ResponseEntity<UploadResponse> retryAllProcessingLesson() {
         audioService.retryAllProcessingLesson();

@@ -4,6 +4,7 @@ import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.security.JwtUtils;
 import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.dto.*;
+import com.parrotalk.backend.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,6 +21,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final AuthenticationManager authenticationManager;
+    private final UserMapper userMapper;
 
     public AuthResponse register(RegisterRequest request) {
         if (userService.existsByEmail(request.getEmail())) {
@@ -37,7 +39,7 @@ public class AuthService {
         User savedUser = userService.save(user);
 
         return AuthResponse.builder()
-                .user(mapToUserResponse(savedUser))
+                .user(userMapper.toUserResponse(savedUser))
                 .build();
     }
 
@@ -56,7 +58,7 @@ public class AuthService {
         return AuthResponse.builder()
                 .token(token)
                 .refreshToken(refreshToken)
-                .user(mapToUserResponse(user))
+                .user(userMapper.toUserResponse(user))
                 .build();
     }
 
@@ -73,7 +75,7 @@ public class AuthService {
                 return AuthResponse.builder()
                         .token(accessToken)
                         .refreshToken(refreshToken) // Re-use the same refresh token or rotate it
-                        .user(mapToUserResponse(user))
+                        .user(userMapper.toUserResponse(user))
                         .build();
             }
         }
@@ -81,15 +83,6 @@ public class AuthService {
     }
 
     public UserResponse getCurrentUser(User user) {
-        return mapToUserResponse(user);
-    }
-
-    private UserResponse mapToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .fullName(user.getFullName())
-                .role(user.getRole().name())
-                .build();
+        return userMapper.toUserResponse(user);
     }
 }

@@ -22,7 +22,6 @@ public class LessonResponse {
     private int progress;
     private String currentStep;
     private String fileUrl;
-    private String youtubeUrl;
     private String mediaType;
     private String sourceType;
     private LocalDateTime createdAt;

@@ -85,14 +85,4 @@ public class Lesson extends BaseEntity {
     /** Lesson duration */
     @Column
     private Integer duration;
-
-    /** List categories */
-    @ManyToMany
-    @JoinTable(
-        name = "lesson_categories",
-        joinColumns = @JoinColumn(name = "lesson_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    private java.util.Set<Category> categories;
-
 }
