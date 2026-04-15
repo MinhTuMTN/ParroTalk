@@ -7,11 +7,12 @@ interface PracticeHeaderProps {
   currentSentence: number;
   totalSentences: number;
   percent: number;
+  onFinish?: () => void;
+  isAllCompleted?: boolean;
 }
 
-export default function PracticeHeader({ currentSentence, totalSentences, percent }: PracticeHeaderProps) {
+export default function PracticeHeader({ currentSentence, totalSentences, percent, onFinish, isAllCompleted }: PracticeHeaderProps) {
   const { user } = useAuth();
-
   const { openMobileMenu } = useUI();
 
   return (
@@ -23,8 +24,6 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
         >
           <Menu size={24} />
         </button>
-
-
 
         <Link href="/library" className="hidden sm:flex items-center gap-2 group">
           <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-green-100 group-hover:scale-110 transition-transform">
@@ -48,8 +47,15 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
         </div>
       </div>
 
-
       <div className="flex items-center gap-1 sm:gap-3">
+        {isAllCompleted && (
+          <button
+            onClick={onFinish}
+            className="hidden xs:flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-lg shadow-green-100 animate-bounce-subtle"
+          >
+            Finish
+          </button>
+        )}
         <button className="hidden sm:flex p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-50 rounded-xl transition-all">
           <Settings size={18} />
         </button>

@@ -7,7 +7,7 @@ import { Search, Bell, LogOut, Loader2, ChevronLeft, ChevronRight, Settings, Use
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useDebounce } from "use-debounce";
 import { useUI } from "@/context/UIContext";
 import { Menu } from "lucide-react";
@@ -19,18 +19,30 @@ export default function LibraryPage() {
     const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
     const { openMobileMenu } = useUI();
     const router = useRouter();
-
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
 
     const [jobs, setJobs] = useState<Lesson[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
-    const [activeCategory, setActiveCategory] = useState<string>("");
-    const [searchQuery, setSearchQuery] = useState("");
+    const [activeCategory, setActiveCategory] = useState<string>(searchParams.get("category") || "");
+    const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
     const [debouncedSearch] = useDebounce(searchQuery, 500);
-    const [page, setPage] = useState(0);
+    const [page, setPage] = useState(Number(searchParams.get("page")) || 0);
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef<HTMLDivElement>(null);
+
+    // Sync state to URL
+    useEffect(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (debouncedSearch) params.set("q", debouncedSearch); else params.delete("q");
+        if (activeCategory) params.set("category", activeCategory); else params.delete("category");
+        if (page > 0) params.set("page", page.toString()); else params.delete("page");
+        
+        const queryString = params.toString();
+        router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
+    }, [debouncedSearch, activeCategory, page, pathname, router, searchParams]);
 
     // const fetchCategories = useCallback(async () => {
     //     try {

@@ -158,10 +158,12 @@ export default function PracticePage() {
       nextIndex = activeIndex + 1;
       setActiveIndex(nextIndex);
     } else if (!alreadyCompleted && activeIndex === segments.length - 1) {
-      // Lesson fully complete!
-      setIsSubmitting(true);
-      stateRef.current.completedIndices = newCompleted; // force latest state internally
-      saveProgressToDb(true);
+      // Last sentence completed, but don't force exit automatically
+      const newCompleted = new Set(completedIndices);
+      newCompleted.add(activeIndex);
+      setCompletedIndices(newCompleted);
+      saveToStorage(activeIndex, newCompleted, inputs, segmentStats);
+      return;
     }
 
     saveToStorage(nextIndex, newCompleted, inputs, segmentStats);
@@ -204,6 +206,8 @@ export default function PracticePage() {
         currentSentence={currentSentence}
         totalSentences={totalSentences}
         percent={percent}
+        onFinish={() => saveProgressToDb(true)}
+        isAllCompleted={completedIndices.size === totalSentences && totalSentences > 0}
       />
 
 
@@ -224,11 +228,11 @@ export default function PracticePage() {
           </button>
         </div>
 
-        <div className="flex-1 p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-start relative overflow-hidden min-h-0">
+        <div className="flex-1 p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-stretch relative overflow-hidden min-h-0">
 
           {/* Left Column: Player and Controls */}
           <div className={`
-            w-full md:w-[320px] lg:w-[360px] flex-shrink-0 transition-all duration-300
+            w-full md:w-[320px] lg:w-[360px] flex-shrink-0 transition-all duration-300 md:sticky md:top-0 h-fit
             ${activeTab === 'practice' ? 'block' : 'hidden md:block'}
           `}>
             <VideoPlayer
@@ -245,7 +249,7 @@ export default function PracticePage() {
 
           {/* Right Column: Transcript */}
           <div className={`
-            flex-1 min-w-0 overflow-y-auto custom-scrollbar md:pr-4 pb-20 sm:pb-32 w-full
+            flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar md:pr-4 pb-20 sm:pb-32 w-full
             ${activeTab === 'transcript' ? 'block' : 'hidden md:block'}
           `}>
 
