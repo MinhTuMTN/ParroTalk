@@ -39,16 +39,11 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
     @Query("""
                 SELECT DISTINCT l
                 FROM Lesson l
-                    LEFT JOIN l.categories c
                 WHERE
                     (
                         :query IS NULL
                         OR LOWER(CAST(l.title AS string)) LIKE LOWER(CAST(:query AS string))
                         OR LOWER(CAST(l.description AS string)) LIKE LOWER(CAST(:query AS string))
-                    )
-                    AND (
-                        :categoryId IS NULL
-                        OR c.id = :categoryId
                     )
             """)
     Page<Lesson> searchLessons(@org.springframework.data.repository.query.Param("query") String query,

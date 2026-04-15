@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -77,6 +78,7 @@ public class LessonService {
      * @param lessonId Lesson id
      * @return Lesson response
      */
+    @Cacheable(value = "lessonDetailCache", key = "#lessonId")
     public LessonResponse getLessonResponse(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
@@ -98,6 +100,7 @@ public class LessonService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "lessonSearchCache", key = "T(java.util.Objects).hash(#q, #categoryId, #pageable.pageNumber, #pageable.pageSize)")
     public PageResponse<LessonResponse> searchLessons(String q, UUID categoryId, Pageable pageable) {
         Page<Lesson> lessonPage = lessonRepository.searchLessons(q, categoryId, pageable);
 

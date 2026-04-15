@@ -12,7 +12,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  */
 @SpringBootApplication
 @EnableCaching
-@EnableJpaRepositories(basePackages = "com.parrotalk.backend.repository")
 public class ParroTalkBackendApplication {
 
     public static void main(String[] args) {
