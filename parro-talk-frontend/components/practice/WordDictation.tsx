@@ -70,7 +70,7 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
   };
 
   return (
-    <div className="w-full bg-white border-t border-gray-100 p-4 sm:p-5 flex flex-col items-center gap-4 mt-auto">
+    <div className="w-full bg-white border-t border-gray-100 p-4 sm:p-5 pb-6 sm:pb-8 flex flex-col items-center gap-4 [padding-bottom:max(1.5rem,env(safe-area-inset-bottom))]">
       {/* Visual Word Progress */}
       <div className="flex flex-wrap justify-center gap-x-2 gap-y-3 max-w-4xl">
         {targetWords.map((word, idx) => {
@@ -119,7 +119,7 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
           className={`
             w-full bg-gray-50 border-2 rounded-2xl 
             py-2 px-3 sm:py-3 sm:px-4 lg:py-3 lg:px-4
-            text-sm sm:text-base lg:text-lg
+            text-base lg:text-lg
             font-bold transition-all outline-none
             
             ${currentIdx !== -1 &&

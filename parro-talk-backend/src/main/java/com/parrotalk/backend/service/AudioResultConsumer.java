@@ -1,13 +1,14 @@
 package com.parrotalk.backend.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parrotalk.backend.config.RabbitMQConfig;
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
@@ -29,21 +30,21 @@ public class AudioResultConsumer {
     public void receiveResult(Message message) {
         try {
             JsonNode node = mapper.readTree(message.getBody());
-            String lessonIdStr = node.get("lessonId").asText();
+            String lessonIdStr = node.get("lessonId").asString();
             UUID lessonId = UUID.fromString(lessonIdStr);
-            String status = node.get("status").asText();
+            String status = node.get("status").asString();
 
             log.info("Received message for lesson: {}, status: {}", lessonId, status);
 
             if ("PROGRESS".equalsIgnoreCase(status)) {
                 int progress = node.get("progress").asInt();
-                String step = node.get("message").asText();
+                String step = node.get("message").asString();
                 lessonService.updateProgress(lessonId, progress, step, LessonStatus.PROCESSING);
                 return;
             }
 
             if ("FAILED".equalsIgnoreCase(status)) {
-                String errorInfo = node.has("error") ? node.get("error").asText() : "Unknown AI error";
+                String errorInfo = node.has("error") ? node.get("error").asString() : "Unknown AI error";
                 log.error(errorInfo);
                 lessonService.updateProgress(lessonId, 0, "AI Error", LessonStatus.FAILED);
                 return;
@@ -67,7 +68,7 @@ public class AudioResultConsumer {
         for (JsonNode seg : resultNode.get("segments")) {
             TranscriptionSegment segment = TranscriptionSegment.builder()
                     .lessonId(lessonId)
-                    .text(seg.get("text").asText().trim())
+                    .text(seg.get("text").asString().trim())
                     .startTime(seg.get("start").asDouble())
                     .endTime(seg.get("end").asDouble())
                     .build();
