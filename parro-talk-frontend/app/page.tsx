@@ -17,8 +17,8 @@ export default function Home() {
                         <Image
                             src="/logo_long.png"
                             alt="ParroTalk"
-                            fill
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            width={130}
+                            height={30}
                             className="object-contain"
                             priority
                         />

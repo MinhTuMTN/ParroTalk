@@ -205,6 +205,13 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
             Prev
           </button>
           <button
+            onClick={handleReplay}
+            className="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
+          >
+            <RotateCcw size={16} />
+            Replay
+          </button>
+          <button
             onClick={onNext}
             disabled={!hasNext}
             className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-100 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-gray-100 transition-all"

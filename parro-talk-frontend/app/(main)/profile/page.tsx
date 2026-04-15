@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import PracticeHeader from "@/components/practice/PracticeHeader";
 import { lessonService, UserProfileResponse } from "@/lib/services/lessonService";
 import { Trophy, Star, Target, Flame, Calendar as CalendarIcon, Loader2 } from "lucide-react";
-import { format, subDays, parseISO, isSameDay } from "date-fns";
 
 export default function ProfilePage() {
     const [profile, setProfile] = useState<UserProfileResponse | null>(null);
@@ -26,10 +25,22 @@ export default function ProfilePage() {
 
     // Last 14 days activity visualizer
     const today = new Date();
-    const last14Days = Array.from({ length: 14 }).map((_, i) => subDays(today, 13 - i));
-    
+    const last14Days = Array.from({ length: 14 }, (_, i) => {
+        const d = new Date(today);
+        d.setDate(today.getDate() - 13 + i);
+        return d;
+    });
+
+    const isSameDay = (d1: Date, d2: Date) => {
+        return (
+            d1.getFullYear() === d2.getFullYear() &&
+            d1.getMonth() === d2.getMonth() &&
+            d1.getDate() === d2.getDate()
+        );
+    };
+
     // Parse active days
-    const activeDates = profile?.activeDays?.map(d => parseISO(d)) || [];
+    const activeDates = profile?.activeDays?.map(d => new Date(d)) || [];
 
     return (
         <div className="flex flex-col min-h-screen bg-gray-50 border-r border-gray-100">
@@ -62,30 +73,30 @@ export default function ProfilePage() {
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <StatCard 
-                                icon={<Target size={24} />} 
-                                title="Lessons" 
-                                value={profile.totalLessonsCompleted.toString()} 
-                                color="bg-blue-100 text-blue-600" 
+                            <StatCard
+                                icon={<Target size={24} />}
+                                title="Lessons"
+                                value={profile.totalLessonsCompleted.toString()}
+                                color="bg-blue-100 text-blue-600"
                             />
-                            <StatCard 
-                                icon={<Star size={24} />} 
-                                title="Avg Score" 
-                                value={profile.avgScore.toFixed(1)} 
-                                color="bg-yellow-100 text-yellow-600" 
+                            <StatCard
+                                icon={<Star size={24} />}
+                                title="Avg Score"
+                                value={profile.avgScore.toFixed(1)}
+                                color="bg-yellow-100 text-yellow-600"
                             />
-                            <StatCard 
-                                icon={<Trophy size={24} />} 
-                                title="Total Score" 
-                                value={profile.totalScore.toFixed(1)} 
-                                color="bg-purple-100 text-purple-600" 
+                            <StatCard
+                                icon={<Trophy size={24} />}
+                                title="Total Score"
+                                value={profile.totalScore.toFixed(1)}
+                                color="bg-purple-100 text-purple-600"
                             />
-                            <StatCard 
-                                icon={<Flame size={24} />} 
-                                title="Streak" 
-                                value={`${profile.currentStreak} Days`} 
+                            <StatCard
+                                icon={<Flame size={24} />}
+                                title="Streak"
+                                value={`${profile.currentStreak} Days`}
                                 subValue={`Best: ${profile.longestStreak}`}
-                                color="bg-orange-100 text-orange-600" 
+                                color="bg-orange-100 text-orange-600"
                             />
                         </div>
 
@@ -97,24 +108,24 @@ export default function ProfilePage() {
                                 </div>
                                 <h2 className="text-xl font-bold text-gray-900">Activity (Last 14 Days)</h2>
                             </div>
-                            
+
                             <div className="flex gap-2 justify-between max-w-2xl overflow-x-auto pb-4">
                                 {last14Days.map((day, i) => {
                                     const isActive = activeDates.some(ad => isSameDay(ad, day));
                                     const isToday = isSameDay(day, today);
-                                    
+
                                     return (
                                         <div key={i} className="flex flex-col items-center gap-2 flex-shrink-0">
-                                            <div 
+                                            <div
                                                 className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all
                                                     ${isActive ? 'bg-green-500 text-white shadow-md' : 'bg-gray-100 text-gray-400'}
                                                     ${isToday && !isActive ? 'ring-2 ring-gray-200' : ''}
                                                 `}
                                             >
-                                                {format(day, 'd')}
+                                                {day.getDate()}
                                             </div>
                                             <span className="text-[10px] font-bold text-gray-400 uppercase">
-                                                {format(day, 'E')}
+                                                {day.toLocaleDateString('en-US', { weekday: 'short' })}
                                             </span>
                                         </div>
                                     );

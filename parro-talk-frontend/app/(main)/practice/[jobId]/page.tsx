@@ -199,7 +199,7 @@ export default function PracticePage() {
   const percent = totalSentences > 0 ? Math.round((completedIndices.size / totalSentences) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-[100dvh] overflow-hidden overscroll-none">
       <PracticeHeader
         currentSentence={currentSentence}
         totalSentences={totalSentences}
@@ -207,28 +207,28 @@ export default function PracticePage() {
       />
 
 
-      <div className="flex-1 overflow-hidden relative flex flex-col">
+      <div className="flex-1 overflow-hidden relative flex flex-col min-h-0">
         {/* Mobile Tabs */}
         <div className="md:hidden flex border-b border-gray-100 bg-white shrink-0">
-            <button 
-                onClick={() => setActiveTab('practice')}
-                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'practice' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30' : 'text-gray-400'}`}
-            >
-                Practice
-            </button>
-            <button 
-                onClick={() => setActiveTab('transcript')}
-                className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'transcript' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30' : 'text-gray-400'}`}
-            >
-                Transcript
-            </button>
+          <button
+            onClick={() => setActiveTab('practice')}
+            className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'practice' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30' : 'text-gray-400'}`}
+          >
+            Practice
+          </button>
+          <button
+            onClick={() => setActiveTab('transcript')}
+            className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'transcript' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30' : 'text-gray-400'}`}
+          >
+            Transcript
+          </button>
         </div>
 
-        <div className="flex-1 h-full p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-start relative overflow-hidden">
-          
+        <div className="flex-1 p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-start relative overflow-hidden min-h-0">
+
           {/* Left Column: Player and Controls */}
           <div className={`
-            w-full md:w-[320px] lg:w-[360px] flex-shrink-0 md:sticky md:top-0 transition-all duration-300
+            w-full md:w-[320px] lg:w-[360px] flex-shrink-0 transition-all duration-300
             ${activeTab === 'practice' ? 'block' : 'hidden md:block'}
           `}>
             <VideoPlayer
@@ -245,7 +245,7 @@ export default function PracticePage() {
 
           {/* Right Column: Transcript */}
           <div className={`
-            flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar md:pr-4 pb-20 sm:pb-32 w-full
+            flex-1 min-w-0 overflow-y-auto custom-scrollbar md:pr-4 pb-20 sm:pb-32 w-full
             ${activeTab === 'transcript' ? 'block' : 'hidden md:block'}
           `}>
 

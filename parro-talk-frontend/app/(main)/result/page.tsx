@@ -1,14 +1,17 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, XCircle, Award, ArrowRight, RotateCcw } from "lucide-react";
 
 export default function ResultPage() {
-  const searchParams = useSearchParams();
-  const scoreRaw = searchParams?.get("score");
-  const passedRaw = searchParams?.get("passed");
-  const lessonId = searchParams?.get("lessonId");
+  const searchParams = {
+    score: "8.5",
+    passed: "true",
+    lessonId: "1"
+  }
+  const scoreRaw = searchParams?.score;
+  const passedRaw = searchParams?.passed;
+  const lessonId = searchParams?.lessonId;
 
   const score = scoreRaw ? parseFloat(scoreRaw) : 0;
   const isPassed = passedRaw === "true";
@@ -37,21 +40,21 @@ export default function ResultPage() {
           <Award className="text-yellow-500 mb-2" size={32} />
           <span className="text-sm font-bold text-gray-400 tracking-widest uppercase">Your Score</span>
           <span className={`text-5xl font-black ${isPassed ? 'text-green-500' : 'text-red-500'}`}>
-             {score.toFixed(1)} <span className="text-2xl text-gray-400">/10</span>
+            {score.toFixed(1)} <span className="text-2xl text-gray-400">/10</span>
           </span>
         </div>
 
         <div className="flex flex-col gap-3 w-full">
-            {lessonId && !isPassed && (
-              <Link href={`/practice/${lessonId}`} className="w-full py-4 rounded-xl bg-orange-100 text-orange-600 font-bold hover:bg-orange-200 transition-colors flex items-center justify-center gap-2">
-                 <RotateCcw size={18} />
-                 Try Again
-              </Link>
-            )}
-            <Link href="/library" className="w-full py-4 rounded-xl bg-gray-900 text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
-                Continue Learning
-                <ArrowRight size={18} />
+          {lessonId && !isPassed && (
+            <Link href={`/practice/${lessonId}`} className="w-full py-4 rounded-xl bg-orange-100 text-orange-600 font-bold hover:bg-orange-200 transition-colors flex items-center justify-center gap-2">
+              <RotateCcw size={18} />
+              Try Again
             </Link>
+          )}
+          <Link href="/library" className="w-full py-4 rounded-xl bg-gray-900 text-white font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
+            Continue Learning
+            <ArrowRight size={18} />
+          </Link>
         </div>
       </div>
     </div>
