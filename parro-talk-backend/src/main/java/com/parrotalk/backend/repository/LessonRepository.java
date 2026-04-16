@@ -49,4 +49,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
     Page<Lesson> searchLessons(@org.springframework.data.repository.query.Param("query") String query,
             @org.springframework.data.repository.query.Param("categoryId") UUID categoryId, Pageable pageable);
 
+    List<Lesson> findAllByTitleIsNull();
+
 }

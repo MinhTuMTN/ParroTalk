@@ -37,9 +37,13 @@ function LibraryContent() {
         if (debouncedSearch) params.set("q", debouncedSearch); else params.delete("q");
         if (activeCategory) params.set("category", activeCategory); else params.delete("category");
         if (page > 0) params.set("page", page.toString()); else params.delete("page");
-        
-        const queryString = params.toString();
-        router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`);
+
+        const newQueryString = params.toString();
+        const currentQueryString = searchParams.toString();
+
+        if (newQueryString !== currentQueryString) {
+            router.replace(`${pathname}${newQueryString ? `?${newQueryString}` : ""}`, { scroll: false });
+        }
     }, [debouncedSearch, activeCategory, page, pathname, router, searchParams]);
 
     const fetchLessons = useCallback(async () => {
@@ -198,7 +202,7 @@ function LibraryContent() {
                             className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === ""
                                 ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
                                 : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
-                            }`}
+                                }`}
                         >
                             All
                         </button>
@@ -209,7 +213,7 @@ function LibraryContent() {
                                 className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === cat.id
                                     ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
                                     : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
-                                }`}
+                                    }`}
                             >
                                 {cat.name}
                             </button>

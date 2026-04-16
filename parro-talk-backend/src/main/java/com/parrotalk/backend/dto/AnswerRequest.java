@@ -2,21 +2,16 @@ package com.parrotalk.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.util.UUID;
 
-@Getter
-@Setter
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class SegmentResultRequest {
+public class AnswerRequest {
     private UUID segmentId;
-    private int hintWords;
-    private int replayCount;
-    private int attempts;
     private String userAnswer;
 }

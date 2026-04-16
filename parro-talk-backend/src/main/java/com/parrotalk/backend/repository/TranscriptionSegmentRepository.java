@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface TranscriptionSegmentRepository extends JpaRepository<TranscriptionSegment, Long> {
+public interface TranscriptionSegmentRepository extends JpaRepository<TranscriptionSegment, UUID> {
     List<TranscriptionSegment> findByLessonId(UUID lessonId);
 
     List<TranscriptionSegment> findByLessonIdOrderByStartTimeAsc(UUID lessonId);

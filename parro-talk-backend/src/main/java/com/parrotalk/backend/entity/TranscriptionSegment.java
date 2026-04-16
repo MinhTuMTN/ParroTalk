@@ -32,8 +32,8 @@ public class TranscriptionSegment extends BaseEntity {
 
     /** Transcription Segment ID */
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     /** Lesson ID */
     @Column(nullable = false)

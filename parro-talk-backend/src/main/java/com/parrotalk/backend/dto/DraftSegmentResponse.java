@@ -2,21 +2,22 @@ package com.parrotalk.backend.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Getter
-@Setter
+@Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class SegmentResultRequest {
+public class DraftSegmentResponse {
     private UUID segmentId;
-    private int hintWords;
-    private int replayCount;
-    private int attempts;
     private String userAnswer;
+    private boolean isCorrect;
+    private int score;
+    private int replayCount;
+    private int hintCount;
+    private LocalDateTime updatedAt;
 }
