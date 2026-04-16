@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.UUID;
 
 import com.parrotalk.backend.constant.LessonStatus;
@@ -26,7 +27,7 @@ public class LessonResponse {
     private String sourceType;
     private LocalDateTime createdAt;
     private String title;
-    private String content;
+    private String description;
     private Integer duration;
-    private java.util.List<CategoryResponse> categories;
+    private Set<CategoryResponse> categories;
 }

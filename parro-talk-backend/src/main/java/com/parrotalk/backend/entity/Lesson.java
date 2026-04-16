@@ -13,6 +13,7 @@ import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.MediaType;
 import com.parrotalk.backend.constant.SourceType;
 
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -85,4 +86,13 @@ public class Lesson extends BaseEntity {
     /** Lesson duration */
     @Column
     private Integer duration;
+
+    /** Categories of the lesson */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "lesson_categories",
+        joinColumns = @JoinColumn(name = "lesson_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<Category> categories;
 }

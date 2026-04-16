@@ -1,5 +1,6 @@
 package com.parrotalk.backend.entity;
 
+import jakarta.persistence.*;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -14,6 +15,7 @@ import lombok.Setter;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,4 +42,12 @@ public class Category extends BaseEntity {
     /** Category Name */
     @Column(nullable = false, unique = true)
     private String name;
+
+    /** Thumnail url */
+    @Column(nullable = true)
+    private String thumbnailUrl;
+
+    /** Lessons belong to this category */
+    @ManyToMany(mappedBy = "categories", fetch = FetchType.LAZY)
+    private List<Lesson> lessons;
 }

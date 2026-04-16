@@ -9,18 +9,23 @@ import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.dto.LessonResponse;
+import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.mapper.LessonMapper;
 import com.parrotalk.backend.repository.LessonRepository;
+import com.parrotalk.backend.specification.LessonSpecification;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -100,9 +105,17 @@ public class LessonService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(value = "lessonSearchCache", key = "T(java.util.Objects).hash(#q, #categoryId, #pageable.pageNumber, #pageable.pageSize)")
-    public PageResponse<LessonResponse> searchLessons(String q, UUID categoryId, Pageable pageable) {
-        Page<Lesson> lessonPage = lessonRepository.searchLessons(q, categoryId, pageable);
+    @Cacheable(
+        value = "lessonSearchCache",
+        key = "#request.getCacheKey()")
+    public PageResponse<LessonResponse> searchLessons(LessonSearchRequest request) {
+        Pageable pageable = PageRequest.of(
+            request.getPage(),
+            request.getSize(),
+            Sort.by(Sort.Direction.DESC, "createdAt"));
+        Specification<Lesson> specification = LessonSpecification.findLessonsByName(request.getQuery());
+
+        Page<Lesson> lessonPage = lessonRepository.searchLessons(specification, pageable);
 
         List<LessonResponse> content = lessonPage.getContent().stream()
                 .map(lessonMapper::toLessonResponse)

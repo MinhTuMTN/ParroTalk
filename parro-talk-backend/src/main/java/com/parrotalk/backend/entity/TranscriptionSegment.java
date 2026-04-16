@@ -20,6 +20,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * Transcription Segment Entity
+ * 
+ * @author MinhTuMTN
+ */
 @Entity
 @Table(name = "transcription_segments")
 @Getter
