@@ -31,6 +31,11 @@ function LibraryContent() {
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const userMenuRef = useRef<HTMLDivElement>(null);
 
+    // Reset page when filters change
+    useEffect(() => {
+        setPage(0);
+    }, [debouncedSearch, activeCategory]);
+
     // Sync state to URL
     useEffect(() => {
         const params = new URLSearchParams(searchParams.toString());
