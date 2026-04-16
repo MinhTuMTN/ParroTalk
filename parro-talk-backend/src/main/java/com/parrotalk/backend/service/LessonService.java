@@ -105,17 +105,21 @@ public class LessonService {
                 .collect(Collectors.toList());
     }
 
-    @Cacheable(
-        value = "lessonSearchCache",
-        key = "#request.getCacheKey()")
+    /**
+     * Search lessons.
+     * 
+     * @param request Lesson search request
+     * @return Page of lessons
+     */
+    @Cacheable(value = "lessonSearchCache", key = "#request.getCacheKey()")
     public PageResponse<LessonResponse> searchLessons(LessonSearchRequest request) {
         Pageable pageable = PageRequest.of(
-            request.getPage(),
-            request.getSize(),
-            Sort.by(Sort.Direction.DESC, "createdAt"));
+                request.getPage(),
+                request.getSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
         Specification<Lesson> specification = LessonSpecification.findLessonsByName(request.getQuery());
 
-        Page<Lesson> lessonPage = lessonRepository.searchLessons(specification, pageable);
+        Page<Lesson> lessonPage = lessonRepository.findAll(specification, pageable);
 
         List<LessonResponse> content = lessonPage.getContent().stream()
                 .map(lessonMapper::toLessonResponse)

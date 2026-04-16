@@ -71,9 +71,9 @@ export interface UserProfileResponse {
 }
 
 export const lessonService = {
-  getAllLessons: async (page = 0, size = 10, q?: string, categoryId?: string) => {
+  getAllLessons: async (page = 0, size = 10, query?: string, categoryId?: string) => {
     let url = `/lessons?page=${page}&size=${size}`;
-    if (q) url += `&q=${encodeURIComponent(q)}`;
+    if (query) url += `&query=${encodeURIComponent(query)}`;
     if (categoryId) url += `&categoryId=${categoryId}`;
     const response = await axiosInstance.get<PageResponse<Lesson>>(url);
     return response.data;

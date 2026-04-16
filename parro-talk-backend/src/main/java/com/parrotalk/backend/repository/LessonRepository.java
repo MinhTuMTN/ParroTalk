@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import com.parrotalk.backend.constant.LessonStatus;
@@ -21,7 +22,7 @@ import com.parrotalk.backend.entity.Lesson;
  * @author MinhTuMTN
  */
 @Repository
-public interface LessonRepository extends JpaRepository<Lesson, UUID> {
+public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecificationExecutor<Lesson> {
 
     /**
      * Find lesson by file hash.
@@ -43,16 +44,16 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
 
     List<Lesson> findAllByStatusAndCreatedAtBefore(LessonStatus status, LocalDateTime createdAt);
 
-    /**
-     * Search lessons.
-     * 
-     * @param specification Lesson Specification
-     * @param pageable Pageable
-     * @return Page of lessons
-     */
-    @EntityGraph(attributePaths = { "categories" })
-    Page<Lesson> searchLessons(Specification<Lesson> specification, Pageable pageable);
-
     List<Lesson> findAllByTitleIsNull();
 
+    /**
+     * Search lessons with specification.
+     * 
+     * @param specification Lesson Specification
+     * @param pageable      Pageable
+     * @return Page of lessons
+     */
+    @Override
+    @EntityGraph(attributePaths = { "categories" })
+    Page<Lesson> findAll(Specification<Lesson> spec, Pageable pageable);
 }
