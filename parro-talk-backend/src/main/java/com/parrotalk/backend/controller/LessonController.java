@@ -31,6 +31,11 @@ import com.parrotalk.backend.service.SseService;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Lesson Controller.
+ * 
+ * @author MinhTuMTN
+ */
 @RestController
 @RequestMapping("/api/lessons")
 @RequiredArgsConstructor
@@ -44,9 +49,7 @@ public class LessonController {
     public ResponseEntity<PageResponse<LessonResponse>> listLessons(
             @AuthenticationPrincipal User user,
             @ModelAttribute LessonSearchRequest request) {
-
-        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), Sort.by(Sort.Direction.DESC, "createdAt"));
-        return ResponseEntity.ok(lessonService.searchLessons(request.getQ(), request.getCategoryId(), pageable));
+        return ResponseEntity.ok(lessonService.searchLessons(request));
     }
 
     @PostMapping("/{lessonId}/submit")

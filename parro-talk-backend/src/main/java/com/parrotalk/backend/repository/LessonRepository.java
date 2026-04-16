@@ -7,8 +7,9 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.parrotalk.backend.constant.LessonStatus;
@@ -30,23 +31,26 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID> {
      */
     Optional<Lesson> findByFileHash(String fileHash);
 
+    /**
+     * Find all lessons by owner ID.
+     * 
+     * @param ownerId Owner ID
+     * @return List of lessons
+     */
     List<Lesson> findAllByOwnerId(UUID ownerId);
 
     Page<Lesson> findAllByStatusAndCreatedAtBefore(LessonStatus status, LocalDateTime createdAt, Pageable pageable);
 
     List<Lesson> findAllByStatusAndCreatedAtBefore(LessonStatus status, LocalDateTime createdAt);
 
-    @Query("""
-                SELECT DISTINCT l
-                FROM Lesson l
-                WHERE
-                    (
-                        :query IS NULL
-                        OR LOWER(CAST(l.title AS string)) LIKE LOWER(CAST(:query AS string))
-                        OR LOWER(CAST(l.description AS string)) LIKE LOWER(CAST(:query AS string))
-                    )
-            """)
-    Page<Lesson> searchLessons(@org.springframework.data.repository.query.Param("query") String query,
-            @org.springframework.data.repository.query.Param("categoryId") UUID categoryId, Pageable pageable);
+    /**
+     * Search lessons.
+     * 
+     * @param specification Lesson Specification
+     * @param pageable Pageable
+     * @return Page of lessons
+     */
+    @EntityGraph(attributePaths = { "categories" })
+    Page<Lesson> searchLessons(Specification<Lesson> specification, Pageable pageable);
 
 }
