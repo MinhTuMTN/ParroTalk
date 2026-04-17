@@ -1,9 +1,9 @@
 package com.parrotalk.backend.entity;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import lombok.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 import org.springframework.security.core.GrantedAuthority;
@@ -13,9 +13,22 @@ import org.springframework.security.core.userdetails.UserDetails;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.parrotalk.backend.constant.Role;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 /**
  * User entity
@@ -69,29 +82,32 @@ public class User extends BaseEntity implements UserDetails {
     @NotBlank
     private String fullName;
 
-    /**
-     * User enabled
-     */
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean enabled = false;
+    @Transient
+    private Collection<? extends GrantedAuthority> authorities;
 
     /**
      * Get user authorities
      */
-    @JsonIgnore
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
+    public boolean enabled;
+
     /**
      * Get username
      */
-    @JsonIgnore
     @Override
     public String getUsername() {
         return email;
+    }
+
+    /**
+     * Set username.
+     */
+    public void setUsername(String username) {
+        this.email = username;
     }
 
     /**
@@ -124,9 +140,8 @@ public class User extends BaseEntity implements UserDetails {
     /**
      * Check if user is enabled
      */
-    @JsonIgnore
     @Override
     public boolean isEnabled() {
-        return enabled && !isDeleted();
+        return !isDeleted() && enabled;
     }
 }
