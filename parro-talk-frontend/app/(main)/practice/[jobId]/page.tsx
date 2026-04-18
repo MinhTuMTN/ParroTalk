@@ -68,16 +68,23 @@ export default function PracticePage() {
   const saveProgressToDb = useCallback(async (isFinished: boolean = false) => {
     if (!jobId) return;
     try {
-      const payload = getPayload(isFinished);
-      const result = await lessonService.submitLesson(jobId, payload);
-      setLastSaved(new Date());
       if (isFinished) {
+        setIsSubmitting(true);
+        const result = await lessonService.finalLessonSubmit(jobId);
+        setLastSaved(new Date());
         // Redirect to result screen
+        localStorage.setItem('parrotalk_last_result', JSON.stringify({
+          lessonId: jobId,
+          score: result.score,
+          passed: result.passed
+        }));
         localStorage.removeItem(`parrotalk_progress_${jobId}`);
-        router.push(`/result?lessonId=${jobId}&score=${result.score}&passed=${result.passed}`);
+        router.push(`/result`);
       }
     } catch (e) {
       console.error("Failed to save progress", e);
+    } finally {
+      setIsSubmitting(false);
     }
   }, [jobId, router]);
 
@@ -86,29 +93,51 @@ export default function PracticePage() {
 
     const loadContent = async () => {
       try {
-        const [jobData, resultData] = await Promise.all([
+        const [jobData, progressData] = await Promise.all([
           lessonService.getLessonById(jobId),
-          lessonService.getLessonResult(jobId),
+          lessonService.getLessonProgress(jobId).catch(() => null),
         ]);
 
+        console.log("Job data: ", jobData);
+        console.log("Progress data: ", progressData);
         setFileUrl(jobData.fileUrl || "");
-        const sentences = resultData.sentences || [];
+        const sentences = jobData.segments || [];
         setSegments(sentences);
 
-        const storedStr = localStorage.getItem(`parrotalk_progress_${jobId}`);
-        if (storedStr) {
-          try {
-            const data = JSON.parse(storedStr);
-            if (data.completed) setCompletedIndices(new Set(data.completed));
-            if (data.inputs) setInputs(data.inputs);
-            if (data.stats) setSegmentStats(data.stats);
-            if (typeof data.activeIndex === "number" && data.activeIndex < sentences.length) {
-              setActiveIndex(data.activeIndex);
+        // State initialization
+        let initialCompleted = new Set<number>();
+        let initialInputs: Record<number, string> = {};
+        let initialStats: Record<number, SegmentStat> = {};
+        let initialActiveIndex = 0;
+
+        // 1. Load from Backend Progress (High Priority)
+        if (progressData) {
+          progressData.draftSegments?.forEach(draft => {
+            const idx = sentences.findIndex(s => String(s.id) === String(draft.segmentId));
+            if (idx !== -1) {
+              initialInputs[idx] = draft.userAnswer;
+              initialStats[idx] = {
+                hintWords: draft.hintCount,
+                replayCount: draft.replayCount,
+                attempts: 1
+              };
+              if (draft.correct) {
+                initialCompleted.add(idx);
+              }
             }
-          } catch (e) {
-            console.error("Local storage parse err", e);
+          });
+
+          if (progressData.currentSegmentId) {
+            const activeIdx = sentences.findIndex(s => String(s.id) === String(progressData.currentSegmentId));
+            if (activeIdx !== -1) initialActiveIndex = activeIdx;
           }
         }
+
+        setCompletedIndices(initialCompleted);
+        setInputs(initialInputs);
+        setSegmentStats(initialStats);
+        setActiveIndex(initialActiveIndex);
+
       } catch (err) {
         console.error("Failed fetching context", err);
       } finally {
@@ -122,7 +151,8 @@ export default function PracticePage() {
   // Auto-save every 1 minute
   useEffect(() => {
     const interval = setInterval(() => {
-      saveProgressToDb(false);
+      // Periodic full sync can still be useful
+      // saveProgressToDb(false);
     }, 60000);
     return () => clearInterval(interval);
   }, [saveProgressToDb]);
@@ -130,61 +160,81 @@ export default function PracticePage() {
   const activeSegment = segments[activeIndex] || null;
   const activeSentence = activeSegment?.text || "";
 
-  const handleInputChange = (val: string) => {
+  const handleInputChange = useCallback((val: string) => {
     setInputs(prev => {
       const newInputs = { ...prev, [activeIndex]: val };
       saveToStorage(activeIndex, completedIndices, newInputs, segmentStats);
       return newInputs;
     });
-  };
+  }, [activeIndex, completedIndices, segmentStats, saveToStorage]);
 
-  const incrementMetric = (metric: keyof SegmentStat) => {
+  const incrementMetric = useCallback((metric: keyof SegmentStat) => {
+    const isCompleted = completedIndices.has(activeIndex);
+
+    if (activeSegment?.id && !isCompleted) {
+      if (metric === 'replayCount') lessonService.incrementReplay(jobId, activeSegment.id);
+      if (metric === 'hintWords') lessonService.incrementHint(jobId, activeSegment.id);
+    }
+
     setSegmentStats(prev => {
       const current = prev[activeIndex] || { hintWords: 0, replayCount: 0, attempts: 1 };
       const nextStats = { ...prev, [activeIndex]: { ...current, [metric]: current[metric] + 1 } };
       saveToStorage(activeIndex, completedIndices, inputs, nextStats);
       return nextStats;
     });
-  };
+  }, [activeSegment?.id, activeIndex, completedIndices, inputs, jobId, saveToStorage]);
 
-  const handleSentenceComplete = () => {
+  const handleSentenceComplete = useCallback(async () => {
     const alreadyCompleted = completedIndices.has(activeIndex);
-    let nextIndex = activeIndex;
+    const isFullCompletion = !alreadyCompleted && (completedIndices.size + 1 === segments.length);
+
+    if (isFullCompletion) {
+      setIsSubmitting(true);
+    }
+
+    // Save to backend immediately
+    if (!alreadyCompleted && activeSegment?.id) {
+      try {
+        await lessonService.submitAnswer(jobId, activeSegment.id, inputs[activeIndex] || "");
+      } catch (e) {
+        console.error("Failed to submit individual answer", e);
+      }
+    }
+
     const newCompleted = new Set(completedIndices);
     newCompleted.add(activeIndex);
     setCompletedIndices(newCompleted);
 
+    let nextIndex = activeIndex;
     if (!alreadyCompleted && activeIndex < segments.length - 1) {
       nextIndex = activeIndex + 1;
       setActiveIndex(nextIndex);
-    } else if (!alreadyCompleted && activeIndex === segments.length - 1) {
-      // Last sentence completed, but don't force exit automatically
-      const newCompleted = new Set(completedIndices);
-      newCompleted.add(activeIndex);
-      setCompletedIndices(newCompleted);
-      saveToStorage(activeIndex, newCompleted, inputs, segmentStats);
-      return;
     }
 
     saveToStorage(nextIndex, newCompleted, inputs, segmentStats);
-  };
 
-  const handleSelectSentence = (index: number) => {
+    // Auto-submit if all sentences are completed
+    if (newCompleted.size === segments.length && segments.length > 0) {
+      await saveProgressToDb(true);
+    }
+  }, [activeIndex, activeSegment, completedIndices, inputs, jobId, segments.length, saveToStorage, saveProgressToDb]);
+
+  const handleSelectSentence = useCallback((index: number) => {
     setActiveIndex(index);
     saveToStorage(index, completedIndices, inputs, segmentStats);
-  };
+  }, [completedIndices, inputs, segmentStats, saveToStorage]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (activeIndex < segments.length - 1) {
       handleSelectSentence(activeIndex + 1);
     }
-  };
+  }, [activeIndex, handleSelectSentence, segments.length]);
 
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     if (activeIndex > 0) {
       handleSelectSentence(activeIndex - 1);
     }
-  };
+  }, [activeIndex, handleSelectSentence]);
 
 
   if (loading || isSubmitting) {
@@ -277,6 +327,7 @@ export default function PracticePage() {
             onInputChange={handleInputChange}
             onSentenceComplete={handleSentenceComplete}
             onHintUsed={() => incrementMetric('hintWords')}
+            isCompleted={completedIndices.has(activeIndex)}
           />
         </div>
       )}

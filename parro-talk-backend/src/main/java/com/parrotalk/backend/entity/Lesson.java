@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -13,6 +15,7 @@ import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.MediaType;
 import com.parrotalk.backend.constant.SourceType;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -89,10 +92,19 @@ public class Lesson extends BaseEntity {
 
     /** Categories of the lesson */
     @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "lesson_categories",
-        joinColumns = @JoinColumn(name = "lesson_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
+    @BatchSize(size = 15)
+    @JoinTable(name = "lesson_categories", joinColumns = @JoinColumn(name = "lesson_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
     private Set<Category> categories;
+
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("startTime ASC")
+    private List<TranscriptionSegment> segments;
+
+    @OneToMany(mappedBy = "lesson", fetch = FetchType.LAZY)
+    private List<UserLessonProgress> userLessonProgresses;
+
+    /** Total segments */
+    @Column(nullable = true)
+    @Builder.Default
+    private Integer totalSegments = 0;
 }

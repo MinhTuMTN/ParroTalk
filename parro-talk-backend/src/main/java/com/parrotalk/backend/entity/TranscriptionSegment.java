@@ -13,6 +13,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -40,10 +42,6 @@ public class TranscriptionSegment extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** Lesson ID */
-    @Column(nullable = false)
-    private UUID lessonId;
-
     /** Transcription text */
     @Column(columnDefinition = "TEXT", nullable = false)
     private String text;
@@ -59,4 +57,9 @@ public class TranscriptionSegment extends BaseEntity {
     /** Difificulty level */
     @Enumerated(EnumType.STRING)
     private Difficulty difficulty;
+
+    /** Lesson */
+    @ManyToOne
+    @JoinColumn(name = "lesson_id", nullable = false)
+    private Lesson lesson;
 }

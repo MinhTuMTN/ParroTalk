@@ -38,6 +38,14 @@ public class LessonProgressController {
         return ResponseEntity.ok(lessonProgressService.getProgress(user, lessonId));
     }
 
+    @GetMapping("/{lessonId}/progress/reset")
+    public ResponseEntity<Void> resetProgress(
+            @PathVariable UUID lessonId,
+            @AuthenticationPrincipal User user) {
+        lessonProgressService.resetProgress(user, lessonId);
+        return ResponseEntity.ok().build();
+    }
+
     /**
      * Submit answer.
      * 

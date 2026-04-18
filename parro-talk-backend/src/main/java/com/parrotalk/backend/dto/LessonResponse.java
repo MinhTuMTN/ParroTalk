@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -30,4 +31,5 @@ public class LessonResponse {
     private String description;
     private Integer duration;
     private Set<CategoryResponse> categories;
+    private List<TranscriptionResponse> segments;
 }

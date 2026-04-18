@@ -3,18 +3,32 @@
 import Link from "next/link";
 import { CheckCircle, XCircle, Award, ArrowRight, RotateCcw } from "lucide-react";
 
-export default function ResultPage() {
-  const searchParams = {
-    score: "8.5",
-    passed: "true",
-    lessonId: "1"
-  }
-  const scoreRaw = searchParams?.score;
-  const passedRaw = searchParams?.passed;
-  const lessonId = searchParams?.lessonId;
+import { useEffect, useState } from "react";
 
-  const score = scoreRaw ? parseFloat(scoreRaw) : 0;
-  const isPassed = passedRaw === "true";
+export default function ResultPage() {
+  const [result, setResult] = useState<{ score: number; passed: boolean; lessonId: string } | null>(null);
+
+  useEffect(() => {
+    const data = localStorage.getItem('parrotalk_last_result');
+    if (data) {
+      try {
+        setResult(JSON.parse(data));
+      } catch (e) {
+        console.error("Failed to parse result data", e);
+      }
+    }
+  }, []);
+
+  if (!result) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] bg-gray-50 p-6 animate-pulse">
+        <div className="w-12 h-12 border-4 border-gray-200 border-t-green-500 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-400 font-bold">Loading results...</p>
+      </div>
+    );
+  }
+
+  const { score, passed: isPassed, lessonId } = result;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] bg-gray-50 p-6">

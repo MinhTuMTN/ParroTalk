@@ -17,20 +17,37 @@ export interface Lesson {
   content?: string;
   duration?: number;
   categories?: Category[];
+  segments?: Sentence[];
+}
+
+export interface DraftSegmentResponse {
+  segmentId: string;
+  userAnswer: string;
+  correct: boolean;
+  score: number;
+  replayCount: number;
+  hintCount: number;
+  updatedAt: string;
+}
+
+export interface LessonProgressResponse {
+  userId: string;
+  lessonId: string;
+  currentSegmentId: string;
+  lastPositionSeconds: number;
+  lastProgress: number;
+  updatedAt: string;
+  draftSegments: DraftSegmentResponse[];
 }
 
 export interface Sentence {
-  id?: number;
+  id?: string | number;
   start: number;
   end: number;
   text: string;
   difficulty?: 'SHORT' | 'MEDIUM' | 'LONG';
 }
 
-export interface LessonResult {
-  sentences: Sentence[];
-  words: any[];
-}
 
 export interface PageResponse<T> {
   content: T[];
@@ -41,7 +58,7 @@ export interface PageResponse<T> {
 }
 
 export interface SegmentResultRequest {
-  segmentId: number;
+  segmentId: string | number;
   hintWords: number;
   replayCount: number;
   attempts: number;
@@ -84,16 +101,6 @@ export const lessonService = {
     return response.data;
   },
 
-  getLessonResult: async (lessonId: string) => {
-    const response = await axiosInstance.get<LessonResult>(`/lessons/${lessonId}/result`);
-    return response.data;
-  },
-
-  submitLesson: async (lessonId: string, request: SubmitLessonRequest) => {
-    const response = await axiosInstance.post<SubmitLessonResponse>(`/lessons/${lessonId}/submit`, request);
-    return response.data;
-  },
-
   getCategories: async () => {
     const response = await axiosInstance.get<Category[]>("/categories");
     return response.data;
@@ -102,5 +109,35 @@ export const lessonService = {
   getUserProfile: async () => {
     const response = await axiosInstance.get<UserProfileResponse>("/users/profile");
     return response.data;
+  },
+
+  getLessonProgress: async (lessonId: string) => {
+    const response = await axiosInstance.get<LessonProgressResponse>(`/lessons/${lessonId}/progress`);
+    return response.data;
+  },
+
+  submitAnswer: async (lessonId: string, segmentId: string | number, userAnswer: string) => {
+    const response = await axiosInstance.post<DraftSegmentResponse>(`/lessons/${lessonId}/answer`, {
+      segmentId,
+      userAnswer,
+    });
+    return response.data;
+  },
+
+  incrementReplay: async (lessonId: string, segmentId: string | number) => {
+    await axiosInstance.post(`/lessons/${lessonId}/segments/${segmentId}/replay`);
+  },
+
+  incrementHint: async (lessonId: string, segmentId: string | number) => {
+    await axiosInstance.post(`/lessons/${lessonId}/segments/${segmentId}/hint`);
+  },
+
+  finalLessonSubmit: async (lessonId: string) => {
+    const response = await axiosInstance.post<SubmitLessonResponse>(`/lessons/${lessonId}/submit-lesson`);
+    return response.data;
+  },
+
+  resetProgress: async (lessonId: string) => {
+    await axiosInstance.get(`/lessons/${lessonId}/progress/reset`);
   }
 };

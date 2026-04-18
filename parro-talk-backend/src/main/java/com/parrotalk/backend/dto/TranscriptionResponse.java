@@ -1,12 +1,14 @@
 package com.parrotalk.backend.dto;
 
+import java.util.UUID;
+
+import com.parrotalk.backend.constant.Difficulty;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-
-import java.util.List;
 
 @Getter
 @Setter
@@ -14,5 +16,9 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class TranscriptionResponse {
-    private List<TranscriptionSegmentDTO> sentences;
+    private UUID id;
+    private String text;
+    private double start;
+    private double end;
+    private Difficulty difficulty;
 }

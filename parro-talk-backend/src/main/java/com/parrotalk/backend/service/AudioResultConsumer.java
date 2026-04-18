@@ -67,7 +67,7 @@ public class AudioResultConsumer {
         List<TranscriptionSegment> segments = new ArrayList<>();
         for (JsonNode seg : resultNode.get("segments")) {
             TranscriptionSegment segment = TranscriptionSegment.builder()
-                    .lessonId(lessonId)
+                    // .lessonId(lessonId)
                     .text(seg.get("text").asString().trim())
                     .startTime(seg.get("start").asDouble())
                     .endTime(seg.get("end").asDouble())

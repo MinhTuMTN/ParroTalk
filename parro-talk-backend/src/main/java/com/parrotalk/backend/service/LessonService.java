@@ -21,8 +21,10 @@ import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.PageResponse;
+import com.parrotalk.backend.dto.TranscriptionResponse;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.entity.UserLessonProgress;
 import com.parrotalk.backend.mapper.LessonMapper;
 import com.parrotalk.backend.repository.LessonRepository;
 import com.parrotalk.backend.specification.LessonSpecification;
@@ -84,10 +86,24 @@ public class LessonService {
      * @return Lesson response
      */
     @Cacheable(value = "lessonDetailCache", key = "#lessonId")
-    public LessonResponse getLessonResponse(UUID lessonId) {
+    public LessonResponse getLessonDetail(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
-        return lessonMapper.toLessonResponse(lesson);
+
+        List<TranscriptionResponse> segments = lesson.getSegments().stream()
+                .map(segment -> TranscriptionResponse.builder()
+                        .id(segment.getId())
+                        .text(segment.getText())
+                        .start(segment.getStartTime())
+                        .end(segment.getEndTime())
+                        .difficulty(segment.getDifficulty())
+                        .build())
+                .collect(Collectors.toList());
+
+        LessonResponse lessonResponse = lessonMapper.toLessonResponse(lesson);
+        lessonResponse.setSegments(segments);
+
+        return lessonResponse;
     }
 
     public List<LessonResponse> getAllLessons(User user) {
@@ -112,17 +128,30 @@ public class LessonService {
      * @return Page of lessons
      */
     @Cacheable(value = "lessonSearchCache", key = "#request.getCacheKey()")
-    public PageResponse<LessonResponse> searchLessons(LessonSearchRequest request) {
+    public PageResponse<LessonResponse> searchLessons(LessonSearchRequest request, User user) {
         Pageable pageable = PageRequest.of(
                 request.getPage(),
                 request.getSize(),
                 Sort.by(Sort.Direction.DESC, "createdAt"));
-        Specification<Lesson> specification = LessonSpecification.findLessonsByName(request.getQuery());
+        Specification<Lesson> specification = Specification
+                .where(LessonSpecification.hasTitleLike(request.getQuery()))
+                .and(LessonSpecification.joinUserProgress(user.getId()));
 
         Page<Lesson> lessonPage = lessonRepository.findAll(specification, pageable);
 
         List<LessonResponse> content = lessonPage.getContent().stream()
-                .map(lessonMapper::toLessonResponse)
+                .map(lesson -> {
+                    LessonResponse lessonResponse = lessonMapper.toLessonResponse(lesson);
+
+                    if (lesson.getUserLessonProgresses() != null && !lesson.getUserLessonProgresses().isEmpty()) {
+                        UserLessonProgress userLessonProgress = lesson.getUserLessonProgresses().get(0);
+                        lessonResponse.setProgress((int) (userLessonProgress.getLastProgress() * 100));
+                    } else {
+                        lessonResponse.setProgress(0);
+                    }
+
+                    return lessonResponse;
+                })
                 .collect(Collectors.toList());
 
         return PageResponse.<LessonResponse>builder()

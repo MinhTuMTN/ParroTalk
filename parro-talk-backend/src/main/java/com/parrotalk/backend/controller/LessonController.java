@@ -2,9 +2,6 @@ package com.parrotalk.backend.controller;
 
 import java.util.UUID;
 
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,7 +46,7 @@ public class LessonController {
     public ResponseEntity<PageResponse<LessonResponse>> listLessons(
             @AuthenticationPrincipal User user,
             @ModelAttribute LessonSearchRequest request) {
-        return ResponseEntity.ok(lessonService.searchLessons(request));
+        return ResponseEntity.ok(lessonService.searchLessons(request, user));
     }
 
     @PostMapping("/{lessonId}/submit")
@@ -62,8 +59,8 @@ public class LessonController {
     }
 
     @GetMapping("/{lessonId}")
-    public ResponseEntity<LessonResponse> getLessonStatus(@PathVariable UUID lessonId) {
-        return ResponseEntity.ok(lessonService.getLessonResponse(lessonId));
+    public ResponseEntity<LessonResponse> getLessonDetail(@PathVariable UUID lessonId) {
+        return ResponseEntity.ok(lessonService.getLessonDetail(lessonId));
     }
 
     @DeleteMapping("/{lessonId}")

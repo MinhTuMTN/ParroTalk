@@ -2,7 +2,7 @@
 
 import { cleanWord, getDictationMatching } from "@/lib/utils";
 import { Keyboard } from "lucide-react";
-import { useMemo, useRef, useEffect } from "react";
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 
 // Use a simple basic cleaner for full string validation equivalence
 const cleanStringForMatch = (str: string) => str.replace(/[^\w\s\']/g, "").trim().toLowerCase();
@@ -13,11 +13,18 @@ interface WordDictationProps {
   onInputChange: (val: string) => void;
   onSentenceComplete: () => void;
   onHintUsed?: () => void;
+  isCompleted?: boolean;
 }
 
-export default function WordDictation({ sentence, fullInput, onInputChange, onSentenceComplete, onHintUsed }: WordDictationProps) {
+export default function WordDictation({ sentence, fullInput, onInputChange, onSentenceComplete, onHintUsed, isCompleted }: WordDictationProps) {
   const targetWords = useMemo(() => sentence.split(" "), [sentence]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
+
+  // Reset revealed words when sentence changes
+  useEffect(() => {
+    setRevealedWords(new Set());
+  }, [sentence]);
 
   const { matchingResult, currentIdx, currentTypedPart, isAllMatched } = useMemo(() => {
     const userInput = fullInput.split(/\s+/);
@@ -38,18 +45,36 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
   }, [fullInput, sentence]);
 
   useEffect(() => {
-    if (isAllMatched) {
+    if (isAllMatched && !isCompleted) {
       // Minor timeout rendering UI green glow feedback prior to flushing transition
       const t = setTimeout(() => {
         onSentenceComplete();
       }, 150);
       return () => clearTimeout(t);
     }
-  }, [isAllMatched, onSentenceComplete]);
+  }, [isAllMatched, isCompleted, onSentenceComplete]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isCompleted) return;
     onInputChange(e.target.value);
   };
+
+  const handleWordClick = useCallback((idx: number) => {
+    if (isCompleted || isAllMatched) return;
+
+    // If already matched or already revealed, do nothing
+    const match = matchingResult[idx];
+    if (match?.isMatched || revealedWords.has(idx)) return;
+
+    // Reveal and charge a hint
+    setRevealedWords(prev => {
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+
+    if (onHintUsed) onHintUsed();
+  }, [isCompleted, isAllMatched, matchingResult, revealedWords, onHintUsed]);
 
   const requestHint = () => {
     if (isAllMatched || currentIdx >= targetWords.length) return;
@@ -94,14 +119,15 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
             className = "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm scale-105 transition-all duration-300 inline-flex items-center justify-center min-h-[28px]";
           }
 
-          return (
-            <div key={idx} className="relative group">
-              <div className={className}>
-                {match ? match.displayString : cleanWord(word).replace(/[a-zA-Z0-9]/g, "•")}
-              </div>
+          const isRevealed = revealedWords.has(idx);
 
-              <div className="absolute top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none bg-gray-800 text-white px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest">
-                {word}
+          return (
+            <div key={idx} className="relative">
+              <div
+                className={`${className} cursor-pointer hover:bg-gray-100 transition-colors pointer-events-auto`}
+                onClick={() => handleWordClick(idx)}
+              >
+                {(isRevealed || isMatchedLocal) ? word : (match ? match.displayString : cleanWord(word).replace(/[a-zA-Z0-9]/g, "•"))}
               </div>
             </div>
           );

@@ -54,6 +54,15 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
      * @return Page of lessons
      */
     @Override
-    @EntityGraph(attributePaths = { "categories" })
     Page<Lesson> findAll(Specification<Lesson> spec, Pageable pageable);
+
+    /**
+     * Find lesson by id.
+     * 
+     * @param lessonId Lesson id
+     * @return Lesson
+     */
+    @Override
+    @EntityGraph(attributePaths = { "segments" })
+    Optional<Lesson> findById(UUID lessonId);
 }

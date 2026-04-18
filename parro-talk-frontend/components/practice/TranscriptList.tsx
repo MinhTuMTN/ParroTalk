@@ -82,7 +82,7 @@ export default function TranscriptList({ segments, activeIndex, completedIndices
                 <p className={`text-[15px] leading-relaxed transition-all ${status === "active" ? "font-bold text-gray-900" : "font-medium text-gray-500"}`}>
                   {status === "completed"
                     ? segment.text
-                    : status === "active"
+                    : (status === "active" || inputs[index])
                       ? renderInputText(inputs[index] || "", segment.text)
                       : maskText(segment.text)}
                 </p>

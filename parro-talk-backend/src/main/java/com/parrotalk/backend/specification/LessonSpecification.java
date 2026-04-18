@@ -1,15 +1,15 @@
 package com.parrotalk.backend.specification;
 
-import com.parrotalk.backend.entity.Lesson;
-
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Predicate;
+import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.jpa.domain.Specification;
 
-import com.parrotalk.backend.entity.Category;
+import com.parrotalk.backend.entity.Lesson;
+import com.parrotalk.backend.entity.UserLessonProgress;
+
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 
 /**
  * Lesson Specification.
@@ -24,32 +24,37 @@ public class LessonSpecification {
      * @param keyword Keyword
      * @return Specification
      */
-    public static Specification<Lesson> findLessonsByName(String keyword) {
-        return (root, query, criticalBuilder) -> {
+    public static Specification<Lesson> hasTitleLike(String keyword) {
+        return (root, query, cb) -> {
             // If keyword is blank, return empty specification
             if (StringUtils.isBlank(keyword)) {
-                return criticalBuilder.conjunction();
+                return cb.conjunction();
             }
-
-            // Distinct result
-            query.distinct(true);
 
             // Convert keyword to lowercase and add wildcard
             String pattern = "%" + keyword.toLowerCase() + "%";
 
-            // Join category
-            Join<Lesson, Category> categoryJoin = root.join("categories", JoinType.LEFT);
+            return cb.like(cb.lower(root.get("title")), pattern);
+        };
+    }
 
-            // Lesson Predicate
-            Predicate lessonPredicate = criticalBuilder.like(
-                    criticalBuilder.lower(root.get("title")), pattern);
+    /**
+     * Get specification for joining user progress.
+     *
+     * @param userId User ID
+     * @return Specification
+     */
+    public static Specification<Lesson> joinUserProgress(UUID userId) {
+        return (root, query, cb) -> {
+            query.distinct(true);
 
-            // Category Predicate
-            Predicate categoryPredicate = criticalBuilder.like(
-                    criticalBuilder.lower(categoryJoin.get("name")), pattern);
+            Join<Lesson, UserLessonProgress> progressJoin = root.join("userLessonProgresses", JoinType.LEFT);
 
-            // Combine predicates with OR operator
-            return criticalBuilder.or(lessonPredicate, categoryPredicate);
+            progressJoin.on(cb.equal(
+                    progressJoin.get("id").get("userId"),
+                    userId));
+
+            return cb.conjunction();
         };
     }
 }

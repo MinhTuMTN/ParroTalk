@@ -15,9 +15,9 @@ import java.util.UUID;
 public class DraftSegmentResponse {
     private UUID segmentId;
     private String userAnswer;
-    private boolean isCorrect;
     private int score;
     private int replayCount;
     private int hintCount;
+    private boolean correct;
     private LocalDateTime updatedAt;
 }
