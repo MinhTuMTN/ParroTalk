@@ -92,12 +92,10 @@ export default function LessonCard({ job }: { job: Lesson }) {
 
                     <Link
                         href={`/practice/${job.id}`}
-                        className={`w-full py-3 rounded-xl font-bold flex items-center justify-center transition-colors active:scale-95 ${isDone
-                            ? "bg-gray-900 text-white hover:bg-gray-800 shadow-md shadow-gray-200" : "bg-gray-100 text-gray-400"
-                            }`}
+                        className={`w-full py-3 rounded-xl font-bold flex items-center justify-center transition-colors active:scale-95 bg-gray-900 text-white hover:bg-gray-800 shadow-md shadow-gray-200`}
                         onClick={handleAction}
                     >
-                        {status === "DONE" ? "Review Lesson" : job.currentStep === "PROCESSING" ? "Processing..." : "Start Lesson"}
+                        {status === "DONE" ? "Review Lesson" : status === "IN_PROGRESS" ? "Processing..." : "Start Lesson"}
                     </Link>
                 </div>
             </div>

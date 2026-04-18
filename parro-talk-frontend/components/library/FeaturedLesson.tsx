@@ -79,7 +79,7 @@ export default function FeaturedLesson({ job }: { job: Lesson }) {
                     <Link
                         href={href}
                         onClick={handleAction}
-                        className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-black transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm sm:text-base ${job.status === "DONE" || job.status === "IN_PROGRESS" || job.status === "PENDING" ? "bg-green-500 hover:bg-green-400 text-gray-900 shadow-lg shadow-green-500/20" : "bg-gray-700 text-gray-400 cursor-not-allowed"}`}
+                        className={`px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-black transition-colors flex items-center justify-center gap-2 active:scale-95 text-sm sm:text-base bg-green-500 hover:bg-green-400 text-gray-900 shadow-lg shadow-green-500/20`}
                     >
                         {status === "DONE" ? "Review Lesson" : status === "IN_PROGRESS" ? "Continue Lesson" : "Start Lesson"}
                         <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />

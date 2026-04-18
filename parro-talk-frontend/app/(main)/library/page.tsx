@@ -96,7 +96,8 @@ function LibraryContent() {
     }
 
     const featuredJob = page === 0 && jobs.length > 0 && !debouncedSearch && !activeCategory ? jobs[0] : null;
-    const gridJobs = jobs.filter(job => job.id !== featuredJob?.id);
+    // const gridJobs = jobs.filter(job => job.id !== featuredJob?.id);
+    const gridJobs = jobs;
 
     return (
         <div className="min-h-screen bg-white flex flex-col">
