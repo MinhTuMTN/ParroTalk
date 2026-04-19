@@ -40,6 +40,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(publicEndpoints).permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/lessons/sse/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))

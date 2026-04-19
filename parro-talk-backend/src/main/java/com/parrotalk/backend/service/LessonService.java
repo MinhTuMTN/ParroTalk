@@ -80,6 +80,13 @@ public class LessonService {
         return lessonRepository.findByFileHash(fileHash);
     }
 
+    public LessonResponse getLessonStatus(UUID lessonId) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new RuntimeException("Lesson not found"));
+
+        return lessonMapper.toLessonResponse(lesson);
+    }
+
     /**
      * Get the lesson response.
      * Used by user get lesson status after upload.

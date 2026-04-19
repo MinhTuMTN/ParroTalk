@@ -1,4 +1,4 @@
-import { Mic, Play, Book, FileText, Star, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Mic, Play, Book, FileText, Star, LogOut, PanelLeftClose, PanelLeftOpen, CloudUpload } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,7 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
     { icon: Book, label: "Dictionary", path: "#" },
     { icon: FileText, label: "Notes", path: "#" },
     { icon: Mic, label: "Transcript", path: "#" },
+    { icon: CloudUpload, label: "Upload", path: "/upload", active: pathname.startsWith("/upload") },
   ];
 
   return (

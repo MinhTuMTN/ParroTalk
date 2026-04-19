@@ -1,5 +1,6 @@
 package com.parrotalk.backend.controller;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.MediaType;
@@ -27,6 +28,7 @@ import com.parrotalk.backend.service.LessonService;
 import com.parrotalk.backend.service.SseService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Lesson Controller.
@@ -36,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/lessons")
 @RequiredArgsConstructor
+@Slf4j
 public class LessonController {
 
     private final LessonService lessonService;
@@ -70,8 +73,21 @@ public class LessonController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping(path = "/{lessonId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(path = "/sse/{lessonId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamLessonStatus(@PathVariable UUID lessonId) {
-        return sseService.connect(lessonId);
+        SseEmitter emitter = sseService.connect(lessonId);
+
+        // Send initial state immediately
+        try {
+            LessonResponse lesson = lessonService.getLessonStatus(lessonId);
+            sseService.sendEvent(lessonId, Map.of(
+                    "status", lesson.getStatus(),
+                    "progress", lesson.getProgress(),
+                    "step", lesson.getCurrentStep() != null ? lesson.getCurrentStep() : "Connected"));
+        } catch (Exception e) {
+            log.error("Failed to send initial SSE event for lesson: {}", lessonId, e);
+        }
+
+        return emitter;
     }
 }

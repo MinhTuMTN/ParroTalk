@@ -139,5 +139,26 @@ export const lessonService = {
 
   resetProgress: async (lessonId: string) => {
     await axiosInstance.get(`/lessons/${lessonId}/progress/reset`);
+  },
+
+  uploadAudio: async (file: File, onProgress?: (progress: number) => void) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await axiosInstance.post<{ lessonId: string; message: string }>(
+      "/audio/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(progress);
+          }
+        },
+      }
+    );
+    return response.data;
   }
 };
