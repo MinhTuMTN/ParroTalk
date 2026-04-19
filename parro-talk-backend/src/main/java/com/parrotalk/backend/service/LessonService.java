@@ -59,11 +59,13 @@ public class LessonService {
      * @return Lesson
      */
     @Transactional
-    public Lesson createLesson(String fileUrl, String fileHash, User owner) {
+    public Lesson createLesson(String fileUrl, String fileHash, User owner, int duration, String filename) {
         Lesson lesson = Lesson.builder()
                 .fileUrl(fileUrl)
                 .fileHash(fileHash)
                 .ownerId(owner.getId())
+                .duration(duration)
+                .title(filename)
                 .build();
         return lessonRepository.save(lesson);
     }
@@ -127,7 +129,7 @@ public class LessonService {
      * @param request Lesson search request
      * @return Page of lessons
      */
-    @Cacheable(value = "lessonSearchCache", key = "#request.getCacheKey()")
+    // @Cacheable(value = "lessonSearchCache", key = "#request.getCacheKey()")
     public PageResponse<LessonResponse> searchLessons(LessonSearchRequest request, User user) {
         Pageable pageable = PageRequest.of(
                 request.getPage(),
@@ -164,7 +166,7 @@ public class LessonService {
     }
 
     @Transactional
-    public void updateProgress(UUID lessonId, int progress, String step, LessonStatus status) {
+    public void updateProgress(UUID lessonId, int progress, String step, LessonStatus status, int totalSegments) {
         log.info("Updating progress for lesson: {}, progress: {}, step: {}, status: {}", lessonId, progress, step,
                 status);
         Lesson lesson = lessonRepository.findById(lessonId).orElseThrow(() -> new RuntimeException("Lesson not found"));
@@ -184,6 +186,7 @@ public class LessonService {
         }
 
         if (updated) {
+            lesson.setTotalSegments(totalSegments);
             lessonRepository.save(lesson);
             sseService.sendEvent(lessonId, Map.of(
                     "status", lesson.getStatus(),

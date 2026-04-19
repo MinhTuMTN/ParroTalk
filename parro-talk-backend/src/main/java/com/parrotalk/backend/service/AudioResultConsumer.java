@@ -2,6 +2,7 @@ package com.parrotalk.backend.service;
 
 import com.parrotalk.backend.config.RabbitMQConfig;
 import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,21 +40,21 @@ public class AudioResultConsumer {
             if ("PROGRESS".equalsIgnoreCase(status)) {
                 int progress = node.get("progress").asInt();
                 String step = node.get("message").asString();
-                lessonService.updateProgress(lessonId, progress, step, LessonStatus.PROCESSING);
+                lessonService.updateProgress(lessonId, progress, step, LessonStatus.PROCESSING, 0);
                 return;
             }
 
             if ("FAILED".equalsIgnoreCase(status)) {
                 String errorInfo = node.has("error") ? node.get("error").asString() : "Unknown AI error";
                 log.error(errorInfo);
-                lessonService.updateProgress(lessonId, 0, "AI Error", LessonStatus.FAILED);
+                lessonService.updateProgress(lessonId, 0, "AI Error", LessonStatus.FAILED, 0);
                 return;
             }
 
             JsonNode resultNode = node.get("result");
             if (resultNode != null && resultNode.has("segments")) {
-                saveRealResults(lessonId, resultNode);
-                lessonService.updateProgress(lessonId, 100, "Completed", LessonStatus.DONE);
+                int totalSegments = saveRealResults(lessonId, resultNode);
+                lessonService.updateProgress(lessonId, 100, "Completed", LessonStatus.DONE, totalSegments);
             }
 
         } catch (Exception e) {
@@ -62,12 +63,14 @@ public class AudioResultConsumer {
         }
     }
 
-    private void saveRealResults(UUID lessonId, JsonNode resultNode) {
+    private int saveRealResults(UUID lessonId, JsonNode resultNode) {
         log.info("Saving real results for lesson: {}", lessonId);
+
+        Lesson lesson = lessonService.findById(lessonId).orElseThrow(() -> new RuntimeException("Lesson not found"));
         List<TranscriptionSegment> segments = new ArrayList<>();
         for (JsonNode seg : resultNode.get("segments")) {
             TranscriptionSegment segment = TranscriptionSegment.builder()
-                    // .lessonId(lessonId)
+                    .lesson(lesson)
                     .text(seg.get("text").asString().trim())
                     .startTime(seg.get("start").asDouble())
                     .endTime(seg.get("end").asDouble())
@@ -75,5 +78,7 @@ public class AudioResultConsumer {
             segments.add(segment);
         }
         segmentRepository.saveAll(segments);
+
+        return segments.size();
     }
 }

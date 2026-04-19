@@ -53,7 +53,6 @@ public class AudioController {
      * @param lessonId Lesson id
      * @return Upload response
      */
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/retry/{lessonId}")
     public ResponseEntity<UploadResponse> retryLesson(@PathVariable UUID lessonId) {
         Lesson lesson = audioService.retryLesson(lessonId);
@@ -70,7 +69,6 @@ public class AudioController {
      * @return Upload response
      * @throws InterruptedException
      */
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/retry-all-processing-lesson")
     public ResponseEntity<UploadResponse> retryAllProcessingLesson() {
         audioService.retryAllProcessingLesson();

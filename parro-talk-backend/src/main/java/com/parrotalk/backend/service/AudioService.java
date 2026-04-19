@@ -3,6 +3,7 @@ package com.parrotalk.backend.service;
 import com.parrotalk.backend.entity.User;
 
 import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.dto.CloudinaryDto;
 import com.parrotalk.backend.entity.Lesson;
 
 import lombok.RequiredArgsConstructor;
@@ -62,13 +63,18 @@ public class AudioService {
 
             // Otherwise, upload new file to storage (using Cloudinary)
             String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-            String fileUrl = storageService.store(file, filename);
+            CloudinaryDto cloudinaryDto = storageService.store(file, filename);
 
             // Save new lesson to database with PENDING status
-            Lesson lesson = lessonService.createLesson(fileUrl, fileHash, owner);
+            Lesson lesson = lessonService.createLesson(
+                    cloudinaryDto.getUrl(),
+                    fileHash,
+                    owner,
+                    cloudinaryDto.getDuration(),
+                    filename);
 
             // Send task to RabbitMQ
-            audioTaskProducer.sendTranscriptionTask(lesson.getId(), fileUrl);
+            audioTaskProducer.sendTranscriptionTask(lesson.getId(), cloudinaryDto.getUrl());
 
             // Return lesson
             return lesson;
