@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, Pause, RotateCcw, Subtitles, MoreHorizontal, Zap, Save, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Pause, RotateCcw, Zap, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
@@ -134,13 +134,23 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
           >
             {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
           </button>
-          <button
-            onClick={handleReplay}
-            className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/20 transition-all flex items-center gap-2 shadow-sm"
-          >
-            <RotateCcw size={14} />
-            Replay [ESC]
-          </button>
+          
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleReplay}
+              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/20 transition-all flex items-center gap-2 shadow-sm"
+            >
+              <RotateCcw size={14} />
+              Replay [ESC]
+            </button>
+            <button
+              onClick={() => setIsLooping(!isLooping)}
+              className={`px-4 py-2 backdrop-blur-md border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm ${isLooping ? 'bg-green-500/80 border-green-400 text-white' : 'bg-white/10 border-white/20 text-white hover:bg-white/20'}`}
+            >
+              <Repeat size={14} />
+              {isLooping ? 'Loop ON' : 'Loop OFF'}
+            </button>
+          </div>
         </div>
 
         {/* Speed indicator on video */}
@@ -174,25 +184,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-1.5 text-gray-400 hover:text-green-500 transition-colors font-black text-[9px] uppercase tracking-widest px-1">
-              <Subtitles size={12} />
-              Subs
-            </button>
-            <button onClick={() => setIsLooping(!isLooping)} className={`flex items-center gap-1.5 transition-colors font-black text-[9px] uppercase tracking-widest px-1 ${isLooping ? 'text-green-500' : 'text-gray-400 hover:text-green-500'}`}>
-              <RotateCcw size={12} />
-              Loop
-            </button>
-          </div>
-          <button
-            onClick={onSave}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all active:scale-95 shadow-sm"
-          >
-            <Save size={12} />
-            Save Progress
-          </button>
-        </div>
+
 
         {/* Mobile Navigation Buttons */}
         <div className="md:hidden flex gap-2 mt-1">

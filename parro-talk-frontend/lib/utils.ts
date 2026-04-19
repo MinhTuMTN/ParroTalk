@@ -37,8 +37,13 @@ export function compareSentences(userInput: string, targetText: string): Feedbac
   return tokens;
 }
 
-export function cleanWord(w: string): string {
-  return w.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "");
+export function cleanWord(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter(s => s.length > 0)
+    .join(" ");
 }
 
 export interface DictationMatch {
@@ -50,34 +55,38 @@ export function getDictationMatching(userInput: string, targetSentence: string):
   const targetWords = targetSentence.split(" ");
   const userWords = userInput.split(" ");
   
-  const result: DictationMatch[] = targetWords.map((targetWord, i) => {
+  return targetWords.map((targetWord, i) => {
     const userWord = userWords[i] || "";
-    const targetClean = cleanWord(targetWord);
-    const userClean = cleanWord(userWord);
-    
-    if (targetClean === userClean && userClean.length > 0) {
+
+    const targetNorm = cleanWord(targetWord);
+    const userNorm = cleanWord(userWord);
+
+    if (targetNorm === userNorm && userNorm.length > 0) {
       return { isMatched: true, displayString: targetWord };
     }
-    
-    // Partial character matching
+
     let displayString = "";
-    for (let j = 0; j < targetWord.length; j++) {
-      const tChar = targetWord[j];
-      const uChar = userWord[j] || "";
-      
-      if (tChar.match(/[a-zA-Z0-9]/)) {
+    let uIndex = 0;
+
+    for (let tIndex = 0; tIndex < targetWord.length; tIndex++) {
+      const tChar = targetWord[tIndex];
+
+      // Nếu là ký tự chữ/số → mới so sánh
+      if (/[a-zA-Z0-9]/.test(tChar)) {
+        const uChar = userWord[uIndex] || "";
+
         if (tChar.toLowerCase() === uChar.toLowerCase()) {
           displayString += tChar;
         } else {
           displayString += "•";
         }
+
+        uIndex++;
       } else {
         displayString += tChar;
       }
     }
-    
+
     return { isMatched: false, displayString };
   });
-
-  return result;
 }

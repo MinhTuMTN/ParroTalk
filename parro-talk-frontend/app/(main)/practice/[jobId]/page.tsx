@@ -185,20 +185,12 @@ export default function PracticePage() {
   }, [activeSegment?.id, activeIndex, completedIndices, inputs, jobId, saveToStorage]);
 
   const handleSentenceComplete = useCallback(async () => {
+    console.log("handleSentenceComplete");
     const alreadyCompleted = completedIndices.has(activeIndex);
     const isFullCompletion = !alreadyCompleted && (completedIndices.size + 1 === segments.length);
 
     if (isFullCompletion) {
       setIsSubmitting(true);
-    }
-
-    // Save to backend immediately
-    if (!alreadyCompleted && activeSegment?.id) {
-      try {
-        await lessonService.submitAnswer(jobId, activeSegment.id, inputs[activeIndex] || "");
-      } catch (e) {
-        console.error("Failed to submit individual answer", e);
-      }
     }
 
     const newCompleted = new Set(completedIndices);
@@ -209,6 +201,20 @@ export default function PracticePage() {
     if (!alreadyCompleted && activeIndex < segments.length - 1) {
       nextIndex = activeIndex + 1;
       setActiveIndex(nextIndex);
+    }
+
+
+    // Save to backend immediately
+    if (!alreadyCompleted && activeSegment?.id) {
+      try {
+        if (newCompleted.size === segments.length) {
+          await lessonService.submitAnswer(jobId, activeSegment.id, inputs[activeIndex] || "");
+        } else {
+          lessonService.submitAnswer(jobId, activeSegment.id, inputs[activeIndex] || "");
+        }
+      } catch (e) {
+        console.error("Failed to submit individual answer", e);
+      }
     }
 
     saveToStorage(nextIndex, newCompleted, inputs, segmentStats);
@@ -251,7 +257,7 @@ export default function PracticePage() {
   const percent = totalSentences > 0 ? Math.round((completedIndices.size / totalSentences) * 100) : 0;
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden overscroll-none">
+    <div className="flex flex-col overflow-hidden h-[100dvh] overscroll-none">
       <PracticeHeader
         currentSentence={currentSentence}
         totalSentences={totalSentences}
@@ -278,7 +284,7 @@ export default function PracticePage() {
           </button>
         </div>
 
-        <div className="flex-1 p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-stretch relative overflow-hidden min-h-0">
+        <div className="flex-1 p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-stretch relative overflow-y-auto md:overflow-hidden min-h-0">
 
           {/* Left Column: Player and Controls */}
           <div className={`
@@ -318,9 +324,8 @@ export default function PracticePage() {
       </div>
 
 
-      {/* Bottom Area: Dictation Input */}
       {activeSegment && (
-        <div className="shrink-0 bg-white shadow-[0_-4px_25px_-5px_rgba(0,0,0,0.05)] z-10 relative">
+        <div className="shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.04)] z-10 relative">
           <WordDictation
             sentence={activeSentence}
             fullInput={inputs[activeIndex] || ""}
@@ -332,12 +337,6 @@ export default function PracticePage() {
         </div>
       )}
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
-      `}</style>
     </div>
   );
 }

@@ -4,9 +4,6 @@ import { cleanWord, getDictationMatching } from "@/lib/utils";
 import { Keyboard } from "lucide-react";
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 
-// Use a simple basic cleaner for full string validation equivalence
-const cleanStringForMatch = (str: string) => str.replace(/[^\w\s\']/g, "").trim().toLowerCase();
-
 interface WordDictationProps {
   sentence: string;
   fullInput: string;
@@ -31,7 +28,7 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
     const result = getDictationMatching(fullInput, sentence);
 
     // Evaluate fully normalized sequence to capture the completed sequence securely
-    const isMatched = cleanStringForMatch(sentence) === cleanStringForMatch(fullInput);
+    const isMatched = cleanWord(sentence) === cleanWord(fullInput);
 
     const lastPart = userInput[userInput.length - 1] || "";
     const isCurrentlyTyping = fullInput.length > 0 && !fullInput.endsWith(" ");
@@ -95,47 +92,49 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
   };
 
   return (
-    <div className="w-full bg-white border-t border-gray-100 p-4 sm:p-5 pb-6 sm:pb-8 flex flex-col items-center gap-4 [padding-bottom:max(1.5rem,env(safe-area-inset-bottom))]">
+    <div className="w-full bg-white border-t border-gray-100 pt-3 px-4 pb-1 sm:pt-5 sm:px-5 sm:pb-8 flex flex-col items-center gap-2 sm:gap-4 [padding-bottom:env(safe-area-inset-bottom)]">
       {/* Visual Word Progress */}
-      <div className="flex flex-wrap justify-center gap-x-2 gap-y-3 max-w-4xl">
-        {targetWords.map((word, idx) => {
-          const match = matchingResult[idx];
-          const isMatchedLocal = match?.isMatched || false;
+      < div className="flex flex-wrap justify-center gap-x-2 gap-y-3 max-w-4xl" >
+        {
+          targetWords.map((word, idx) => {
+            const match = matchingResult[idx];
+            const isMatchedLocal = match?.isMatched || false;
 
-          const isActive = idx == currentIdx;
-          const isAfterActive = idx > currentIdx;
+            const isActive = idx == currentIdx;
+            const isAfterActive = idx > currentIdx;
 
-          let className = "text-gray-500 bg-gray-50/50 border border-gray-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]";
+            let className = "text-gray-500 bg-gray-50/50 border border-gray-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]";
 
-          if (!isAfterActive && fullInput.length > 0) {
-            className =
-              isMatchedLocal
-                ? "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]"
-                : "bg-red-200 text-red-500 scale-105 shadow-xl shadow-red-100 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]";
-          }
+            if (!isAfterActive && fullInput.length > 0) {
+              className =
+                isMatchedLocal
+                  ? "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]"
+                  : "bg-red-200 text-red-500 scale-105 shadow-xl shadow-red-100 rounded-xl px-2 py-0.5 text-xs sm:text-sm inline-flex items-center justify-center min-h-[28px]";
+            }
 
-          // Complete sentence passed override style map 
-          if (isAllMatched) {
-            className = "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm scale-105 transition-all duration-300 inline-flex items-center justify-center min-h-[28px]";
-          }
+            // Complete sentence passed override style map 
+            if (isAllMatched) {
+              className = "bg-green-100 text-green-600 shadow-sm border border-green-200 rounded-xl px-2 py-0.5 text-xs sm:text-sm scale-105 transition-all duration-300 inline-flex items-center justify-center min-h-[28px]";
+            }
 
-          const isRevealed = revealedWords.has(idx);
+            const isRevealed = revealedWords.has(idx);
 
-          return (
-            <div key={idx} className="relative">
-              <div
-                className={`${className} cursor-pointer hover:bg-gray-100 transition-colors pointer-events-auto`}
-                onClick={() => handleWordClick(idx)}
-              >
-                {(isRevealed || isMatchedLocal) ? word : (match ? match.displayString : cleanWord(word).replace(/[a-zA-Z0-9]/g, "•"))}
+            return (
+              <div key={idx} className="relative">
+                <div
+                  className={`${className} cursor-pointer hover:bg-gray-100 transition-colors pointer-events-auto`}
+                  onClick={() => handleWordClick(idx)}
+                >
+                  {(isRevealed || isMatchedLocal) ? word : (match ? match.displayString : cleanWord(word).replace(/[a-zA-Z0-9]/g, "•"))}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })
+        }
+      </div >
 
       {/* Actual Input Field */}
-      <div className="w-full max-w-2xl relative group mb-1">
+      < div className="w-full max-w-2xl relative group mb-1" >
         <input
           ref={inputRef}
           type="text"
@@ -160,8 +159,8 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
           `}
           autoFocus
         />
-      </div>
-    </div>
+      </div >
+    </div >
 
   );
 }

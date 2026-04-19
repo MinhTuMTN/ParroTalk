@@ -9,7 +9,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isMobileMenuOpen, closeMobileMenu } = useUI();
 
   return (
-    <div className="flex min-h-screen bg-[#FDFDFD] font-sans selection:bg-green-100 relative">
+    <div className="flex min-h-screen bg-[#FDFDFD] font-sans selection:bg-green-100 relative h-[100dvh] overflow-hidden overscroll-none">
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -25,7 +25,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 h-[100dvh] overflow-y-auto">
         {children}
       </div>
     </div>

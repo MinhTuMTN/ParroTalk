@@ -78,7 +78,7 @@ public class ScoringUtil {
      */
     private static List<String> preprocess(String text) {
         return Arrays.stream(text.toLowerCase()
-                .replaceAll("[^a-z0-9\\s]", " ")
+                .replaceAll("[^a-z0-9\\s]", "")
                 .split("\\s+"))
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
