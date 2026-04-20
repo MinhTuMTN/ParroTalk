@@ -1,4 +1,4 @@
-faster-whisper
-pika
-requests
-groq
+pika==1.3.2
+groq==0.4.2
+requests==2.31.0
+tenacity==8.2.3
