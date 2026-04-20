@@ -141,9 +141,10 @@ export const lessonService = {
     await axiosInstance.get(`/lessons/${lessonId}/progress/reset`);
   },
 
-  uploadAudio: async (file: File, onProgress?: (progress: number) => void) => {
+  uploadAudio: async (file: File, title: string, onProgress?: (progress: number) => void) => {
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("title", title);
     const response = await axiosInstance.post<{ lessonId: string; message: string }>(
       "/audio/upload",
       formData,
@@ -158,6 +159,14 @@ export const lessonService = {
           }
         },
       }
+    );
+    return response.data;
+  },
+
+  processYoutube: async (url: string, title: string) => {
+    const response = await axiosInstance.post<{ lessonId: string; message: string }>(
+      "/audio/youtube",
+      { url, title }
     );
     return response.data;
   }
