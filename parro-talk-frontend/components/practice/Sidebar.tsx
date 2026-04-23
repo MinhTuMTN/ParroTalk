@@ -13,14 +13,16 @@ interface SidebarProps {
 
 export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   const menuItems = [
     { icon: Play, label: "Library", path: "/library", active: pathname === "/library" },
     { icon: Book, label: "Dictionary", path: "#" },
     { icon: FileText, label: "Notes", path: "#" },
     { icon: Mic, label: "Transcript", path: "#" },
-    { icon: CloudUpload, label: "Upload", path: "/upload", active: pathname.startsWith("/upload") },
+    ...(user?.role === "ADMIN" ? [
+      { icon: CloudUpload, label: "Upload", path: "/upload", active: pathname.startsWith("/upload") }
+    ] : []),
   ];
 
   return (
