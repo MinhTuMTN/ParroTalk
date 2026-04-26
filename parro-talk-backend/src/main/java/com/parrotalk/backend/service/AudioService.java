@@ -84,6 +84,42 @@ public class AudioService {
     }
 
     /**
+     * Process YouTube URL.
+     * 
+     * @param request YouTube upload request
+     * @param owner   Authenticated user
+     * @return Lesson
+     */
+    public Lesson processYoutube(com.parrotalk.backend.dto.YoutubeUploadRequest request, User owner) {
+        String url = request.getUrl();
+        String title = request.getTitle();
+
+        // Use URL hash to find existing lesson
+        String fileHash = DigestUtils.md5DigestAsHex(url.getBytes());
+        Optional<Lesson> existingLesson = lessonService.findByFileHash(fileHash);
+
+        if (existingLesson.isPresent()) {
+            Lesson lesson = existingLesson.get();
+            if (lesson.getStatus() != LessonStatus.FAILED) {
+                return lesson;
+            }
+        }
+
+        // Create new lesson without audio file upload (just the URL)
+        Lesson lesson = lessonService.createLesson(
+                url,                // Use YT URL as the fileUrl
+                fileHash,
+                owner,
+                0,                  // Duration unknown initially
+                title);
+
+        // Send task to RabbitMQ for the worker to process the YT URL
+        audioTaskProducer.sendTranscriptionTask(lesson.getId(), url);
+
+        return lesson;
+    }
+
+    /**
      * Retry lesson.
      * 
      * @param lessonId Lesson id

@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @RestController
 @RequestMapping("/api/audio")
+@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AudioController {
 
@@ -44,6 +45,17 @@ public class AudioController {
         return ResponseEntity.ok(UploadResponse.builder()
                 .lessonId(lesson.getId())
                 .message("File uploaded successfully and processing started")
+                .build());
+    }
+
+    @PostMapping("/youtube")
+    public ResponseEntity<UploadResponse> processYoutube(
+            @RequestBody com.parrotalk.backend.dto.YoutubeUploadRequest request,
+            @AuthenticationPrincipal User user) {
+        Lesson lesson = audioService.processYoutube(request, user);
+        return ResponseEntity.ok(UploadResponse.builder()
+                .lessonId(lesson.getId())
+                .message("YouTube video added successfully and processing started")
                 .build());
     }
 

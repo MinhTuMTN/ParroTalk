@@ -9,6 +9,8 @@ import com.parrotalk.backend.mapper.DraftSegmentMapper;
 import com.parrotalk.backend.repository.*;
 import com.parrotalk.backend.util.ScoringUtil;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,6 +50,10 @@ public class LessonProgressService {
 
     /** Draft Segment Mapper */
     private final DraftSegmentMapper draftSegmentMapper;
+
+    /** Entity Manager */
+    @PersistenceContext
+    private EntityManager entityManager;
 
     /**
      * Get lesson progress for a user.
@@ -196,9 +202,13 @@ public class LessonProgressService {
         for (UserLessonDraftSegment draft : drafts) {
             UserLessonDraftSegment.UserLessonDraftSegmentId id = draft.getId();
             TranscriptionSegment segment = segmentMap.get(id.getSegmentId());
+            log.info("Id: {}, found: {}, text: {}", id.getSegmentId(), segment != null,
+                    segment == null ? "null" : segment.getId());
+
+            TranscriptionSegment segmentRef = entityManager.getReference(TranscriptionSegment.class, id.getSegmentId());
 
             UserLessonAnswerDetail detail = UserLessonAnswerDetail.builder()
-                    .segment(segment)
+                    .segment(segmentRef)
                     .userAnswer(draft.getUserAnswer())
                     .score(draft.getScore())
                     .history(history)

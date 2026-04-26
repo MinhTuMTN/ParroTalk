@@ -138,6 +138,7 @@ public class LessonService {
      */
     // @Cacheable(value = "lessonSearchCache", key = "#request.getCacheKey()")
     public PageResponse<LessonResponse> searchLessons(LessonSearchRequest request, User user) {
+        long startTime = System.currentTimeMillis();
         Pageable pageable = PageRequest.of(
                 request.getPage(),
                 request.getSize(),
@@ -147,7 +148,10 @@ public class LessonService {
                 .and(LessonSpecification.joinUserProgress(user.getId()));
 
         Page<Lesson> lessonPage = lessonRepository.findAll(specification, pageable);
+        long endTime = System.currentTimeMillis();
+        log.info("Search lessons time: {} seconds", (endTime - startTime) / 1000.0);
 
+        startTime = System.currentTimeMillis();
         List<LessonResponse> content = lessonPage.getContent().stream()
                 .map(lesson -> {
                     LessonResponse lessonResponse = lessonMapper.toLessonResponse(lesson);
@@ -162,6 +166,8 @@ public class LessonService {
                     return lessonResponse;
                 })
                 .collect(Collectors.toList());
+        endTime = System.currentTimeMillis();
+        log.info("Map lessons time: {} seconds", (endTime - startTime) / 1000.0);
 
         return PageResponse.<LessonResponse>builder()
                 .content(content)
