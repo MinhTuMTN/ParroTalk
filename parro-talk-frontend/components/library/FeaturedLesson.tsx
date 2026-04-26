@@ -11,11 +11,6 @@ export default function FeaturedLesson({ job }: { job: Lesson }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
 
-    // Extract a mock title from the fileUrl
-    const urlParts = job.fileUrl.split('/');
-    const rawName = urlParts[urlParts.length - 1] || "Untitled Lesson";
-    const title = decodeURIComponent(rawName.substring(rawName.indexOf('_') + 1)).replace(/\.[^/.]+$/, "");
-
     // Logic routing
     const href = `/practice/${job.id}`;
 
@@ -68,7 +63,7 @@ export default function FeaturedLesson({ job }: { job: Lesson }) {
                         <span>{job.duration} mins</span>
                     </div>
                     <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-white leading-tight">
-                        {title || "Advanced Technical Documentation"}
+                        {job.title}
                     </h2>
                     <p className="text-gray-400 max-w-lg text-sm sm:text-lg line-clamp-2 md:line-clamp-3">
                         Master the nuances of the context from the generated transcription. Specially customized for your growth and progression in global tech environments.

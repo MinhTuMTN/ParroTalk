@@ -11,11 +11,6 @@ export default function LessonCard({ job }: { job: Lesson }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
 
-    const urlParts = job.fileUrl.split('/');
-    const rawName = urlParts[urlParts.length - 1] || "Untitled";
-    const title = decodeURIComponent(rawName.substring(rawName.indexOf('_') + 1)).replace(/\.[^/.]+$/, "");
-
-    // Mock category array
     const categories = ["BUSINESS", "DAILY LIFE", "TECH", "ACADEMIC"];
     const hash = job.id.charCodeAt(0) + job.id.charCodeAt(job.id.length - 1);
     const category = categories[hash % categories.length];
@@ -72,7 +67,7 @@ export default function LessonCard({ job }: { job: Lesson }) {
                 </div>
 
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 line-clamp-2 leading-tight group-hover:text-green-600 transition-colors">
-                    {title || "Custom Listening Lesson"}
+                    {job.title}
                 </h3>
 
 

@@ -12,24 +12,43 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.constant.LessonVisibilityStatus;
 
+/**
+ * Lesson response DTO.
+ * 
+ * @author MinhTuMTN
+ */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class LessonResponse {
+    /** Lesson id */
     private UUID id;
+    /** Lesson status */
     private LessonStatus status;
+    /** Lesson visibility status */
+    private LessonVisibilityStatus visibilityStatus;
+    /** Lesson progress */
     private int progress;
-    private String currentStep;
+    /** Audio file url */
     private String fileUrl;
+    /** Audio file type */
     private String mediaType;
+    /** Audio source type */
     private String sourceType;
+    /** Audio created date */
     private LocalDateTime createdAt;
+    /** Audio title */
     private String title;
+    /** Audio description */
     private String description;
+    /** Audio duration */
     private Integer duration;
+    /** Categories */
     private Set<CategoryResponse> categories;
+    /** Segments */
     private List<TranscriptionResponse> segments;
 }

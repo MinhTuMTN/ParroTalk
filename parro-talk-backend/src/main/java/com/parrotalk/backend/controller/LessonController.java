@@ -5,9 +5,7 @@ import java.util.UUID;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,14 +39,26 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LessonController {
 
+    /** Lesson Service */
     private final LessonService lessonService;
+
+    /** SSE Service */
     private final SseService sseService;
+
+    /** Learning Service */
     private final LearningService learningService;
 
+    /**
+     * Get list published lessons.
+     * 
+     * @param request Lesson search request
+     * @param user    User
+     * @return Page of lessons
+     */
     @GetMapping
     public ResponseEntity<PageResponse<LessonResponse>> listLessons(
-            @AuthenticationPrincipal User user,
-            @ModelAttribute LessonSearchRequest request) {
+            @ModelAttribute LessonSearchRequest request,
+            @AuthenticationPrincipal User user) {
         long startTime = System.currentTimeMillis();
         PageResponse<LessonResponse> response = lessonService.searchLessons(request, user);
         long endTime = System.currentTimeMillis();
@@ -56,6 +66,14 @@ public class LessonController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Submit lesson.
+     * 
+     * @param lessonId Lesson ID
+     * @param request  Submit lesson request
+     * @param user     User
+     * @return Submit lesson response
+     */
     @PostMapping("/{lessonId}/submit")
     public ResponseEntity<SubmitLessonResponse> submitLesson(
             @PathVariable UUID lessonId,
@@ -65,18 +83,23 @@ public class LessonController {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Get lesson detail.
+     * 
+     * @param lessonId Lesson ID
+     * @return Lesson
+     */
     @GetMapping("/{lessonId}")
     public ResponseEntity<LessonResponse> getLessonDetail(@PathVariable UUID lessonId) {
-        return ResponseEntity.ok(lessonService.getLessonDetail(lessonId));
+        return ResponseEntity.ok(lessonService.getPublishedLessonDetail(lessonId));
     }
 
-    @DeleteMapping("/{lessonId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteLesson(@PathVariable UUID lessonId) {
-        lessonService.deleteLesson(lessonId);
-        return ResponseEntity.noContent().build();
-    }
-
+    /**
+     * API to stream lesson status.
+     * 
+     * @param lessonId Lesson ID
+     * @return SSE Emitter
+     */
     @GetMapping(path = "/sse/{lessonId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamLessonStatus(@PathVariable UUID lessonId) {
         SseEmitter emitter = sseService.connect(lessonId);
