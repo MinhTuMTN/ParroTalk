@@ -3,6 +3,7 @@
 @layer base {
   body {
     @apply text-gray-800;
+    font-family: Arial, Helvetica, sans-serif;
   }
 }
 

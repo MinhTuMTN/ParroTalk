@@ -13,8 +13,8 @@ import type { LessonFilter } from "@/features/lesson/types/lesson";
 
 const tabs: { value: LessonFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "PUBLISHED", label: "Published" },
-  { value: "HIDDEN", label: "Hidden" },
+  { value: "published", label: "Published" },
+  { value: "hidden", label: "Hidden" },
 ];
 
 export default function LessonListPage() {
@@ -146,7 +146,7 @@ export default function LessonListPage() {
                 onSelectAll={selectAllVisible}
                 onSelect={selectLesson}
                 onToggleStatus={(lesson, next) =>
-                  toggleStatus(lesson, next ? "PUBLISHED" : "HIDDEN")
+                  toggleStatus(lesson, next ? "published" : "hidden")
                 }
                 onEdit={(lesson) => router.push(`/admin/lessons/${lesson.id}`)}
                 onDelete={(lesson) => setDeleteId(lesson.id)}

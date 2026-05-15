@@ -6,7 +6,7 @@ type LessonStatusBadgeProps = {
 };
 
 export default function LessonStatusBadge({ status }: LessonStatusBadgeProps) {
-  return status === "PUBLISHED" ? (
+  return status === "published" ? (
     <Badge tone="success">Published</Badge>
   ) : (
     <Badge tone="neutral">Hidden</Badge>

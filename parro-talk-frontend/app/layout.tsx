@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 
 import { AuthProvider } from "@/features/auth/hooks/useAuth";
-
-const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "ParroTalk - Master English through Dictation",
@@ -22,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="antialiased">
-      <body className={outfit.className}>
+      <body>
         <AuthProvider>
           {children}
         </AuthProvider>

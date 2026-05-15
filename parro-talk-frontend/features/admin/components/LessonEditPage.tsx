@@ -60,7 +60,7 @@ export default function LessonEditPage({ id }: { id: string }) {
 
   const trackRef = useRef<HTMLDivElement | null>(null);
   const trackScrollRef = useRef<HTMLDivElement | null>(null);
-  const categoryBoxRef = useRef<HTMLDivElement | null>(null);
+  const categoryBoxRef = useRef<HTMLLabelElement | null>(null);
 
   const {
     lesson,
@@ -403,11 +403,11 @@ export default function LessonEditPage({ id }: { id: string }) {
                     <span className="text-xs font-semibold text-slate-500">Status</span>
                     <div className="mt-1 flex items-center gap-3">
                       <span className="text-sm font-semibold text-slate-700">
-                        {form.status === "PUBLISHED" ? "Published" : "Hidden"}
+                        {form.status === "published" ? "Published" : "Hidden"}
                       </span>
                       <Switch
-                        checked={form.status === "PUBLISHED"}
-                        onChange={(next) => updateForm("status", next ? "PUBLISHED" : "HIDDEN")}
+                        checked={form.status === "published"}
+                        onChange={(next) => updateForm("status", next ? "published" : "hidden")}
                       />
                     </div>
                   </div>

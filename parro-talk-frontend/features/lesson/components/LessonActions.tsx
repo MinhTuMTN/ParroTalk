@@ -18,7 +18,7 @@ export default function LessonActions({
   return (
     <div className="flex items-center gap-3">
       <Switch
-        checked={lesson.status === "PUBLISHED"}
+        checked={lesson.status === "published"}
         onChange={(next) => onToggleStatus(lesson, next)}
       />
       <button

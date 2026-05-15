@@ -126,7 +126,7 @@ export function useLessons() {
       return;
     }
 
-    const status: LessonStatus = action === "publish" ? "PUBLISHED" : "HIDDEN";
+    const status: LessonStatus = action === "publish" ? "published" : "hidden";
     const previous = lessons;
     setLessons((current) =>
       current.map((lesson) =>
@@ -137,7 +137,7 @@ export function useLessons() {
       await Promise.all(
         selected.map((lesson) => lessonService.updateLessonStatus(lesson.id, status)),
       );
-      setSuccess(`Selected lessons ${action === "publish" ? "PUBLISHED" : "HIDDEN"}.`);
+      setSuccess(`Selected lessons ${action === "publish" ? "published" : "hidden"}.`);
     } catch {
       setLessons(previous);
       setError("Bulk action failed.");
