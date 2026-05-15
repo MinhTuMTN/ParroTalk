@@ -1,4 +1,4 @@
-import LessonEditPage from "@/src/screens/lessons/LessonEditPage";
+import LessonEditPage from "@/features/admin/components/LessonEditPage";
 
 export default async function AdminLessonEditRoute({
   params,

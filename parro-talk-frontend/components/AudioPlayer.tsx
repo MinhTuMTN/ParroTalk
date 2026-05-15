@@ -151,3 +151,4 @@ export default function AudioPlayer({ url, onPlay, autoPlay = false }: AudioPlay
     </div>
   );
 }
+

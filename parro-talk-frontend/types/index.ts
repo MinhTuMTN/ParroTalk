@@ -17,3 +17,4 @@ export interface FeedbackToken {
   isCorrect: boolean;
   expected?: string;
 }
+

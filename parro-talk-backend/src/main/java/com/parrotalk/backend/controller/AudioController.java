@@ -2,6 +2,7 @@ package com.parrotalk.backend.controller;
 
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.dto.UploadResponse;
+import com.parrotalk.backend.dto.YoutubeUploadRequest;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.service.AudioService;
 import lombok.RequiredArgsConstructor;
@@ -39,22 +40,30 @@ public class AudioController {
      */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UploadResponse> uploadAudio(
-            @RequestParam("file") MultipartFile file,
+            @RequestParam MultipartFile file,
+            @RequestParam String title,
             @AuthenticationPrincipal User user) {
-        Lesson lesson = audioService.processUpload(file, user);
+        UUID lessonId = audioService.processUpload(file, title, user);
         return ResponseEntity.ok(UploadResponse.builder()
-                .lessonId(lesson.getId())
+                .lessonId(lessonId)
                 .message("File uploaded successfully and processing started")
                 .build());
     }
 
+    /**
+     * Process YouTube upload.
+     * 
+     * @param request YouTube upload request
+     * @param user    Uploaded user
+     * @return Upload response
+     */
     @PostMapping("/youtube")
     public ResponseEntity<UploadResponse> processYoutube(
-            @RequestBody com.parrotalk.backend.dto.YoutubeUploadRequest request,
+            @RequestBody YoutubeUploadRequest request,
             @AuthenticationPrincipal User user) {
-        Lesson lesson = audioService.processYoutube(request, user);
+        UUID lessonId = audioService.processYoutube(request, user);
         return ResponseEntity.ok(UploadResponse.builder()
-                .lessonId(lesson.getId())
+                .lessonId(lessonId)
                 .message("YouTube video added successfully and processing started")
                 .build());
     }

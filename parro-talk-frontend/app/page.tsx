@@ -2,18 +2,35 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Headphones, GraduationCap, ChevronRight, User as UserIcon, LogOut } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useEffect, useRef, useState } from "react";
+import { Headphones, GraduationCap, ChevronRight, User as UserIcon, LogOut, Shield } from "lucide-react";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+
 
 export default function Home() {
     const { user, isAuthenticated, logout } = useAuth();
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const userMenuRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+                setIsUserMenuOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     return (
+
         <main className="min-h-screen bg-[#FDFDFD] selection:bg-green-100">
             {/* Navigation */}
-            <nav className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="relative w-80 h-16">
+                        <nav className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="relative w-40 sm:w-56 md:w-80 h-10 sm:h-14 md:h-16">
+
                         <Image
                             src="/logo_long.png"
                             alt="ParroTalk"
@@ -30,23 +47,69 @@ export default function Home() {
                     <Link href="#" className="hover:text-green-500 transition-colors">Progress</Link>
                 </div>
 
-                {isAuthenticated ? (
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100">
-                            <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold text-xs uppercase">
-                                {user?.fullName?.charAt(0) || "U"}
-                            </div>
-                            <span className="text-sm font-bold text-gray-700 hidden sm:block">{user?.fullName}</span>
+                                {isAuthenticated ? (
+                    <div className="flex items-center gap-2 sm:gap-4">
+                        {user?.role === "ADMIN" && (
+                            <Link
+                                href="/admin"
+                                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-bold hover:bg-emerald-100 transition-colors"
+                            >
+                                <Shield size={16} />
+                                Admin
+                            </Link>
+                        )}
+
+                        <div className="relative" ref={userMenuRef}>
+                            <button
+                                onClick={() => setIsUserMenuOpen((prev) => !prev)}
+                                className="flex items-center gap-2 px-2 sm:px-4 py-2 bg-gray-50 rounded-2xl border border-gray-100 hover:border-green-100 transition-colors"
+                            >
+                                <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold text-xs uppercase">
+                                    {user?.fullName?.charAt(0) || "U"}
+                                </div>
+                                <span className="text-sm font-bold text-gray-700 hidden sm:block max-w-32 truncate">{user?.fullName}</span>
+                            </button>
+
+                            {isUserMenuOpen && (
+                                <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-[60]">
+                                    <div className="px-4 py-3 border-b border-gray-50 flex flex-col gap-1 sm:hidden">
+                                        <p className="text-sm font-black text-gray-900 leading-none">{user?.fullName}</p>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role}</p>
+                                    </div>
+
+                                    <div className="p-1.5 flex flex-col gap-0.5">
+                                        {user?.role === "ADMIN" && (
+                                            <Link
+                                                href="/admin"
+                                                className="sm:hidden flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-emerald-600 hover:bg-emerald-50 transition-all group"
+                                                onClick={() => setIsUserMenuOpen(false)}
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-500 flex items-center justify-center">
+                                                    <Shield size={16} />
+                                                </div>
+                                                Admin
+                                            </Link>
+                                        )}
+
+                                        <button
+                                            onClick={() => {
+                                                logout();
+                                                setIsUserMenuOpen(false);
+                                            }}
+                                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all group w-full text-left"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">
+                                                <LogOut size={16} />
+                                            </div>
+                                            Log out
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        <button
-                            onClick={logout}
-                            className="p-3 rounded-2xl bg-white border-2 border-gray-100 text-gray-400 hover:text-red-500 hover:border-red-100 transition-all shadow-sm"
-                            title="Logout"
-                        >
-                            <LogOut size={20} />
-                        </button>
                     </div>
                 ) : (
+
                     <Link
                         href="/login"
                         className="px-6 py-3 rounded-2xl bg-white border-2 border-gray-100 text-gray-800 font-bold hover:bg-gray-50 transition-all text-sm shadow-sm"
@@ -57,19 +120,22 @@ export default function Home() {
             </nav>
 
             {/* Hero Section */}
-            <section className="max-w-7xl mx-auto px-6 py-12 md:py-24 grid md:grid-cols-2 gap-16 items-center">
+                        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-12 md:py-24 grid md:grid-cols-2 gap-10 md:gap-16 items-center overflow-hidden">
+
                 <div className="flex flex-col gap-8">
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 rounded-full text-green-600 text-xs font-black uppercase tracking-widest">
                         <GraduationCap size={14} />
                         Master English Listening
                     </div>
 
-                    <h1 className="text-6xl md:text-7xl font-black text-gray-900 leading-[1.1]">
+                                        <h1 className="text-4xl sm:text-5xl md:text-7xl font-black text-gray-900 leading-[1.1]">
+
                         Master English <br />
                         <span className="text-green-500 underline decoration-green-100 underline-offset-8">through Dictation</span>.
                     </h1>
 
-                    <p className="text-xl text-gray-500 leading-relaxed max-w-lg">
+                                        <p className="text-lg sm:text-xl text-gray-500 leading-relaxed max-w-lg">
+
                         Improve your listening skills and vocabulary with our bite-sized daily dictation exercises. Follow along, type what you hear, and level up your English.
                     </p>
 
@@ -106,7 +172,8 @@ export default function Home() {
                     <div className="absolute -top-12 -left-12 w-64 h-64 bg-green-100 rounded-full blur-[100px] opacity-60 animate-pulse" />
                     <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-blue-100 rounded-full blur-[100px] opacity-60 animate-pulse delay-700" />
 
-                    <div className="relative bg-white p-8 rounded-[3rem] shadow-2xl border border-gray-100 transform rotate-2 hover:rotate-0 transition-all duration-700 hover:scale-105">
+                                        <div className="relative bg-white p-5 sm:p-8 rounded-[2rem] sm:rounded-[3rem] shadow-2xl border border-gray-100 transform md:rotate-2 hover:rotate-0 transition-all duration-700 md:hover:scale-105">
+
                         <div className="flex flex-col gap-6">
                             <div className="flex items-center justify-between">
                                 <div className="h-4 w-24 bg-gray-100 rounded-full" />
@@ -133,7 +200,8 @@ export default function Home() {
             </section>
 
             {/* Footer / Features mini section */}
-            <footer className="max-w-7xl mx-auto px-6 py-12 border-t border-gray-100 mt-24">
+                        <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-12 border-t border-gray-100 mt-16 sm:mt-24">
+
                 <div className="flex flex-col md:flex-row justify-between items-center gap-8 text-gray-400 text-sm">
                     <p>© 2026 ParroTalk. All rights reserved.</p>
                     <div className="flex gap-8 font-medium">
@@ -146,3 +214,4 @@ export default function Home() {
         </main>
     );
 }
+

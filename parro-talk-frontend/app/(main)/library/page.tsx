@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import LessonCard from "@/components/library/LessonCard";
-import FeaturedLesson from "@/components/library/FeaturedLesson";
+import LessonCard from "@/features/lesson/components/LessonCard";
+import FeaturedLesson from "@/features/lesson/components/FeaturedLesson";
 import { Search, Bell, LogOut, Loader2, ChevronLeft, ChevronRight, Settings, User as UserIcon, LogOut as LogOutIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useDebounce } from "use-debounce";
-import { useUI } from "@/context/UIContext";
+import { useUI } from "@/hooks/useUI";
 import { Menu } from "lucide-react";
-import { lessonService, Lesson, Category } from "@/lib/services/lessonService";
+import { lessonService, Lesson, Category } from "@/features/lesson/services/lessonService";
 
 function LibraryContent() {
     const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
@@ -292,3 +292,4 @@ export default function LibraryPage() {
         </Suspense>
     );
 }
+

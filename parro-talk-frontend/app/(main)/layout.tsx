@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import Sidebar from "@/components/practice/Sidebar";
-import { UIProvider, useUI } from "@/context/UIContext";
+import Sidebar from "@/features/practice/components/Sidebar";
+import { UIProvider, useUI } from "@/hooks/useUI";
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -39,5 +39,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     </UIProvider>
   );
 }
+
 
 

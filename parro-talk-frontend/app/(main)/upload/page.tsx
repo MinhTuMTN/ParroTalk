@@ -3,12 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Zap, Languages, Sparkles, Info, FileAudio, CheckCircle2, Circle, Loader2, AlertCircle, Globe2 } from 'lucide-react';
-import UploadDropzone from '@/components/upload/UploadDropzone';
-import { lessonService } from '@/lib/services/lessonService';
-import { useSSE } from '@/hooks/useSSE';
-import ProgressBar from '@/components/upload/ProgressBar';
-import StatusBadge from '@/components/upload/StatusBadge';
-import ProcessingCard from '@/components/upload/ProcessingCard';
+import UploadDropzone from '@/features/upload/components/UploadDropzone';
+import { lessonService } from '@/features/lesson/services/lessonService';
+import { useSSE } from '@/features/upload/hooks/useSSE';
+import ProgressBar from '@/features/upload/components/ProgressBar';
+import StatusBadge from '@/features/upload/components/StatusBadge';
+import ProcessingCard from '@/features/upload/components/ProcessingCard';
 
 const STEPS = [
   'Downloading file...',
@@ -353,3 +353,4 @@ export default function UploadPage() {
     </div>
   );
 }
+

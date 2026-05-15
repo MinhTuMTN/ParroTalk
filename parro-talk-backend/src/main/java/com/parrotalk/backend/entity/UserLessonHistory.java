@@ -1,6 +1,5 @@
 package com.parrotalk.backend.entity;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -19,10 +18,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * User lesson history entity.
+ * 
+ * @author MinhTuMTN
+ */
 @Entity
 @Table(name = "user_lesson_history", indexes = {
         @Index(name = "idx_user_lesson_history_user", columnList = "user_id"),
-        @Index(name = "idx_user_lesson_history_lesson", columnList = "lesson_id")
+        @Index(name = "idx_user_lesson_history_lesson", columnList = "lesson_id"),
+        @Index(name = "idx_user_lesson_history_user_lesson_submitted", columnList = "user_id, lesson_id, submitted_at")
 })
 @Getter
 @Setter
@@ -31,24 +36,26 @@ import lombok.Setter;
 @Builder
 public class UserLessonHistory extends BaseEntity {
 
+    /** User lesson history ID */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID historyId;
 
+    /** User */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    /** Lesson */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lesson_id", nullable = false)
     private Lesson lesson;
 
+    /** Overall score */
     @Column(name = "overall_score", nullable = false)
     private int overallScore;
 
+    /** Total time spent */
     @Column(name = "total_time_spent")
     private Integer totalTimeSpent;
-
-    @Column(name = "submitted_at", nullable = false)
-    private LocalDateTime submittedAt;
 }

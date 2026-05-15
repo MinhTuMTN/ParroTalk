@@ -28,27 +28,45 @@ import org.springframework.security.config.Customizer;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    /** Public endpoints */
     @Value("${application.security.public-endpoints:/api/auth/**}")
     private String[] publicEndpoints;
 
+    /** Jwt authentication filter */
     private final JwtAuthenticationFilter jwtAuthFilter;
+
+    /** Authentication provider */
     private final AuthenticationProvider authenticationProvider;
+
+    /** Jwt authentication entry point */
     private final JwtAuthenticationEntryPoint authEntryPoint;
 
+    /**
+     * Security filter chain.
+     *
+     * @param http the {@link HttpSecurity} to configure
+     * @return the {@link SecurityFilterChain} to use
+     * @throws Exception if an error occurs
+     */
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        // Disable CSRF
         http.csrf(AbstractHttpConfigurer::disable)
+                // Enable CORS
                 .cors(Customizer.withDefaults())
+                // Enable exception handling
                 .exceptionHandling(exception -> exception
-
                         .authenticationEntryPoint(authEntryPoint))
+                // Authorize HTTP requests
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(publicEndpoints).permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
                         .anyRequest().authenticated())
+                // Disable session management due to JWT authentication
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Set authentication provider
                 .authenticationProvider(authenticationProvider)
+                // Add JWT authentication filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

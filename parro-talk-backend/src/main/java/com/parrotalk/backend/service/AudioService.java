@@ -43,9 +43,9 @@ public class AudioService {
      * 
      * @param file  Audio file
      * @param owner Uploaded user
-     * @return Lesson
+     * @return Lesson ID
      */
-    public Lesson processUpload(MultipartFile file, User owner) {
+    public UUID processUpload(MultipartFile file, String lessonTitle, User owner) {
         try {
             // Hashing file
             String fileHash = DigestUtils.md5DigestAsHex(file.getInputStream());
@@ -57,7 +57,7 @@ public class AudioService {
             if (existingLesson.isPresent()) {
                 Lesson lesson = existingLesson.get();
                 if (lesson.getStatus() != LessonStatus.FAILED) {
-                    return lesson;
+                    return lesson.getId();
                 }
             }
 
@@ -71,13 +71,13 @@ public class AudioService {
                     fileHash,
                     owner,
                     cloudinaryDto.getDuration(),
-                    filename);
+                    lessonTitle);
 
             // Send task to RabbitMQ
             audioTaskProducer.sendTranscriptionTask(lesson.getId(), cloudinaryDto.getUrl());
 
             // Return lesson
-            return lesson;
+            return lesson.getId();
         } catch (IOException e) {
             throw new RuntimeException("Failed to generate checksum for file", e);
         }
@@ -88,9 +88,9 @@ public class AudioService {
      * 
      * @param request YouTube upload request
      * @param owner   Authenticated user
-     * @return Lesson
+     * @return Lesson ID
      */
-    public Lesson processYoutube(com.parrotalk.backend.dto.YoutubeUploadRequest request, User owner) {
+    public UUID processYoutube(com.parrotalk.backend.dto.YoutubeUploadRequest request, User owner) {
         String url = request.getUrl();
         String title = request.getTitle();
 
@@ -101,22 +101,22 @@ public class AudioService {
         if (existingLesson.isPresent()) {
             Lesson lesson = existingLesson.get();
             if (lesson.getStatus() != LessonStatus.FAILED) {
-                return lesson;
+                return lesson.getId();
             }
         }
 
         // Create new lesson without audio file upload (just the URL)
         Lesson lesson = lessonService.createLesson(
-                url,                // Use YT URL as the fileUrl
+                url, // Use YT URL as the fileUrl
                 fileHash,
                 owner,
-                0,                  // Duration unknown initially
+                0, // Duration unknown initially
                 title);
 
         // Send task to RabbitMQ for the worker to process the YT URL
         audioTaskProducer.sendTranscriptionTask(lesson.getId(), url);
 
-        return lesson;
+        return lesson.getId();
     }
 
     /**

@@ -1,5 +1,6 @@
-import LessonListPage from "@/src/screens/lessons/LessonListPage";
+import LessonListPage from "@/features/admin/components/LessonListPage";
 
 export default function AdminLessonsRoute() {
   return <LessonListPage />;
 }
+

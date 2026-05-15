@@ -11,10 +11,18 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import org.springframework.stereotype.Repository;
 
 import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.constant.LessonVisibilityStatus;
+import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.entity.Lesson;
+
+import jakarta.persistence.LockModeType;
 
 /**
  * Lesson repository.
@@ -47,6 +55,55 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
     List<Lesson> findAllByTitleIsNull();
 
     /**
+     * Find all lessons by visibility status.
+     * 
+     * @param visibilityStatus Visibility status
+     * @param pageable         Pageable
+     * @return Page of lessons
+     */
+    Page<Lesson> findAllByVisibilityStatus(LessonVisibilityStatus visibilityStatus, Pageable pageable);
+
+    /**
+     * Find lesson by id and visibility status.
+     * 
+     * @param id               Lesson id
+     * @param visibilityStatus Visibility status
+     * @return Lesson
+     */
+    Optional<Lesson> findByIdAndVisibilityStatus(UUID id, LessonVisibilityStatus visibilityStatus);
+
+    /**
+     * Search lessons with user progress.
+     * 
+     * @param query    Query string
+     * @param userId   User ID
+     * @param pageable Pageable
+     * @return Page of lessons with progress
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100
+            )
+            FROM Lesson l
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
+            """, countQuery = """
+            SELECT COUNT(l.id)
+            FROM Lesson l
+            WHERE l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
+            """)
+    Page<LessonWithProgressDTO> searchPublishedLessonsWithProgress(
+            @Param("query") String query,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
      * Search lessons with specification.
      * 
      * @param specification Lesson Specification
@@ -63,6 +120,16 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
      * @return Lesson
      */
     @Override
-    @EntityGraph(attributePaths = { "segments" })
+    @EntityGraph(attributePaths = { "segments", "categories" })
     Optional<Lesson> findById(UUID lessonId);
+
+    /**
+     * Find lesson by id for update.
+     * 
+     * @param lessonId Lesson id
+     * @return Lesson
+     */
+    @Query("SELECT l FROM Lesson l WHERE l.id = :lessonId")
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Lesson> findByIdForUpdate(UUID lessonId);
 }

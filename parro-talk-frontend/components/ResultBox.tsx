@@ -81,3 +81,4 @@ export default function ResultBox({ result, onRetry, onNext }: ResultBoxProps) {
     </div>
   );
 }
+

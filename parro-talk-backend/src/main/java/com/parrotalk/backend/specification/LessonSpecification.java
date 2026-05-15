@@ -1,15 +1,9 @@
 package com.parrotalk.backend.specification;
 
-import java.util.UUID;
-
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.parrotalk.backend.entity.Lesson;
-import com.parrotalk.backend.entity.UserLessonProgress;
-
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
 
 /**
  * Lesson Specification.
@@ -35,26 +29,6 @@ public class LessonSpecification {
             String pattern = "%" + keyword.toLowerCase() + "%";
 
             return cb.like(cb.lower(root.get("title")), pattern);
-        };
-    }
-
-    /**
-     * Get specification for joining user progress.
-     *
-     * @param userId User ID
-     * @return Specification
-     */
-    public static Specification<Lesson> joinUserProgress(UUID userId) {
-        return (root, query, cb) -> {
-            query.distinct(true);
-
-            Join<Lesson, UserLessonProgress> progressJoin = root.join("userLessonProgresses", JoinType.LEFT);
-
-            progressJoin.on(cb.equal(
-                    progressJoin.get("id").get("userId"),
-                    userId));
-
-            return cb.conjunction();
         };
     }
 }

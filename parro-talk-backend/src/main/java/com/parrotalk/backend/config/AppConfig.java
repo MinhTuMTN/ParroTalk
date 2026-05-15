@@ -14,16 +14,28 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * Application configuration class that sets up CORS, authentication, and
+ * other beans required by the application.
+ * 
+ * @author MinhTuMTN
+ */
 @Configuration
 @EnableAsync
 @RequiredArgsConstructor
 public class AppConfig implements WebMvcConfigurer {
 
+    /**
+     * Configures Cross-Origin Resource Sharing (CORS) mappings to allow
+     * cross-origin requests from specified origins.
+     *
+     * @param registry the {@link CorsRegistry} to configure CORS mappings for
+     */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOriginPatterns("*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);

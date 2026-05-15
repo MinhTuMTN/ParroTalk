@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import PracticeHeader from "@/components/practice/PracticeHeader";
-import VideoPlayer from "@/components/practice/VideoPlayer";
-import TranscriptList from "@/components/practice/TranscriptList";
-import WordDictation from "@/components/practice/WordDictation";
+import PracticeHeader from "@/features/practice/components/PracticeHeader";
+import VideoPlayer from "@/features/practice/components/VideoPlayer";
+import TranscriptList from "@/features/practice/components/TranscriptList";
+import WordDictation from "@/features/practice/components/WordDictation";
 import { Save, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
-import { lessonService, Sentence, SubmitLessonRequest, SegmentResultRequest } from "@/lib/services/lessonService";
+import { lessonService, Sentence, SubmitLessonRequest, SegmentResultRequest } from "@/features/lesson/services/lessonService";
 
 interface SegmentStat {
   hintWords: number;

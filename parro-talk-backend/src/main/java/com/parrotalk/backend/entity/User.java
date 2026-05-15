@@ -20,7 +20,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+
 import jakarta.persistence.Transient;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -36,7 +38,9 @@ import lombok.Setter;
  * @author MinhTuMTN
  */
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+        @Index(name = "idx_users_email", columnList = "email")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -46,38 +50,28 @@ import lombok.Setter;
 @SQLRestriction("is_deleted = false")
 public class User extends BaseEntity implements UserDetails {
 
-    /**
-     * User ID
-     */
+    /** User ID */
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /**
-     * User email
-     */
+    /** User email */
     @Column(unique = true, nullable = false)
     @Email
     @NotBlank
     private String email;
 
-    /**
-     * User password
-     */
+    /** User password */
     @Column(nullable = false)
     @NotBlank
     private String password;
 
-    /**
-     * User role
-     */
+    /** User role */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
-    /**
-     * User full name
-     */
+    /** User full name */
     @Column(nullable = false)
     @NotBlank
     private String fullName;

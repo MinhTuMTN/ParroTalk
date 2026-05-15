@@ -10,3 +10,6 @@ downloads/
 docker-command.txt
 outputs
 models/
+debug_outputs/
+
+.env

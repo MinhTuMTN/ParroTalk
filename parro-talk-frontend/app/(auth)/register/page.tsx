@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import axiosInstance from "@/lib/axios";
 import { ArrowRight, Loader2, Lock, Mail, User } from "lucide-react";
 import Image from "next/image";
@@ -196,3 +196,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+

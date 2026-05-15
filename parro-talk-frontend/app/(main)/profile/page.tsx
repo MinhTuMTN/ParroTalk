@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import PracticeHeader from "@/components/practice/PracticeHeader";
-import { lessonService, UserProfileResponse } from "@/lib/services/lessonService";
+import PracticeHeader from "@/features/practice/components/PracticeHeader";
+import { lessonService, UserProfileResponse } from "@/features/lesson/services/lessonService";
 import { Trophy, Star, Target, Flame, Calendar as CalendarIcon, Loader2 } from "lucide-react";
 
 export default function ProfilePage() {
@@ -156,3 +156,4 @@ function StatCard({ icon, title, value, subValue, color }: { icon: React.ReactNo
         </div>
     );
 }
+

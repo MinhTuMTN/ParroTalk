@@ -11,6 +11,4 @@ import java.util.UUID;
 public interface UserLessonHistoryRepository extends JpaRepository<UserLessonHistory, UUID> {
 
     List<UserLessonHistory> findByUserId(UUID userId);
-
-    List<UserLessonHistory> findByUserIdAndLessonIdOrderBySubmittedAtDesc(UUID userId, UUID lessonId);
 }

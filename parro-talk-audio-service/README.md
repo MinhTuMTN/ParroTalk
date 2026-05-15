@@ -1,115 +1,94 @@
-# Video to Text API
+# Parro Talk Audio Service
 
-A high-performance API to transcribe Video and Audio files to Text, featuring real-time translation progress tracking via WebSocket. Built using FastAPI and `faster-whisper` to optimize RAM usage, making it ideal for running on machines with limited hardware resources.
+RabbitMQ worker service for downloading lesson audio, preprocessing silence, transcribing with Groq Whisper, post-processing timestamped segments, and publishing the result back to RabbitMQ.
 
-## Installation
+## Project Structure
 
-1. Ensure you have Python 3.8+ installed.
-2. Install `ffmpeg` on your system and ensure it is available in your system PATH.
-3. Install the required Python packages:
+```text
+.
+├── app/
+│   ├── config.py              # Environment variables, queue names, API key rotation
+│   ├── groq_result.py         # Groq SDK result normalization helpers
+│   ├── logging_config.py      # Shared logger
+│   ├── media.py               # File and YouTube audio download helpers
+│   ├── messaging.py           # Progress event publishing
+│   ├── preprocessing.py       # FFmpeg silence detection, trimming, timestamp remapping
+│   ├── segment_processing.py  # Segment merge/split post-processing
+│   ├── service.py             # End-to-end lesson audio workflow
+│   └── worker.py              # RabbitMQ consumer entrypoint
+├── main.py                    # Thin executable entrypoint
+├── requirements.txt
+├── Dockerfile
+└── docker-compose.yml
+```
+
+## Requirements
+
+- Python 3.10+
+- FFmpeg and FFprobe available in `PATH`
+- RabbitMQ
+- Groq API key
+
+Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Running the API
+## Environment
 
-Start the API server simply by running Uvicorn:
+Create `.env` from `.env.example` or export these variables:
 
 ```bash
-uvicorn main:app --reload
+GROQ_API_KEYS=your_groq_key
+RAPIDAPI_KEYS=your_rapidapi_key
+RABBITMQ_HOST=localhost
+RABBITMQ_USER=guest
+RABBITMQ_PASS=guest
 ```
 
-The server will be available at: `http://localhost:8000`
+`GROQ_API_KEYS` and `RAPIDAPI_KEYS` can be either comma-separated strings or JSON arrays.
 
----
+## Running
 
-## API Documentation
+```bash
+python main.py
+```
 
-### 1. File Upload & Processing Endpoint
+The worker consumes messages from `audio-processing-queue` and publishes progress/final results to `audio-result-queue`.
 
-Upload a physical video or audio file to start a transcription task. The transcription will run in the background.
+Expected input message:
 
-* **URL**: `/upload`
-* **Method**: `POST`
-* **Content-Type**: `multipart/form-data`
-
-#### Parameters
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `file` | File | The video or audio file to be transcribed (e.g., .mp4, .mkv, .mp3, .wav). |
-
-#### Success Response
-
-* **Code**: 200 OK
-* **Content**:
 ```json
 {
-  "task_id": "b0b91f1b-3fde-4b72-81ce-0857987d17af",
-  "message": "File uploaded successfully. Use the task_id to track progress via WebSocket.",
-  "websocket_url": "ws://localhost:8000/ws/progress/b0b91f1b-3fde-4b72-81ce-0857987d17af"
+  "lessonId": "lesson-id",
+  "fileUrl": "https://example.com/audio-or-video.mp3"
 }
 ```
 
-### 2. WebSocket Progress Tracking
+Completed result shape:
 
-Track the real-time progress of a transcription task using WebSocket. The server will stream status and transcribed segments as they become available.
-
-* **URL**: `/ws/progress/{task_id}`
-* **Protocol**: `ws://` (or `wss://` if hosted behind HTTPS)
-
-#### Connection Lifecycle
-Once connected to the WebSocket endpoint using the `task_id` returned from `/upload`, the server will begin emitting event messages.
-
-#### Sample Event Messages (JSON)
-
-**1. Processing / Progress Event**
 ```json
 {
-  "status": "processing",
-  "message": "3. Transcribing with AI model...",
-  "progress": 45.5,
-  "current_segment": {
-    "start": 12.5,
-    "end": 17.2,
-    "text": " Example transcribed text from the video..."
-  }
-}
-```
-
-**2. Completion Event**
-```json
-{
-  "status": "completed",
-  "progress": 100,
+  "lessonId": "lesson-id",
+  "status": "COMPLETED",
   "result": {
-    "text": "Full transcribed paragraph goes here...",
-    "segments": [ ...array of segments... ]
+    "text": "Full transcript",
+    "segments": [
+      {
+        "start": 0.0,
+        "end": 2.5,
+        "text": "Segment text",
+        "words": []
+      }
+    ]
   }
 }
 ```
 
-**3. Error Event**
-```json
-{
-  "status": "failed",
-  "error": "Detailed error message here"
-}
-```
+## Docker
 
----
-
-## How to Test
-
-1. Open your web browser and navigate to `http://localhost:8000`. This will serve the default testing UI we provided.
-2. Select any video or audio file from your computer and click **Upload & Transcribe**.
-3. A progress bar will appear, and you will see the transcribed text dynamically appearing on-screen as the AI decodes the audio.
-4. Once completed, a `.json` file containing the full result will automatically be generated in the project root directory (e.g. `Output_[task_id].json`).
-
-## Customizing the Model
-
-To adjust performance, you can pick a different model in `main.py`:
-```python
-MODEL_SIZE = "small" # Defaults to "small". Switch to "base" for extremely weak machines, or "medium" for better accuracy.
+```bash
+docker build -t parro-talk-audio-service .
+docker run --env-file .env parro-talk-audio-service
 ```

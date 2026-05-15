@@ -58,3 +58,4 @@ export default function DictationInput({ onSubmit, disabled = false }: Dictation
     </div>
   );
 }
+

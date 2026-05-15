@@ -1,29 +1,41 @@
 package com.parrotalk.backend.service;
 
-import com.parrotalk.backend.dto.*;
-import com.parrotalk.backend.entity.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.springframework.http.HttpStatusCode;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.parrotalk.backend.dto.AnswerRequest;
+import com.parrotalk.backend.dto.DraftSegmentResponse;
+import com.parrotalk.backend.dto.LessonProgressResponse;
+import com.parrotalk.backend.dto.SubmitLessonResponse;
+import com.parrotalk.backend.entity.Lesson;
+import com.parrotalk.backend.entity.TranscriptionSegment;
+import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.entity.UserLessonAnswerDetail;
+import com.parrotalk.backend.entity.UserLessonDraftSegment;
 import com.parrotalk.backend.entity.UserLessonDraftSegment.UserLessonDraftSegmentId;
+import com.parrotalk.backend.entity.UserLessonHistory;
+import com.parrotalk.backend.entity.UserLessonProgress;
 import com.parrotalk.backend.entity.UserLessonProgress.UserLessonProgressId;
 import com.parrotalk.backend.exception.ParroTalkException;
 import com.parrotalk.backend.mapper.DraftSegmentMapper;
-import com.parrotalk.backend.repository.*;
+import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
+import com.parrotalk.backend.repository.UserLessonAnswerDetailRepository;
+import com.parrotalk.backend.repository.UserLessonDraftSegmentRepository;
+import com.parrotalk.backend.repository.UserLessonHistoryRepository;
+import com.parrotalk.backend.repository.UserLessonProgressRepository;
 import com.parrotalk.backend.util.ScoringUtil;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.http.HttpStatusCode;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -192,7 +204,6 @@ public class LessonProgressService {
                 .user(user)
                 .lesson(lesson)
                 .overallScore(averageScore)
-                .submittedAt(LocalDateTime.now())
                 .totalTimeSpent(0) // Logic for time tracking can be added
                 .build();
         history = historyRepository.save(history);
@@ -205,7 +216,8 @@ public class LessonProgressService {
             log.info("Id: {}, found: {}, text: {}", id.getSegmentId(), segment != null,
                     segment == null ? "null" : segment.getId());
 
-            TranscriptionSegment segmentRef = entityManager.getReference(TranscriptionSegment.class, id.getSegmentId());
+            TranscriptionSegment segmentRef = entityManager.getReference(TranscriptionSegment.class,
+                    id.getSegmentId());
 
             UserLessonAnswerDetail detail = UserLessonAnswerDetail.builder()
                     .segment(segmentRef)

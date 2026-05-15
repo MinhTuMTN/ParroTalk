@@ -17,7 +17,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.LessonSearchRequest;
+import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.dto.PageResponse;
+
 import com.parrotalk.backend.dto.SubmitLessonRequest;
 import com.parrotalk.backend.dto.SubmitLessonResponse;
 import com.parrotalk.backend.entity.User;
@@ -56,11 +58,11 @@ public class LessonController {
      * @return Page of lessons
      */
     @GetMapping
-    public ResponseEntity<PageResponse<LessonResponse>> listLessons(
+    public ResponseEntity<PageResponse<LessonWithProgressDTO>> listLessons(
             @ModelAttribute LessonSearchRequest request,
             @AuthenticationPrincipal User user) {
         long startTime = System.currentTimeMillis();
-        PageResponse<LessonResponse> response = lessonService.searchLessons(request, user);
+        PageResponse<LessonWithProgressDTO> response = lessonService.searchLessons(request, user);
         long endTime = System.currentTimeMillis();
         log.info("List lessons time: {} seconds", (endTime - startTime) / 1000.0);
         return ResponseEntity.ok(response);
@@ -110,7 +112,8 @@ public class LessonController {
             sseService.sendEvent(lessonId, Map.of(
                     "status", lesson.getStatus(),
                     "progress", lesson.getProgress(),
-                    "step", lesson.getCurrentStep() != null ? lesson.getCurrentStep() : "Connected"));
+                    "step", "Connected"));
+
         } catch (Exception e) {
             log.error("Failed to send initial SSE event for lesson: {}", lessonId, e);
         }

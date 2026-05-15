@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider } from "@/features/auth/hooks/useAuth";
 
 const outfit = Outfit({ subsets: ["latin"] });
 
@@ -30,3 +30,4 @@ export default function RootLayout({
     </html>
   );
 }
+

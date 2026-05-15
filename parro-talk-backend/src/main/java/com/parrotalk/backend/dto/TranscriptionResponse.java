@@ -20,5 +20,6 @@ public class TranscriptionResponse {
     private String text;
     private double start;
     private double end;
+    private Integer order;
     private Difficulty difficulty;
 }

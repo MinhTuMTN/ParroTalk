@@ -90,3 +90,4 @@ export function getDictationMatching(userInput: string, targetSentence: string):
     return { isMatched: false, displayString };
   });
 }
+

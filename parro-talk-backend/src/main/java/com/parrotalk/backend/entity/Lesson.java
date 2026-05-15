@@ -12,6 +12,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.constant.LessonVisibilityStatus;
 import com.parrotalk.backend.constant.MediaType;
 import com.parrotalk.backend.constant.SourceType;
 
@@ -25,7 +26,13 @@ import java.util.UUID;
  * @author MinhTuMTN
  */
 @Entity
-@Table(name = "lessons")
+@Table(name = "lessons", indexes = {
+        @Index(name = "idx_lessons_title", columnList = "title"),
+        @Index(name = "idx_lessons_visibility_status", columnList = "visibility_status"),
+        @Index(name = "idx_lessons_owner_id", columnList = "owner_id"),
+        @Index(name = "idx_lessons_status_created_at", columnList = "status, created_at"),
+        @Index(name = "idx_lessons_visibility_created_at", columnList = "visibility_status, created_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -53,6 +60,12 @@ public class Lesson extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private LessonStatus status = LessonStatus.PENDING;
+
+    /** Public visibility status */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "visibility_status", nullable = false, columnDefinition = "varchar(20)")
+    @Builder.Default
+    private LessonVisibilityStatus visibilityStatus = LessonVisibilityStatus.HIDDEN;
 
     /** Transcription progress */
     @Builder.Default
@@ -93,13 +106,19 @@ public class Lesson extends BaseEntity {
     /** Categories of the lesson */
     @ManyToMany(fetch = FetchType.LAZY)
     @BatchSize(size = 15)
-    @JoinTable(name = "lesson_categories", joinColumns = @JoinColumn(name = "lesson_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
+    @JoinTable(name = "lesson_categories", joinColumns = @JoinColumn(name = "lesson_id"), inverseJoinColumns = @JoinColumn(name = "category_id"), indexes = {
+            @Index(name = "idx_lesson_categories_lesson_id", columnList = "lesson_id"),
+            @Index(name = "idx_lesson_categories_category_id", columnList = "category_id"),
+            @Index(name = "idx_lesson_categories_lesson_category", columnList = "lesson_id, category_id")
+    })
     private Set<Category> categories;
 
+    /** Transcription segments */
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("startTime ASC")
+    @OrderBy("displayOrder ASC")
     private List<TranscriptionSegment> segments;
 
+    /** User lesson progress */
     @OneToMany(mappedBy = "lesson", fetch = FetchType.LAZY)
     private List<UserLessonProgress> userLessonProgresses;
 

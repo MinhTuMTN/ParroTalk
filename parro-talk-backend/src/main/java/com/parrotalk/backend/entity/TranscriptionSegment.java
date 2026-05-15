@@ -16,6 +16,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -28,7 +29,9 @@ import lombok.Setter;
  * @author MinhTuMTN
  */
 @Entity
-@Table(name = "transcription_segments")
+@Table(name = "transcription_segments", indexes = {
+        @Index(name = "idx_segments_lesson_order", columnList = "lesson_id, display_order")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -53,6 +56,10 @@ public class TranscriptionSegment extends BaseEntity {
     /** End time in seconds */
     @Column(nullable = false)
     private double endTime;
+
+    /** Segment display order */
+    @Column(name = "display_order", nullable = false, columnDefinition = "integer default 0")
+    private int displayOrder;
 
     /** Difificulty level */
     @Enumerated(EnumType.STRING)

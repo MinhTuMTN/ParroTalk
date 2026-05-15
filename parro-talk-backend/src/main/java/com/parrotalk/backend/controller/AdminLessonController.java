@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.parrotalk.backend.constant.LessonVisibilityStatus;
 import com.parrotalk.backend.dto.AdminCreateLessonRequest;
-import com.parrotalk.backend.dto.AdminUpdateLessonRequest;
+import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.UpdateLessonSegmentsRequest;
@@ -63,6 +63,7 @@ public class AdminLessonController {
 
     /**
      * Create lesson.
+     * (TODO: Create lesson, segment and user lesson progress together)
      * 
      * @param request Create lesson request
      * @return Lesson
@@ -74,17 +75,17 @@ public class AdminLessonController {
     }
 
     /**
-     * Update lesson.
+     * Update general information of the lesson.
      * 
      * @param id      Lesson ID
      * @param request Update lesson request
      * @return Lesson
      */
     @PutMapping("/{id}")
-    public ResponseEntity<LessonResponse> updateLesson(
+    public ResponseEntity<LessonResponse> updateLessonGeneralInformation(
             @PathVariable UUID id,
-            @Valid @RequestBody AdminUpdateLessonRequest request) {
-        return ResponseEntity.ok(lessonService.updateAdminLesson(id, request));
+            @Valid @RequestBody UpdateLessonInfoRequest request) {
+        return ResponseEntity.ok(lessonService.updateGeneralInformation(id, request));
     }
 
     /**
@@ -121,7 +122,12 @@ public class AdminLessonController {
     public ResponseEntity<LessonResponse> updateLessonSegments(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateLessonSegmentsRequest request) {
-        return ResponseEntity.ok(lessonService.updateLessonSegments(id, request.getSegments()));
+        return ResponseEntity.ok(
+                lessonService.updateLessonSegments(
+                        id,
+                        request.getSegments(),
+                        request.getDeletedSegmentIds()));
+
     }
 
     /**

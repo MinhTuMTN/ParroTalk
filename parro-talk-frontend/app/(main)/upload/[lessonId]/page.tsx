@@ -3,10 +3,10 @@
 import React, { useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Circle, AlertCircle, FileAudio, Globe2, Sparkles, Loader2 } from 'lucide-react';
-import { useSSE } from '@/hooks/useSSE';
-import ProgressBar from '@/components/upload/ProgressBar';
-import StatusBadge from '@/components/upload/StatusBadge';
-import ProcessingCard from '@/components/upload/ProcessingCard';
+import { useSSE } from '@/features/upload/hooks/useSSE';
+import ProgressBar from '@/features/upload/components/ProgressBar';
+import StatusBadge from '@/features/upload/components/StatusBadge';
+import ProcessingCard from '@/features/upload/components/ProcessingCard';
 
 const STEPS = [
   'Downloading file...',
