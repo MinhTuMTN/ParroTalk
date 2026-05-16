@@ -4,13 +4,11 @@ import java.io.IOException;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
-import com.parrotalk.backend.dto.CloudinaryDto;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +56,7 @@ public class StorageService {
      * @param newFilename New filename
      * @return File URL
      */
-    public CloudinaryDto store(MultipartFile file, String newFilename) {
+    public String store(MultipartFile file, String newFilename) {
         try {
             // Check if file is empty
             if (file.isEmpty()) {
@@ -70,15 +68,7 @@ public class StorageService {
                     "public_id", newFilename,
                     "resource_type", "auto"));
 
-            CloudinaryDto cloudinaryDto = new CloudinaryDto();
-            cloudinaryDto.setUrl(uploadResult.get("secure_url").toString());
-            Object durationObj = uploadResult.get("duration");
-            if (durationObj != null) {
-                int duration = ((Double) durationObj).intValue();
-                cloudinaryDto.setDuration(duration);
-            }
-
-            return cloudinaryDto;
+            return uploadResult.get("secure_url").toString();
         } catch (IOException e) {
             throw new RuntimeException("Failed to store file to Cloudinary: " + e.getMessage(), e);
         }

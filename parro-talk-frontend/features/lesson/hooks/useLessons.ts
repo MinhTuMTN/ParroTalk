@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { lessonService } from "@/features/lesson/services/lessonService";
-import type { Lesson, LessonFilter, LessonStatus } from "@/features/lesson/types/lesson";
+import { LessonStatus, type Lesson, type LessonFilter } from "@/features/lesson/types/lesson";
 
 type BulkAction = "publish" | "hide" | "delete";
 
@@ -126,7 +126,7 @@ export function useLessons() {
       return;
     }
 
-    const status: LessonStatus = action === "publish" ? "published" : "hidden";
+    const status: LessonStatus = action === "publish" ? LessonStatus.PUBLISHED : LessonStatus.HIDDEN;
     const previous = lessons;
     setLessons((current) =>
       current.map((lesson) =>

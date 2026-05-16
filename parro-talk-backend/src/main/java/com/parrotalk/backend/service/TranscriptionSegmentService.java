@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
 
+import jakarta.transaction.Transactional;
+
 /**
  * Transcription segment service.
  * 
@@ -28,6 +30,7 @@ public class TranscriptionSegmentService {
      * 
      * @param lessonId Lesson ID
      */
+    @Transactional
     public void deleteByLessonId(UUID lessonId) {
         transcriptionSegmentRepository.deleteByLessonId(lessonId);
     }
@@ -38,6 +41,7 @@ public class TranscriptionSegmentService {
      * @param segments List of transcription segments
      * @return Number of segments saved
      */
+    @Transactional
     public int saveAllTranscriptionSegment(List<TranscriptionSegment> segments) {
         transcriptionSegmentRepository.saveAll(segments);
         return segments.size();

@@ -23,6 +23,9 @@ function LibraryContent() {
     const [jobs, setJobs] = useState<Lesson[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [activeCategory, setActiveCategory] = useState<string>(searchParams.get("category") || "");
+    const [activeTab, setActiveTab] = useState<"library" | "my-lessons">(
+        searchParams.get("tab") === "my-lessons" ? "my-lessons" : "library",
+    );
     const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
     const [debouncedSearch] = useDebounce(searchQuery, 500);
     const [page, setPage] = useState(Number(searchParams.get("page")) || 0);
@@ -34,13 +37,14 @@ function LibraryContent() {
     // Reset page when filters change
     useEffect(() => {
         setPage(0);
-    }, [debouncedSearch, activeCategory]);
+    }, [debouncedSearch, activeCategory, activeTab]);
 
     // Sync state to URL
     useEffect(() => {
         const params = new URLSearchParams(searchParams.toString());
         if (debouncedSearch) params.set("q", debouncedSearch); else params.delete("q");
-        if (activeCategory) params.set("category", activeCategory); else params.delete("category");
+        if (activeCategory && activeTab === "library") params.set("category", activeCategory); else params.delete("category");
+        if (activeTab === "my-lessons") params.set("tab", "my-lessons"); else params.delete("tab");
         if (page > 0) params.set("page", page.toString()); else params.delete("page");
 
         const newQueryString = params.toString();
@@ -49,12 +53,14 @@ function LibraryContent() {
         if (newQueryString !== currentQueryString) {
             router.replace(`${pathname}${newQueryString ? `?${newQueryString}` : ""}`, { scroll: false });
         }
-    }, [debouncedSearch, activeCategory, page, pathname, router, searchParams]);
+    }, [debouncedSearch, activeCategory, activeTab, page, pathname, router, searchParams]);
 
     const fetchLessons = useCallback(async () => {
         setLoading(true);
         try {
-            const data = await lessonService.getAllLessons(page, 9, debouncedSearch, activeCategory);
+            const data = activeTab === "my-lessons"
+                ? await lessonService.getMyLessons(page, 9, debouncedSearch)
+                : await lessonService.getAllLessons(page, 9, debouncedSearch, activeCategory);
             setJobs(data.content || []);
             setTotalPages(data.totalPages || 0);
         } catch (err) {
@@ -62,7 +68,7 @@ function LibraryContent() {
         } finally {
             setLoading(false);
         }
-    }, [page, debouncedSearch, activeCategory]);
+    }, [page, debouncedSearch, activeCategory, activeTab]);
 
     useEffect(() => {
         if (!isAuthLoading && !isAuthenticated) {
@@ -70,6 +76,12 @@ function LibraryContent() {
             return;
         }
     }, [isAuthenticated, isAuthLoading, router]);
+
+    useEffect(() => {
+        if (!isAuthLoading && user?.role !== "PRO_USER" && activeTab === "my-lessons") {
+            setActiveTab("library");
+        }
+    }, [activeTab, isAuthLoading, user?.role]);
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -95,7 +107,7 @@ function LibraryContent() {
         );
     }
 
-    const featuredJob = page === 0 && jobs.length > 0 && !debouncedSearch && !activeCategory ? jobs[0] : null;
+    const featuredJob = activeTab === "library" && page === 0 && jobs.length > 0 && !debouncedSearch && !activeCategory ? jobs[0] : null;
     // const gridJobs = jobs.filter(job => job.id !== featuredJob?.id);
     const gridJobs = jobs;
 
@@ -112,7 +124,23 @@ function LibraryContent() {
                     </button>
 
                     <div className="hidden lg:flex gap-10 text-sm font-bold">
-                        <span className="text-green-500 border-b-2 border-green-500 pb-1 shrink-0">Lesson Library</span>
+                        <button
+                            onClick={() => setActiveTab("library")}
+                            className={`${activeTab === "library" ? "text-green-500 border-b-2 border-green-500" : "text-gray-400 hover:text-gray-800"} pb-1 shrink-0 transition-colors`}
+                        >
+                            Lesson Library
+                        </button>
+                        {user?.role === "PRO_USER" && (
+                            <button
+                                onClick={() => {
+                                    setActiveTab("my-lessons");
+                                    setActiveCategory("");
+                                }}
+                                className={`${activeTab === "my-lessons" ? "text-green-500 border-b-2 border-green-500" : "text-gray-400 hover:text-gray-800"} pb-1 shrink-0 transition-colors`}
+                            >
+                                My Lessons
+                            </button>
+                        )}
                         <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer shrink-0">My Progress</Link>
                     </div>
 
@@ -196,12 +224,45 @@ function LibraryContent() {
             </header>
 
             <main className="px-4 md:px-8 py-8 md:py-12 max-w-7xl w-full mx-auto flex flex-col gap-6 md:gap-10">
+                {user?.role === "PRO_USER" && (
+                    <div className="flex lg:hidden rounded-2xl bg-gray-100 p-1">
+                        <button
+                            onClick={() => setActiveTab("library")}
+                            className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "library"
+                                ? "bg-white text-green-600 shadow-sm"
+                                : "text-gray-500"
+                                }`}
+                        >
+                            Lesson Library
+                        </button>
+                        <button
+                            onClick={() => {
+                                setActiveTab("my-lessons");
+                                setActiveCategory("");
+                            }}
+                            className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "my-lessons"
+                                ? "bg-white text-green-600 shadow-sm"
+                                : "text-gray-500"
+                                }`}
+                        >
+                            My Lessons
+                        </button>
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div className="flex flex-col gap-3 max-w-xl">
-                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">Lesson Library</h1>
-                        <p className="text-gray-500 text-base md:text-lg">Hone your dictation and pronunciation skills with our curated collection of pristine audio and video lessons.</p>
+                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
+                            {activeTab === "my-lessons" ? "My Lessons" : "Lesson Library"}
+                        </h1>
+                        <p className="text-gray-500 text-base md:text-lg">
+                            {activeTab === "my-lessons"
+                                ? "Practice with the private lessons you created for yourself."
+                                : "Hone your dictation and pronunciation skills with our curated collection of pristine audio and video lessons."}
+                        </p>
                     </div>
 
+                    {activeTab === "library" && (
                     <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
                         <button
                             onClick={() => { setActiveCategory(""); setPage(0); }}
@@ -225,6 +286,7 @@ function LibraryContent() {
                             </button>
                         ))}
                     </div>
+                    )}
                 </div>
 
                 {loading ? (

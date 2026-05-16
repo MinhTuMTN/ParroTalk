@@ -1,6 +1,6 @@
 import { Pencil, Trash2 } from "lucide-react";
 import Switch from "@/components/ui/Switch";
-import type { Lesson } from "@/features/lesson/types/lesson";
+import { LessonStatus, type Lesson } from "@/features/lesson/types/lesson";
 
 type LessonActionsProps = {
   lesson: Lesson;
@@ -18,7 +18,7 @@ export default function LessonActions({
   return (
     <div className="flex items-center gap-3">
       <Switch
-        checked={lesson.status === "published"}
+        checked={lesson.status === LessonStatus.PUBLISHED}
         onChange={(next) => onToggleStatus(lesson, next)}
       />
       <button
@@ -38,4 +38,3 @@ export default function LessonActions({
     </div>
   );
 }
-

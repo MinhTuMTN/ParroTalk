@@ -9,6 +9,7 @@ import { useSSE } from '@/features/upload/hooks/useSSE';
 import ProgressBar from '@/features/upload/components/ProgressBar';
 import StatusBadge from '@/features/upload/components/StatusBadge';
 import ProcessingCard from '@/features/upload/components/ProcessingCard';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const STEPS = [
   'Downloading file...',
@@ -20,6 +21,7 @@ const STEPS = [
 
 export default function UploadPage() {
   const router = useRouter();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
   // App State
   const [activeTab, setActiveTab] = useState<'upload' | 'youtube'>('upload');
@@ -36,13 +38,19 @@ export default function UploadPage() {
   const { status, progress, step, error } = useSSE(lessonId);
 
   useEffect(() => {
+    if (!isAuthLoading && (!isAuthenticated || user?.role === 'USER')) {
+      router.replace('/library');
+    }
+  }, [isAuthenticated, isAuthLoading, router, user?.role]);
+
+  useEffect(() => {
     if (status === 'DONE' && lessonId) {
       const timer = setTimeout(() => {
-        router.push(`/library`);
+        router.push(user?.role === 'PRO_USER' ? `/library?tab=my-lessons` : `/library`);
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [status, router, lessonId]);
+  }, [status, router, lessonId, user?.role]);
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -235,6 +243,10 @@ export default function UploadPage() {
         )}
       </div>
     );
+  }
+
+  if (isAuthLoading || !isAuthenticated || user?.role === 'USER') {
+    return null;
   }
 
   return (

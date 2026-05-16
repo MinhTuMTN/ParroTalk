@@ -69,6 +69,20 @@ public class LessonController {
     }
 
     /**
+     * Get list own lessons.
+     * 
+     * @param request Lesson search request
+     * @param user    User
+     * @return Page of lessons
+     */
+    @GetMapping("/mine")
+    public ResponseEntity<PageResponse<LessonWithProgressDTO>> listMyLessons(
+            @ModelAttribute LessonSearchRequest request,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(lessonService.searchMyLessons(request, user));
+    }
+
+    /**
      * Submit lesson.
      * 
      * @param lessonId Lesson ID
@@ -92,8 +106,10 @@ public class LessonController {
      * @return Lesson
      */
     @GetMapping("/{lessonId}")
-    public ResponseEntity<LessonResponse> getLessonDetail(@PathVariable UUID lessonId) {
-        return ResponseEntity.ok(lessonService.getPublishedLessonDetail(lessonId));
+    public ResponseEntity<LessonResponse> getLessonDetail(
+            @PathVariable UUID lessonId,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(lessonService.getAccessibleLessonDetail(lessonId, user));
     }
 
     /**

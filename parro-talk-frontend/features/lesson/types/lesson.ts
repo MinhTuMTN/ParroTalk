@@ -1,4 +1,7 @@
-export type LessonStatus = "published" | "hidden";
+export enum LessonStatus {
+  PUBLISHED = "PUBLISHED",
+  HIDDEN = "HIDDEN",
+}
 
 export type Segment = {
   id: string;

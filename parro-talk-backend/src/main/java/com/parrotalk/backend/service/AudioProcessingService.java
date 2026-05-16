@@ -67,6 +67,9 @@ public class AudioProcessingService {
             JsonNode resultNode = node.get("result");
             if (resultNode != null && resultNode.has("segments")) {
                 int totalSegments = saveAllTranscriptionSegment(lesson, resultNode);
+                if (node.has("duration")) {
+                    lesson.setDuration(node.get("duration").asInt());
+                }
                 lessonService.updateProgress(lesson, 100, "Completed", LessonStatus.DONE, totalSegments);
             }
 

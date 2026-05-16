@@ -1,9 +1,8 @@
 package com.parrotalk.backend.service;
 
 import com.parrotalk.backend.entity.User;
-
+import com.parrotalk.backend.util.YoutubeUtil;
 import com.parrotalk.backend.constant.LessonStatus;
-import com.parrotalk.backend.dto.CloudinaryDto;
 import com.parrotalk.backend.entity.Lesson;
 
 import lombok.RequiredArgsConstructor;
@@ -51,7 +50,7 @@ public class AudioService {
             String fileHash = DigestUtils.md5DigestAsHex(file.getInputStream());
 
             // Find lesson with same file hash
-            Optional<Lesson> existingLesson = lessonService.findByFileHash(fileHash);
+            Optional<Lesson> existingLesson = lessonService.findReusableLesson(fileHash, owner);
 
             // If exist and not failed, return it
             if (existingLesson.isPresent()) {
@@ -63,18 +62,17 @@ public class AudioService {
 
             // Otherwise, upload new file to storage (using Cloudinary)
             String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-            CloudinaryDto cloudinaryDto = storageService.store(file, filename);
+            String audioUrl = storageService.store(file, filename);
 
             // Save new lesson to database with PENDING status
             Lesson lesson = lessonService.createLesson(
-                    cloudinaryDto.getUrl(),
+                    audioUrl,
                     fileHash,
                     owner,
-                    cloudinaryDto.getDuration(),
                     lessonTitle);
 
             // Send task to RabbitMQ
-            audioTaskProducer.sendTranscriptionTask(lesson.getId(), cloudinaryDto.getUrl());
+            audioTaskProducer.sendTranscriptionTask(lesson.getId(), audioUrl);
 
             // Return lesson
             return lesson.getId();
@@ -91,13 +89,20 @@ public class AudioService {
      * @return Lesson ID
      */
     public UUID processYoutube(com.parrotalk.backend.dto.YoutubeUploadRequest request, User owner) {
-        String url = request.getUrl();
+        String youtubeUrl = request.getUrl();
         String title = request.getTitle();
 
-        // Use URL hash to find existing lesson
-        String fileHash = DigestUtils.md5DigestAsHex(url.getBytes());
-        Optional<Lesson> existingLesson = lessonService.findByFileHash(fileHash);
+        // Extract video ID from URL
+        Optional<String> videoId = YoutubeUtil.extractVideoId(youtubeUrl);
+        if (videoId.isEmpty()) {
+            throw new IllegalArgumentException("Invalid YouTube URL format: " + youtubeUrl);
+        }
 
+        // Use VideoID hash to find existing lesson
+        String fileHash = DigestUtils.md5DigestAsHex(videoId.get().getBytes());
+        Optional<Lesson> existingLesson = lessonService.findReusableLesson(fileHash, owner);
+
+        // If exist and not failed, return it
         if (existingLesson.isPresent()) {
             Lesson lesson = existingLesson.get();
             if (lesson.getStatus() != LessonStatus.FAILED) {
@@ -105,16 +110,15 @@ public class AudioService {
             }
         }
 
-        // Create new lesson without audio file upload (just the URL)
+        // Create new lesson without audio file upload
         Lesson lesson = lessonService.createLesson(
-                url, // Use YT URL as the fileUrl
+                youtubeUrl,
                 fileHash,
                 owner,
-                0, // Duration unknown initially
                 title);
 
         // Send task to RabbitMQ for the worker to process the YT URL
-        audioTaskProducer.sendTranscriptionTask(lesson.getId(), url);
+        audioTaskProducer.sendTranscriptionTask(lesson.getId(), youtubeUrl);
 
         return lesson.getId();
     }

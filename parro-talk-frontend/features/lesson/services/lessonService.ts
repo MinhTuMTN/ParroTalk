@@ -1,5 +1,5 @@
 import axiosInstance from "@/lib/axios";
-import type { Lesson as AdminLesson, LessonStatus, Segment } from "@/features/lesson/types/lesson";
+import { LessonStatus, type Lesson as AdminLesson, type Segment } from "@/features/lesson/types/lesson";
 
 export interface Category {
   id: string;
@@ -80,8 +80,6 @@ export interface UserProfileResponse {
 }
 
 
-type LessonVisibilityStatus = "published" | "hidden";
-
 type BackendSegment = {
   id: string;
   text: string;
@@ -100,7 +98,7 @@ type BackendLesson = {
   fileUrl?: string | null;
   source?: string | null;
   duration?: number | null;
-  visibilityStatus: LessonVisibilityStatus;
+  visibilityStatus: LessonStatus;
   categories?: BackendCategory[];
   segments?: BackendSegment[];
   createdAt: string;
@@ -129,9 +127,9 @@ export type LessonListResult = {
   totalPages: number;
 };
 
-const toLessonStatus = (status: LessonVisibilityStatus): LessonStatus => status;
+const toLessonStatus = (status: LessonStatus): LessonStatus => status;
 
-const toBackendStatus = (status: LessonStatus): LessonVisibilityStatus => status;
+const toBackendStatus = (status: LessonStatus): LessonStatus => status;
 
 const mapSegment = (segment: BackendSegment): Segment => ({
   id: segment.id,
@@ -167,6 +165,14 @@ export const lessonService = {
     let url = `/lessons?page=${page}&size=${size}`;
     if (query) url += `&query=${encodeURIComponent(query)}`;
     if (categoryId) url += `&categoryId=${categoryId}`;
+    const response = await axiosInstance.get<PageResponse<Lesson>>(url);
+
+    return response.data;
+  },
+
+  async getMyLessons(page = 0, size = 10, query?: string) {
+    let url = `/lessons/mine?page=${page}&size=${size}`;
+    if (query) url += `&query=${encodeURIComponent(query)}`;
     const response = await axiosInstance.get<PageResponse<Lesson>>(url);
 
     return response.data;
@@ -229,7 +235,7 @@ export const lessonService = {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
-    const response = await axiosInstance.post<{ lessonId: string; message: string }>("/audio/audio", formData, {
+    const response = await axiosInstance.post<{ lessonId: string; message: string }>("/audio/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

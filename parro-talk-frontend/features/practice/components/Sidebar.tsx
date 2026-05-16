@@ -21,8 +21,10 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
     { icon: Book, label: "Dictionary", path: "#" },
     { icon: FileText, label: "Notes", path: "#" },
     { icon: Mic, label: "Transcript", path: "#" },
-        ...(user?.role === "ADMIN" ? [
+    ...(user?.role === "ADMIN" ? [
       { icon: Shield, label: "Admin", path: "/admin/lessons", active: pathname.startsWith("/admin") },
+      { icon: CloudUpload, label: "Upload", path: "/upload", active: pathname.startsWith("/upload") }
+    ] : user?.role === "PRO_USER" ? [
       { icon: CloudUpload, label: "Upload", path: "/upload", active: pathname.startsWith("/upload") }
     ] : []),
 
@@ -135,10 +137,12 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
       </div>
 
       <div className={`mt-auto p-6 flex flex-col gap-4 ${isCollapsed ? "items-center" : ""}`}>
-        <button className={`py-4 bg-orange-50 text-orange-600 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 border border-orange-100 overflow-hidden ${isCollapsed ? "w-10 h-10 p-0" : "w-full text-sm"}`}>
-          <Star size={16} fill="currentColor" className="shrink-0" />
-          {!isCollapsed && "Unlock Pro"}
-        </button>
+        {user?.role === "USER" && (
+          <button className={`py-4 bg-orange-50 text-orange-600 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 border border-orange-100 overflow-hidden ${isCollapsed ? "w-10 h-10 p-0" : "w-full text-sm"}`}>
+            <Star size={16} fill="currentColor" className="shrink-0" />
+            {!isCollapsed && "Upgrade to Pro"}
+          </button>
+        )}
 
         <button
           onClick={logout}

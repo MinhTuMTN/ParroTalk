@@ -51,8 +51,12 @@ public class Lesson extends BaseEntity {
     @Column(nullable = false)
     private String fileUrl;
 
+    /** Thumbnail URL */
+    @Column(nullable = true)
+    private String thumbnailUrl;
+
     /** Audio/Video file hash */
-    @Column(nullable = true, unique = true)
+    @Column(nullable = true)
     private String fileHash;
 
     /** Lesson status */

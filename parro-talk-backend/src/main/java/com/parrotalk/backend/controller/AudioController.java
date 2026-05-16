@@ -24,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
  */
 @RestController
 @RequestMapping("/api/audio")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'PRO_USER')")
 @RequiredArgsConstructor
 public class AudioController {
 

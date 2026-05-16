@@ -23,9 +23,12 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.parrotalk.backend.config.AppSetting;
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.LessonVisibilityStatus;
+import com.parrotalk.backend.constant.MediaType;
 import com.parrotalk.backend.constant.Role;
+import com.parrotalk.backend.constant.SourceType;
 import com.parrotalk.backend.dto.AdminCreateLessonRequest;
 import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
 import com.parrotalk.backend.dto.CategoryResponse;
@@ -45,6 +48,7 @@ import com.parrotalk.backend.mapper.LessonMapper;
 import com.parrotalk.backend.repository.CategoryRepository;
 import com.parrotalk.backend.repository.LessonRepository;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
+import com.parrotalk.backend.util.YoutubeUtil;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,22 +74,35 @@ public class LessonService {
     private final TranscriptionSegmentRepository transcriptionSegmentRepository;
     private final CategoryRepository categoryRepository;
 
+    /** App setting */
+    private final AppSetting appSetting;
+
     /**
      * Create a new lesson
      * 
-     * @param fileUrl  audio file url
-     * @param fileHash audio file hash
-     * @param owner    owner of the lesson
+     * @param fileUrl  Audio file url
+     * @param fileHash Audio file hash
+     * @param owner    Owner of the lesson
+     * @param title    Lesson title
      * @return Lesson
      */
     @Transactional
-    public Lesson createLesson(String fileUrl, String fileHash, User owner, int duration, String title) {
+    public Lesson createLesson(String fileUrl, String fileHash, User owner, String title) {
+        boolean isYoutubeUrl = YoutubeUtil.isYoutubeUrl(fileUrl);
+        String thumbnailUrl = isYoutubeUrl
+                ? YoutubeUtil.getThumbnailUrl(fileUrl)
+                : appSetting.getDefaultAudioThumbnail();
+        UUID ownerId = owner.getRole() == Role.ADMIN ? null : owner.getId();
+
         Lesson lesson = Lesson.builder()
                 .fileUrl(fileUrl)
                 .fileHash(fileHash)
-                .ownerId(owner.getId())
-                .duration(duration)
+                .ownerId(ownerId)
+                .duration(0)
                 .title(title)
+                .mediaType(isYoutubeUrl ? MediaType.VIDEO : MediaType.AUDIO)
+                .sourceType(isYoutubeUrl ? SourceType.YOUTUBE : SourceType.CLOUDINARY)
+                .thumbnailUrl(thumbnailUrl)
                 .build();
         return lessonRepository.save(lesson);
     }
@@ -96,8 +113,11 @@ public class LessonService {
      * @param fileHash File hash
      * @return Lesson
      */
-    public Optional<Lesson> findByFileHash(String fileHash) {
-        return lessonRepository.findByFileHash(fileHash);
+    public Optional<Lesson> findReusableLesson(String fileHash, User owner) {
+        if (owner.getRole() == Role.ADMIN) {
+            return lessonRepository.findByFileHashAndOwnerIdIsNull(fileHash);
+        }
+        return lessonRepository.findByFileHashAndOwnerId(fileHash, owner.getId());
     }
 
     public LessonResponse getLessonStatus(UUID lessonId) {
@@ -179,6 +199,33 @@ public class LessonService {
     }
 
     /**
+     * Search own lessons.
+     * 
+     * @param request Lesson search request
+     * @param user    User
+     * @return Page of lessons
+     */
+    public PageResponse<LessonWithProgressDTO> searchMyLessons(LessonSearchRequest request, User user) {
+        Pageable pageable = PageRequest.of(
+                request.getPage(),
+                request.getSize(),
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<LessonWithProgressDTO> lessonPage = lessonRepository.searchOwnedHiddenLessonsWithProgress(
+                request.getQuery(),
+                user.getId(),
+                pageable);
+
+        return PageResponse.<LessonWithProgressDTO>builder()
+                .content(lessonPage.getContent())
+                .page(lessonPage.getNumber())
+                .size(lessonPage.getSize())
+                .totalElements(lessonPage.getTotalElements())
+                .totalPages(lessonPage.getTotalPages())
+                .build();
+    }
+
+    /**
      * Update lesson progress when received from RabbitMQ.
      * 
      * @param lessonId      Lesson ID
@@ -190,7 +237,7 @@ public class LessonService {
     @Transactional
     public void updateProgress(Lesson lesson, int progress, String step, LessonStatus status, int totalSegments) {
         lesson.setStatus(status);
-        if (LessonStatus.DONE.equals(status)) {
+        if (LessonStatus.DONE.equals(status) && lesson.getOwnerId() == null) {
             lesson.setVisibilityStatus(LessonVisibilityStatus.PUBLISHED);
         }
         lesson.setProgress(progress);
@@ -395,8 +442,16 @@ public class LessonService {
         return getAdminLessonDetail(lessonId);
     }
 
-    public LessonResponse getPublishedLessonDetail(UUID lessonId) {
+    /**
+     * Get accessible lesson detail.
+     * 
+     * @param lessonId Lesson ID
+     * @param user     User
+     * @return Lesson
+     */
+    public LessonResponse getAccessibleLessonDetail(UUID lessonId, User user) {
         Lesson lesson = lessonRepository.findByIdAndVisibilityStatus(lessonId, LessonVisibilityStatus.PUBLISHED)
+                .or(() -> lessonRepository.findByIdAndOwnerId(lessonId, user.getId()))
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
 
         List<TranscriptionResponse> segments = transcriptionSegmentRepository

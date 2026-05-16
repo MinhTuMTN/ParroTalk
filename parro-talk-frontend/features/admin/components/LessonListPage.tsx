@@ -1,20 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/common/Sidebar";
 
+import LessonListHeader from "./LessonListHeader";
 import LessonTable from "@/features/lesson/components/LessonTable";
 import Button from "@/components/ui/Button";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import { useLessons } from "@/features/lesson/hooks/useLessons";
-import type { LessonFilter } from "@/features/lesson/types/lesson";
+import { LessonStatus, type LessonFilter } from "@/features/lesson/types/lesson";
 
 const tabs: { value: LessonFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "published", label: "Published" },
-  { value: "hidden", label: "Hidden" },
+  { value: LessonStatus.PUBLISHED, label: "Published" },
+  { value: LessonStatus.HIDDEN, label: "Hidden" },
 ];
 
 export default function LessonListPage() {
@@ -59,20 +59,9 @@ export default function LessonListPage() {
           onToggle={() => setIsSidebarCollapsed((v) => !v)}
         />
         <main className="w-full p-4 md:p-8">
-          <section className="rounded-[32px] bg-gradient-to-b from-slate-900 to-slate-800 p-7 text-white shadow-2xl">
-            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-              <div>
-                <h1 className="text-5xl font-bold tracking-tight">Lesson Management</h1>
-                <p className="mt-3 max-w-2xl text-slate-200">
-                  Organize, publish, and curate your language learning curriculum from
-                  one place.
-                </p>
-              </div>
-              <Button leftIcon={<Plus className="h-4 w-4" />}>Create Lesson</Button>
-            </div>
-          </section>
+          <div className="rounded-[28px] bg-[#f1f4f7] p-4 shadow-inner md:p-6">
+            <LessonListHeader />
 
-          <section className="mt-6 rounded-[28px] bg-[#f1f4f7] p-4 shadow-inner md:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="w-full md:max-w-md">
                 <input
@@ -146,7 +135,7 @@ export default function LessonListPage() {
                 onSelectAll={selectAllVisible}
                 onSelect={selectLesson}
                 onToggleStatus={(lesson, next) =>
-                  toggleStatus(lesson, next ? "published" : "hidden")
+                  toggleStatus(lesson, next ? LessonStatus.PUBLISHED : LessonStatus.HIDDEN)
                 }
                 onEdit={(lesson) => router.push(`/admin/lessons/${lesson.id}`)}
                 onDelete={(lesson) => setDeleteId(lesson.id)}
@@ -176,7 +165,7 @@ export default function LessonListPage() {
                 </Button>
               </div>
             </div>
-          </section>
+          </div>
         </main>
       </div>
 

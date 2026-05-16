@@ -38,7 +38,15 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
      * @param fileHash File hash
      * @return Lesson
      */
-    Optional<Lesson> findByFileHash(String fileHash);
+    Optional<Lesson> findByFileHashAndOwnerId(String fileHash, UUID ownerId);
+
+    /**
+     * Find lesson by file hash and owner id is null.
+     * 
+     * @param fileHash File hash
+     * @return Lesson
+     */
+    Optional<Lesson> findByFileHashAndOwnerIdIsNull(String fileHash);
 
     /**
      * Find all lessons by owner ID.
@@ -104,6 +112,39 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             Pageable pageable);
 
     /**
+     * Search own lessons with user progress.
+     * 
+     * @param query    Query string
+     * @param userId   User ID
+     * @param pageable Pageable
+     * @return Page of lessons with progress
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100
+            )
+            FROM Lesson l
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE l.ownerId = :userId
+                AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.HIDDEN
+                AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
+            """, countQuery = """
+            SELECT COUNT(l.id)
+            FROM Lesson l
+            WHERE l.ownerId = :userId
+                AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.HIDDEN
+                AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
+            """)
+    Page<LessonWithProgressDTO> searchOwnedHiddenLessonsWithProgress(
+            @Param("query") String query,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
      * Search lessons with specification.
      * 
      * @param specification Lesson Specification
@@ -132,4 +173,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
     @Query("SELECT l FROM Lesson l WHERE l.id = :lessonId")
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Lesson> findByIdForUpdate(UUID lessonId);
+
+    Optional<Lesson> findByIdAndOwnerId(UUID id, UUID ownerId);
 }

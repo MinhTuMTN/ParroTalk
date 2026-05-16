@@ -115,6 +115,7 @@ def process_audio(ch, lesson_id: str, file_url: str) -> dict:
 
     try:
         local_file_path, audio_path, target_path = _prepare_audio(ch, lesson_id, file_url)
+        audio_duration = get_audio_duration(target_path)
         final_audio_path, mapping, processed_target_path = _remove_silence(ch, lesson_id, target_path)
 
         send_progress(ch, lesson_id, 30, "Transcribing...")
@@ -131,7 +132,7 @@ def process_audio(ch, lesson_id: str, file_url: str) -> dict:
         result_data = {"text": full_text.strip(), "segments": segments_data}
         _write_debug_json(lesson_id, "processed", result_data)
 
-        return {"status": "COMPLETED", "result": result_data}
+        return {"status": "COMPLETED", "result": result_data, "duration": audio_duration}
 
     except Exception as exc:
         logger.error("Error processing audio for %s:\n%s", lesson_id, traceback.format_exc())

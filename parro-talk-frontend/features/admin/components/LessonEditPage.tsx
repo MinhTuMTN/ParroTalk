@@ -19,6 +19,7 @@ import FloatingToast from "@/components/ui/FloatingToast";
 
 import { lessonService } from "@/features/lesson/services/lessonService";
 import type { Category } from "@/features/lesson/services/lessonService";
+import { LessonStatus } from "@/features/lesson/types/lesson";
 
 
 
@@ -403,11 +404,11 @@ export default function LessonEditPage({ id }: { id: string }) {
                     <span className="text-xs font-semibold text-slate-500">Status</span>
                     <div className="mt-1 flex items-center gap-3">
                       <span className="text-sm font-semibold text-slate-700">
-                        {form.status === "published" ? "Published" : "Hidden"}
+                        {form.status === LessonStatus.PUBLISHED ? "Published" : "Hidden"}
                       </span>
                       <Switch
-                        checked={form.status === "published"}
-                        onChange={(next) => updateForm("status", next ? "published" : "hidden")}
+                        checked={form.status === LessonStatus.PUBLISHED}
+                        onChange={(next) => updateForm("status", next ? LessonStatus.PUBLISHED : LessonStatus.HIDDEN)}
                       />
                     </div>
                   </div>
