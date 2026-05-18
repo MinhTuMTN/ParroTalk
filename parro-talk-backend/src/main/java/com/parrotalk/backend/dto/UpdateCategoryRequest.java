@@ -6,19 +6,17 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Create Category Request DTO.
- * 
- * @author MinhTuMTN
+ * Update Category Request DTO.
  */
 @Getter
 @Setter
-public class CreateCategoryRequest {
+public class UpdateCategoryRequest {
 
     /** Category name. */
     @NotBlank(message = "Category name is required")
     private String name;
 
-    /** SEO/user-friendly slug. Generated from name if omitted. */
+    /** SEO/user-friendly slug. */
     private String slug;
 
     /** Category description. */
@@ -33,9 +31,9 @@ public class CreateCategoryRequest {
     /** Category display color. */
     private String color;
 
-    /** Category status. Defaults to ACTIVE. */
+    /** Category status. */
     private CategoryStatus status;
 
-    /** Display order. Defaults to the next available order. */
+    /** Display order. */
     private Integer displayOrder;
 }
