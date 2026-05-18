@@ -175,4 +175,12 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
     Optional<Lesson> findByIdForUpdate(UUID lessonId);
 
     Optional<Lesson> findByIdAndOwnerId(UUID id, UUID ownerId);
+
+    /**
+     * Count lessons using a category.
+     *
+     * @param categoryId Category ID
+     * @return Number of lessons using the category
+     */
+    long countByCategories_Id(UUID categoryId);
 }
