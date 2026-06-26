@@ -3,7 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { lessonService } from "@/features/lesson/services/lessonService";
-import type { Lesson, LessonStatus, Segment } from "@/features/lesson/types/lesson";
+import type {
+  Lesson,
+  LessonStatus,
+  Segment,
+  SegmentTranslation,
+  TranslationSummary,
+} from "@/features/lesson/types/lesson";
 
 type LessonForm = {
   title: string;
@@ -79,6 +85,39 @@ export function useLessonDetail(id: string) {
         segment.id === segmentId ? { ...segment, ...patch } : segment,
       ),
     );
+  };
+
+  const updateTranslationSummary = (summary: TranslationSummary) => {
+    setLesson((current) => (current ? { ...current, translationSummary: summary } : current));
+  };
+
+  const updateSegmentTranslation = (segmentId: string, translation: SegmentTranslation) => {
+    setSegments((current) => {
+      const next = current.map((segment) =>
+        segment.id === segmentId ? { ...segment, translation } : segment,
+      );
+      const translatedCount = next.filter((segment) => segment.translation).length;
+      setLesson((lessonState) =>
+        lessonState
+          ? {
+              ...lessonState,
+              segments: next,
+              translationSummary: {
+                targetLanguage: translation.targetLanguage,
+                status:
+                  translatedCount === 0
+                    ? "NOT_STARTED"
+                    : translatedCount >= next.length
+                      ? "COMPLETED"
+                      : "PARTIAL",
+                translatedCount,
+                totalSegments: next.length,
+              },
+            }
+          : lessonState,
+      );
+      return next;
+    });
   };
 
   const addSegment = (insertAfterId?: string) => {
@@ -245,6 +284,8 @@ export function useLessonDetail(id: string) {
     success,
     updateForm,
     updateSegment,
+    updateTranslationSummary,
+    updateSegmentTranslation,
     addSegment,
     removeSegment,
         splitSegment,

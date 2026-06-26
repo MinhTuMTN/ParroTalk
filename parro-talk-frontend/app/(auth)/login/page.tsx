@@ -1,12 +1,38 @@
 "use client";
 
+import { FormFieldError, FormValidation } from "@/components/ui/FormValidation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import axiosInstance from "@/lib/axios";
+import axiosInstance, { BACKEND_URL } from "@/lib/axios";
+import axios from "axios";
 import { ArrowRight, Loader2, Lock, Mail } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+
+type LoginFormErrors = {
+  email?: string;
+  password?: string;
+};
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validateLoginForm(email: string, password: string): LoginFormErrors {
+  const errors: LoginFormErrors = {};
+  const normalizedEmail = email.trim();
+
+  if (!normalizedEmail) {
+    errors.email = "Email is required.";
+  } else if (!emailPattern.test(normalizedEmail)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (!password) {
+    errors.password = "Password is required.";
+  }
+
+  return errors;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,25 +40,61 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [formErrors, setFormErrors] = useState<LoginFormErrors>({});
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+
+  useEffect(() => {
+    const errorCode = new URLSearchParams(window.location.search).get("error");
+    if (errorCode === "oauth_failed") {
+      const message = "Google login failed. Please try again.";
+      setError(message);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validationErrors = validateLoginForm(email, password);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(validationErrors);
+      setError("Please fix the highlighted fields.");
+      setNeedsVerification(false);
+      return;
+    }
+
     setIsLoading(true);
     setError("");
+    setFormErrors({});
+    setNeedsVerification(false);
 
     try {
-      const response = await axiosInstance.post("/auth/login", { email, password });
+      const response = await axiosInstance.post("/auth/login", { email: email.trim(), password });
       const { token, refreshToken, user } = response.data.result;
 
       login(token, refreshToken, user);
       router.push("/library");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Invalid credentials. Please try again.");
+    } catch (err: unknown) {
+      const errorResponse = axios.isAxiosError<{ message?: string; errorCode?: string }>(err)
+        ? err.response?.data
+        : undefined;
+      const message = errorResponse?.message;
+      if (errorResponse?.errorCode === "EMAIL_NOT_VERIFIED") {
+        setNeedsVerification(true);
+      }
+      const fallbackMessage = errorResponse?.errorCode === "EMAIL_NOT_VERIFIED"
+        ? "Please verify your email before logging in."
+        : "Invalid credentials. Please try again.";
+      const loginError = message || fallbackMessage;
+      setError(loginError);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = `${BACKEND_URL}/oauth2/authorization/google`;
   };
 
   return (
@@ -60,45 +122,70 @@ export default function LoginPage() {
             <p className="text-gray-500 font-medium italic">Dictation in the flow of light.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-2xl text-sm font-bold border border-red-100 animate-shake">
-                {error}
-              </div>
-            )}
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+            <FormValidation message={error}>
+              {needsVerification ? (
+                <Link
+                  href={`/check-email?email=${encodeURIComponent(email)}`}
+                  className="inline-flex text-green-600 hover:text-green-700 underline underline-offset-4"
+                >
+                  Resend verification email
+                </Link>
+              ) : null}
+            </FormValidation>
 
             <div className="space-y-4">
               <div className="space-y-1.5 px-2">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                <label htmlFor="login-email" className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
                   <input
+                    id="login-email"
                     type="email"
-                    required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFormErrors((current) => ({ ...current, email: undefined }));
+                    }}
                     placeholder="name@example.com"
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-green-500 transition-all shadow-sm"
+                    aria-invalid={Boolean(formErrors.email)}
+                    aria-describedby={formErrors.email ? "login-email-error" : undefined}
+                    className={`w-full bg-gray-50 border-2 rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white transition-all shadow-sm ${
+                      formErrors.email
+                        ? "border-red-300 focus:border-red-500"
+                        : "border-transparent focus:border-green-500"
+                    }`}
                   />
                 </div>
+                <FormFieldError id="login-email-error" message={formErrors.email} />
               </div>
 
               <div className="space-y-1.5 px-2">
                 <div className="flex justify-between items-center ml-1">
-                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Password</label>
+                  <label htmlFor="login-password" className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Password</label>
                   <Link href="#" className="text-[11px] font-black text-green-500 hover:text-green-600 uppercase tracking-widest">Forgot Password?</Link>
                 </div>
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
                   <input
+                    id="login-password"
                     type="password"
-                    required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setFormErrors((current) => ({ ...current, password: undefined }));
+                    }}
                     placeholder="••••••••"
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-green-500 transition-all shadow-sm"
+                    aria-invalid={Boolean(formErrors.password)}
+                    aria-describedby={formErrors.password ? "login-password-error" : undefined}
+                    className={`w-full bg-gray-50 border-2 rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:bg-white transition-all shadow-sm ${
+                      formErrors.password
+                        ? "border-red-300 focus:border-red-500"
+                        : "border-transparent focus:border-green-500"
+                    }`}
                   />
                 </div>
+                <FormFieldError id="login-password-error" message={formErrors.password} />
               </div>
             </div>
 
@@ -128,7 +215,11 @@ export default function LoginPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <button className="h-12 md:h-14 bg-white border-2 border-slate-100 rounded-2xl flex items-center justify-center gap-3 font-bold text-[#1E293B] hover:border-[#F1F5F9] hover:bg-[#F1F5F9] transition-all active:scale-95 text-sm md:text-base">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="h-12 md:h-14 bg-white border-2 border-slate-100 rounded-2xl flex items-center justify-center gap-3 font-bold text-[#1E293B] hover:border-[#F1F5F9] hover:bg-[#F1F5F9] transition-all active:scale-95 text-sm md:text-base"
+            >
               <Image src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" width={20} height={20} />
               Google
             </button>

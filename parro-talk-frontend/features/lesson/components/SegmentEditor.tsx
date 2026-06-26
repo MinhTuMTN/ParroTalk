@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Scissors, Trash2 } from "lucide-react";
+import { Languages, Plus, Scissors, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 
 import type { Segment } from "@/features/lesson/types/lesson";
@@ -13,11 +13,13 @@ type SegmentEditorProps = {
   onAdd: (afterId?: string) => void;
   onDelete: (id: string) => void;
   onSplit: (id: string, cursorPosition?: number) => void;
-    onChange: (id: string, patch: Partial<Segment>) => void;
-    onSaveChanges: () => void;
+  onChange: (id: string, patch: Partial<Segment>) => void;
+  onSaveChanges: () => void;
+  onGenerateTranslation: (id: string) => void;
   onNoChangesSaveAttempt: () => void;
   isSaving: boolean;
   hasSegmentChanges: boolean;
+  generatingSegmentId: string | null;
 };
 
 
@@ -36,11 +38,13 @@ export default function SegmentEditor({
   onAdd,
   onDelete,
   onSplit,
-    onChange,
-    onSaveChanges,
+  onChange,
+  onSaveChanges,
+  onGenerateTranslation,
   onNoChangesSaveAttempt,
   isSaving,
   hasSegmentChanges,
+  generatingSegmentId,
 }: SegmentEditorProps) {
 
 
@@ -153,9 +157,29 @@ export default function SegmentEditor({
                       />
                     </label>
                   </div>
+
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-xs font-semibold text-slate-500">Vietnamese translation</p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      {segment.translation?.translatedText ?? "No translation yet."}
+                    </p>
+                  </div>
                 </div>
 
-                                <div className="flex flex-col items-center gap-2 pt-1 text-slate-500">
+                <div className="flex flex-col items-center gap-2 pt-1 text-slate-500">
+                  <button
+                    type="button"
+                    onClick={() => onGenerateTranslation(segment.id)}
+                    disabled={
+                      generatingSegmentId === segment.id ||
+                      hasSegmentChanges ||
+                      segment.id.startsWith("seg-")
+                    }
+                    className="rounded-lg p-2 transition hover:bg-slate-100 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Generate translation"
+                  >
+                    <Languages className="h-4 w-4" />
+                  </button>
 
                   <button
                     type="button"

@@ -1,6 +1,7 @@
 import axios from "axios";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api";
+export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? API_URL.replace(/\/api\/?$/, "");
 
 const axiosInstance = axios.create({
   baseURL: API_URL,

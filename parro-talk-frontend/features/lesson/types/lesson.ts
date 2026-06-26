@@ -8,6 +8,19 @@ export type Segment = {
   text: string;
   startTime: number;
   endTime: number;
+  translation?: SegmentTranslation | null;
+};
+
+export type SegmentTranslation = {
+  targetLanguage: string;
+  translatedText: string;
+};
+
+export type TranslationSummary = {
+  targetLanguage: string;
+  status: "NOT_STARTED" | "PARTIAL" | "COMPLETED";
+  translatedCount: number;
+  totalSegments: number;
 };
 
 export type LessonCategory = {
@@ -23,6 +36,7 @@ export type Lesson = {
   status: LessonStatus;
   categories: LessonCategory[];
   segments: Segment[];
+  translationSummary?: TranslationSummary;
   createdAt: string;
 };
 

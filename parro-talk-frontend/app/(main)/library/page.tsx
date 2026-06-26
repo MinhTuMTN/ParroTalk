@@ -141,7 +141,7 @@ function LibraryContent() {
                                 My Lessons
                             </button>
                         )}
-                        <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer shrink-0">My Progress</Link>
+                        <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer shrink-0">User Streak</Link>
                     </div>
 
                     <div className="lg:hidden relative w-24 h-7 sm:w-28 sm:h-8 flex items-center">

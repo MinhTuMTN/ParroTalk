@@ -80,7 +80,7 @@ export default function TranscriptList({ segments, activeIndex, completedIndices
                   <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{timeFormat}</span>
                 </div>
                 <p className={`text-[15px] leading-relaxed transition-all ${status === "active" ? "font-bold text-gray-900" : "font-medium text-gray-500"}`}>
-                  {status === "completed"
+                  {isCompleted
                     ? segment.text
                     : (status === "active" || inputs[index])
                       ? renderInputText(inputs[index] || "", segment.text)

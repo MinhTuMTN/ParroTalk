@@ -18,4 +18,7 @@ public class AppSetting {
 
     /** Default audio thumbnail url. */
     private String defaultAudioThumbnail;
+
+    /** Default application time zone used for learner-facing daily calculations. */
+    private String defaultTimeZone = "Asia/Bangkok";
 }

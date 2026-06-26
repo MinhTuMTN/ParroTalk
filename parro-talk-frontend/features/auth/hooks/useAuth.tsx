@@ -1,13 +1,14 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import axiosInstance from "@/lib/axios";
 
 interface User {
   id: string;
   email: string;
   fullName: string;
   role: string;
+  avatarUrl?: string | null;
+  emailVerified: boolean;
 }
 
 interface AuthContextType {
@@ -29,12 +30,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const token = localStorage.getItem("token");
 
     if (savedUser && token) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+      }
     }
     setIsLoading(false);
   }, []);
 
   const login = (token: string, refreshToken: string, user: User) => {
+    if (!user) {
+      throw new Error("Cannot log in without user data");
+    }
+
     localStorage.setItem("token", token);
     localStorage.setItem("refreshToken", refreshToken);
     localStorage.setItem("user", JSON.stringify(user));

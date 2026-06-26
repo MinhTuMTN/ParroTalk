@@ -1,11 +1,16 @@
 "use client";
 
 import {
+  BarChart3,
+  Boxes,
+  FileText,
+  LayoutDashboard,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  Star,
-  FileText,
+  Settings,
+  Tags,
+  UsersRound,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,6 +24,14 @@ type SidebarProps = {
   onMobileClose?: () => void;
 };
 
+type SidebarItem = {
+  icon: typeof LayoutDashboard;
+  label: string;
+  path?: string;
+  active?: boolean;
+  disabled?: boolean;
+};
+
 export default function Sidebar({
   collapsed,
   onToggle,
@@ -29,12 +42,43 @@ export default function Sidebar({
   const { logout } = useAuth();
   const isMobileOpen = isMobileMenuOpen ?? !collapsed;
 
-  const menuItems = [
+  const menuItems: SidebarItem[] = [
+    {
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      disabled: true,
+    },
     {
       icon: FileText,
-      label: "Lesson Manager",
+      label: "Lessons",
       path: "/admin/lessons",
       active: pathname.startsWith("/admin/lessons"),
+    },
+    {
+      icon: UsersRound,
+      label: "Users",
+      path: "/admin/users",
+      active: pathname.startsWith("/admin/users"),
+    },
+    {
+      icon: Boxes,
+      label: "Categories",
+      disabled: true,
+    },
+    {
+      icon: Tags,
+      label: "Tags",
+      disabled: true,
+    },
+    {
+      icon: BarChart3,
+      label: "Reports",
+      disabled: true,
+    },
+    {
+      icon: Settings,
+      label: "Settings",
+      disabled: true,
     },
   ];
 
@@ -94,20 +138,37 @@ export default function Sidebar({
         </div>
 
         <nav className={`flex flex-col gap-2 ${collapsed ? "items-center" : ""}`}>
-          {menuItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.path}
-              title={collapsed ? item.label : ""}
-              className={`group relative flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold transition-all ${item.active
-                ? "bg-green-500 text-white shadow-lg shadow-green-100"
-                : "text-gray-400 hover:bg-green-50 hover:text-green-500"
+          {menuItems.map((item) =>
+            item.path ? (
+              <Link
+                key={item.label}
+                href={item.path}
+                title={collapsed ? item.label : ""}
+                onClick={onMobileClose}
+                className={`group relative flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold transition-all ${
+                  item.active
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
                 } ${collapsed ? "h-10 w-10 justify-center p-0" : ""}`}
-            >
-              <item.icon size={20} className="shrink-0" />
-              {!collapsed && <span className="text-sm">{item.label}</span>}
-            </Link>
-          ))}
+              >
+                <item.icon size={20} className="shrink-0" />
+                {!collapsed && <span className="text-sm">{item.label}</span>}
+              </Link>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                disabled={item.disabled}
+                title={collapsed ? item.label : ""}
+                className={`flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold text-slate-400 ${
+                  collapsed ? "h-10 w-10 justify-center p-0" : ""
+                }`}
+              >
+                <item.icon size={20} className="shrink-0" />
+                {!collapsed && <span className="text-sm">{item.label}</span>}
+              </button>
+            ),
+          )}
         </nav>
       </div>
 

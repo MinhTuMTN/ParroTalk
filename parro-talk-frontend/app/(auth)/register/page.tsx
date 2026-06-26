@@ -1,46 +1,93 @@
 "use client";
 
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import { FormFieldError, FormValidation } from "@/components/ui/FormValidation";
 import axiosInstance from "@/lib/axios";
+import axios from "axios";
 import { ArrowRight, Loader2, Lock, Mail, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
+type RegisterFormErrors = {
+  fullName?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+};
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const minPasswordLength = 6;
+
+function validateRegisterForm(
+  fullName: string,
+  email: string,
+  password: string,
+  confirmPassword: string
+): RegisterFormErrors {
+  const errors: RegisterFormErrors = {};
+  const normalizedName = fullName.trim();
+  const normalizedEmail = email.trim();
+
+  if (!normalizedName) {
+    errors.fullName = "Full name is required.";
+  }
+
+  if (!normalizedEmail) {
+    errors.email = "Email is required.";
+  } else if (!emailPattern.test(normalizedEmail)) {
+    errors.email = "Enter a valid email address.";
+  }
+
+  if (!password) {
+    errors.password = "Password is required.";
+  } else if (password.length < minPasswordLength) {
+    errors.password = `Password must be at least ${minPasswordLength} characters.`;
+  }
+
+  if (!confirmPassword) {
+    errors.confirmPassword = "Please confirm your password.";
+  } else if (password && password !== confirmPassword) {
+    errors.confirmPassword = "Passwords do not match.";
+  }
+
+  return errors;
+}
+
 export default function RegisterPage() {
   const router = useRouter();
-  const { login } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [formErrors, setFormErrors] = useState<RegisterFormErrors>({});
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    const validationErrors = validateRegisterForm(fullName, email, password, confirmPassword);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(validationErrors);
+      setError("Please fix the highlighted fields.");
       return;
     }
 
     setIsLoading(true);
     setError("");
+    setFormErrors({});
 
     try {
-      const response = await axiosInstance.post("/auth/register", { fullName, email, password });
-      const { token, refreshToken, user } = response.data.result;
-
-      // Auto login after registration
-      const loginResponse = await axiosInstance.post("/auth/login", { email, password });
-      const loginData = loginResponse.data.result;
-
-      login(loginData.token, loginData.refreshToken, loginData.user);
-      router.push("/library");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed. Please try again.");
+      const normalizedEmail = email.trim();
+      await axiosInstance.post("/auth/register", { fullName: fullName.trim(), email: normalizedEmail, password });
+      router.push(`/check-email?email=${encodeURIComponent(normalizedEmail)}`);
+    } catch (err: unknown) {
+      const message = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message
+        : undefined;
+      setError(message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -71,72 +118,108 @@ export default function RegisterPage() {
             <p className="text-gray-500 font-medium italic">Create your account to begin your dictation journey.</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {error && (
-              <div className="bg-red-50 text-red-600 px-4 py-3 rounded-2xl text-sm font-bold border border-red-100 animate-shake">
-                {error}
-              </div>
-            )}
+          <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+            <FormValidation message={error} />
 
             <div className="space-y-4">
               <div className="space-y-1.5 px-2">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
+                <label htmlFor="register-full-name" className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
                 <div className="relative group">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
                   <input
+                    id="register-full-name"
                     type="text"
-                    required
                     value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    onChange={(e) => {
+                      setFullName(e.target.value);
+                      setFormErrors((current) => ({ ...current, fullName: undefined }));
+                    }}
                     placeholder="Enter your name"
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white focus:border-green-500 transition-all shadow-sm"
+                    aria-invalid={Boolean(formErrors.fullName)}
+                    aria-describedby={formErrors.fullName ? "register-full-name-error" : undefined}
+                    className={`w-full bg-gray-50 border-2 rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white transition-all shadow-sm ${
+                      formErrors.fullName
+                        ? "border-red-300 focus:border-red-500"
+                        : "border-transparent focus:border-green-500"
+                    }`}
                   />
                 </div>
+                <FormFieldError id="register-full-name-error" message={formErrors.fullName} />
               </div>
 
               <div className="space-y-1.5 px-2">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
+                <label htmlFor="register-email" className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
                 <div className="relative group">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
                   <input
+                    id="register-email"
                     type="email"
-                    required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setFormErrors((current) => ({ ...current, email: undefined }));
+                    }}
                     placeholder="name@example.com"
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white focus:border-green-500 transition-all shadow-sm"
+                    aria-invalid={Boolean(formErrors.email)}
+                    aria-describedby={formErrors.email ? "register-email-error" : undefined}
+                    className={`w-full bg-gray-50 border-2 rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white transition-all shadow-sm ${
+                      formErrors.email
+                        ? "border-red-300 focus:border-red-500"
+                        : "border-transparent focus:border-green-500"
+                    }`}
                   />
                 </div>
+                <FormFieldError id="register-email-error" message={formErrors.email} />
               </div>
 
               <div className="space-y-1.5 px-2">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Password</label>
+                <label htmlFor="register-password" className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Password</label>
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
                   <input
+                    id="register-password"
                     type="password"
-                    required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setFormErrors((current) => ({ ...current, password: undefined, confirmPassword: undefined }));
+                    }}
                     placeholder="••••••••"
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white focus:border-green-500 transition-all shadow-sm"
+                    aria-invalid={Boolean(formErrors.password)}
+                    aria-describedby={formErrors.password ? "register-password-error" : undefined}
+                    className={`w-full bg-gray-50 border-2 rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white transition-all shadow-sm ${
+                      formErrors.password
+                        ? "border-red-300 focus:border-red-500"
+                        : "border-transparent focus:border-green-500"
+                    }`}
                   />
                 </div>
+                <FormFieldError id="register-password-error" message={formErrors.password} />
               </div>
 
               <div className="space-y-1.5 px-2">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Confirm Password</label>
+                <label htmlFor="register-confirm-password" className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">Confirm Password</label>
                 <div className="relative group">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-green-500 transition-colors" />
                   <input
+                    id="register-confirm-password"
                     type="password"
-                    required
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setFormErrors((current) => ({ ...current, confirmPassword: undefined }));
+                    }}
                     placeholder="••••••••"
-                    className="w-full bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white focus:border-green-500 transition-all shadow-sm"
+                    aria-invalid={Boolean(formErrors.confirmPassword)}
+                    aria-describedby={formErrors.confirmPassword ? "register-confirm-password-error" : undefined}
+                    className={`w-full bg-gray-50 border-2 rounded-2xl pl-12 pr-4 py-4 text-[15px] font-bold text-gray-800 focus:outline-none focus:bg-white transition-all shadow-sm ${
+                      formErrors.confirmPassword
+                        ? "border-red-300 focus:border-red-500"
+                        : "border-transparent focus:border-green-500"
+                    }`}
                   />
                 </div>
+                <FormFieldError id="register-confirm-password-error" message={formErrors.confirmPassword} />
               </div>
             </div>
 

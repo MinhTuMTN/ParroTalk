@@ -1,5 +1,11 @@
 import axiosInstance from "@/lib/axios";
-import { LessonStatus, type Lesson as AdminLesson, type Segment } from "@/features/lesson/types/lesson";
+import {
+  LessonStatus,
+  type Lesson as AdminLesson,
+  type Segment,
+  type SegmentTranslation,
+  type TranslationSummary,
+} from "@/features/lesson/types/lesson";
 
 export interface Category {
   id: string;
@@ -19,6 +25,7 @@ export interface Lesson {
   duration?: number;
   categories?: Category[];
   segments?: Sentence[];
+  translationSummary?: TranslationSummary;
 }
 
 export interface DraftSegmentResponse {
@@ -47,6 +54,7 @@ export interface Sentence {
   end: number;
   text: string;
   difficulty?: "SHORT" | "MEDIUM" | "LONG";
+  translation?: SegmentTranslation | null;
 }
 
 export interface SegmentResultRequest {
@@ -85,6 +93,7 @@ type BackendSegment = {
   text: string;
   start: number;
   end: number;
+  translation?: SegmentTranslation | null;
 };
 
 type BackendCategory = {
@@ -101,6 +110,7 @@ type BackendLesson = {
   visibilityStatus: LessonStatus;
   categories?: BackendCategory[];
   segments?: BackendSegment[];
+  translationSummary?: TranslationSummary;
   createdAt: string;
 };
 
@@ -136,6 +146,7 @@ const mapSegment = (segment: BackendSegment): Segment => ({
   text: segment.text,
   startTime: segment.start,
   endTime: segment.end,
+  translation: segment.translation ?? null,
 });
 
 const mapLesson = (lesson: BackendLesson): AdminLesson => ({
@@ -147,6 +158,7 @@ const mapLesson = (lesson: BackendLesson): AdminLesson => ({
   categories: lesson.categories ?? [],
   createdAt: lesson.createdAt,
   segments: (lesson.segments ?? []).map(mapSegment),
+  translationSummary: lesson.translationSummary,
 });
 
 const mapSegmentsPayload = (segments: Segment[]) => ({
@@ -206,10 +218,11 @@ export const lessonService = {
     return response.data;
   },
 
-  async submitAnswer(lessonId: string, segmentId: string | number, userAnswer: string) {
+  async submitAnswer(lessonId: string, segmentId: string | number, userAnswer: string, studySecondsDelta = 0) {
     const response = await axiosInstance.post<DraftSegmentResponse>(`/lessons/${lessonId}/answer`, {
       segmentId,
       userAnswer,
+      studySecondsDelta,
     });
     return response.data;
   },
@@ -276,6 +289,18 @@ export const lessonService = {
   async getAdminLessonById(id: string): Promise<AdminLesson> {
     const response = await axiosInstance.get<BackendLesson>(`/admin/lessons/${id}`);
     return mapLesson(response.data);
+  },
+
+  async generateAdminTranslations(id: string) {
+    const response = await axiosInstance.post<TranslationSummary>(`/admin/lessons/${id}/translations/generate`);
+    return response.data;
+  },
+
+  async generateAdminSegmentTranslation(id: string, segmentId: string) {
+    const response = await axiosInstance.post<SegmentTranslation>(
+      `/admin/lessons/${id}/segments/${segmentId}/translation/generate`,
+    );
+    return response.data;
   },
 
   async updateLesson(

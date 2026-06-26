@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pause, Play, RotateCcw, Trash2, X } from "lucide-react";
+import { Languages, Pause, Play, RotateCcw, Trash2, X } from "lucide-react";
 
 import ReactPlayer from "react-player";
-import Sidebar from "@/components/common/Sidebar";
 
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -32,7 +31,6 @@ const formatClock = (value: number) => {
 export default function LessonEditPage({ id }: { id: string }) {
   const router = useRouter();
   const playerRef = useRef<ReactPlayer>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playedSeconds, setPlayedSeconds] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -58,6 +56,8 @@ export default function LessonEditPage({ id }: { id: string }) {
   const [timelineZoom, setTimelineZoom] = useState(2);
   const [hoveredSegmentId, setHoveredSegmentId] = useState<string | null>(null);
   const [segmentToast, setSegmentToast] = useState<string | null>(null);
+  const [generatingTranslations, setGeneratingTranslations] = useState(false);
+  const [generatingSegmentId, setGeneratingSegmentId] = useState<string | null>(null);
 
   const trackRef = useRef<HTMLDivElement | null>(null);
   const trackScrollRef = useRef<HTMLDivElement | null>(null);
@@ -74,6 +74,8 @@ export default function LessonEditPage({ id }: { id: string }) {
     success,
     updateForm,
     updateSegment,
+    updateTranslationSummary,
+    updateSegmentTranslation,
     addSegment,
     removeSegment,
     splitSegment,
@@ -293,6 +295,32 @@ export default function LessonEditPage({ id }: { id: string }) {
     );
   };
 
+  const handleGenerateMissingTranslations = async () => {
+    setGeneratingTranslations(true);
+    try {
+      const summary = await lessonService.generateAdminTranslations(id);
+      updateTranslationSummary(summary);
+      setSegmentToast("Translation generation started.");
+    } catch {
+      setSegmentToast("Failed to start translation generation.");
+    } finally {
+      setGeneratingTranslations(false);
+    }
+  };
+
+  const handleGenerateSegmentTranslation = async (segmentId: string) => {
+    setGeneratingSegmentId(segmentId);
+    try {
+      const translation = await lessonService.generateAdminSegmentTranslation(id, segmentId);
+      updateSegmentTranslation(segmentId, translation);
+      setSegmentToast("Segment translation updated.");
+    } catch {
+      setSegmentToast("Failed to translate segment.");
+    } finally {
+      setGeneratingSegmentId(null);
+    }
+  };
+
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (!categoryBoxRef.current) return;
@@ -365,21 +393,15 @@ export default function LessonEditPage({ id }: { id: string }) {
 
   if (loading || !form) {
     return (
-      <div className="min-h-screen bg-[#e9edf1] p-8">
-        <div className="mx-auto max-w-5xl rounded-[30px] bg-white p-10 text-center text-slate-500 shadow-sm">
-          Loading lesson details...
-        </div>
+      <div className="mx-auto max-w-5xl rounded-[30px] bg-white p-10 text-center text-slate-500 shadow-sm">
+        Loading lesson details...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#e9edf1]">
-      <div className="flex max-w-[1800px]">
-        <Sidebar collapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed((v) => !v)} />
-
-        <main className="w-full p-4 md:p-8">
-          <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+    <>
+      <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
             <section className="rounded-[30px] bg-[#f4f7fa] p-6 shadow-inner">
               <h1 className="text-3xl font-black tracking-tight text-slate-900">Lesson Details</h1>
 
@@ -493,6 +515,20 @@ export default function LessonEditPage({ id }: { id: string }) {
               </div>
 
               <div className="mt-10 space-y-3">
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500">Translations</span>
+                      <p className="mt-1 text-sm font-semibold text-slate-800">
+                        {lesson?.translationSummary?.translatedCount ?? 0} / {lesson?.translationSummary?.totalSegments ?? segments.length}
+                      </p>
+                    </div>
+                    <Badge className="bg-slate-100 text-slate-700">
+                      {lesson?.translationSummary?.status ?? "NOT_STARTED"}
+                    </Badge>
+                  </div>
+                </div>
+
                 {error && (
                   <div className="flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                     <span>{error}</span>
@@ -509,6 +545,16 @@ export default function LessonEditPage({ id }: { id: string }) {
 
                 <Button className="w-full py-3 text-base" disabled={saving} onClick={saveChanges}>
                   {saving ? "Saving..." : "Save Lesson Info"}
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  className="w-full py-3 text-base"
+                  leftIcon={<Languages className="h-4 w-4" />}
+                  disabled={generatingTranslations || hasSegmentChanges}
+                  onClick={() => void handleGenerateMissingTranslations()}
+                >
+                  {generatingTranslations ? "Starting..." : "Generate Missing Translations"}
                 </Button>
 
                 <Button
@@ -694,15 +740,15 @@ export default function LessonEditPage({ id }: { id: string }) {
                 onSplit={splitSegment}
                 onChange={updateSegment}
                 onSaveChanges={saveChanges}
+                onGenerateTranslation={(segmentId) => void handleGenerateSegmentTranslation(segmentId)}
                 onNoChangesSaveAttempt={() => setSegmentToast("No segment changes to save.")}
                 isSaving={saving}
                 hasSegmentChanges={hasSegmentChanges}
+                generatingSegmentId={generatingSegmentId}
               />
 
 
             </section>
-          </div>
-        </main>
       </div>
 
       {segmentToast ? <FloatingToast message={segmentToast} variant="warning" /> : null}
@@ -720,7 +766,7 @@ export default function LessonEditPage({ id }: { id: string }) {
         message={`This will permanently delete "${form.title}".`}
         confirmText="Delete"
       />
-    </div>
+    </>
   );
 }
 
