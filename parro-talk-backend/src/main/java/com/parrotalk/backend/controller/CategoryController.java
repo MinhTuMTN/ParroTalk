@@ -40,10 +40,9 @@ public class CategoryController {
      */
     @GetMapping
     public ResponseEntity<PageResponse<CategoryResponse>> searchCategories(
-        @RequestParam("query") String query,
-        @RequestParam("page") int page,
-        @RequestParam("size") int size
-    ) {
+            @RequestParam(name = "query", required = false, defaultValue = "") String query,
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "10") int size) {
         return ResponseEntity.ok(categoryService.searchCategories(query, page, size));
     }
 
@@ -55,11 +54,11 @@ public class CategoryController {
      */
     @PostMapping
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(
-        @Valid @RequestBody CreateCategoryRequest request) {
+            @Valid @RequestBody CreateCategoryRequest request) {
         return ResponseEntity.ok(
-            ApiResponse.<CategoryResponse>builder()
-                .result(categoryService.createCategory(request))
-                .message("Category created successfully")
-                .build());
+                ApiResponse.<CategoryResponse>builder()
+                        .result(categoryService.createCategory(request))
+                        .message("Category created successfully")
+                        .build());
     }
 }

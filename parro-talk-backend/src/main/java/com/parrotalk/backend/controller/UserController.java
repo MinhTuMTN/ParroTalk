@@ -1,6 +1,7 @@
 package com.parrotalk.backend.controller;
 
 import com.parrotalk.backend.dto.UserProfileResponse;
+import com.parrotalk.backend.dto.UserStreakResponse;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.entity.UserActiveDay;
 import com.parrotalk.backend.entity.UserProgress;
@@ -8,10 +9,12 @@ import com.parrotalk.backend.entity.UserStreak;
 import com.parrotalk.backend.repository.UserActiveDayRepository;
 import com.parrotalk.backend.repository.UserProgressRepository;
 import com.parrotalk.backend.repository.UserStreakRepository;
+import com.parrotalk.backend.service.UserStreakService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,6 +30,7 @@ public class UserController {
     private final UserProgressRepository progressRepository;
     private final UserStreakRepository streakRepository;
     private final UserActiveDayRepository activeDayRepository;
+    private final UserStreakService userStreakService;
 
     @GetMapping("/profile")
     public ResponseEntity<UserProfileResponse> getProfile(@AuthenticationPrincipal User user) {
@@ -54,5 +58,12 @@ public class UserController {
                 .build();
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me/streak")
+    public ResponseEntity<UserStreakResponse> getMyStreak(
+            @AuthenticationPrincipal User user,
+            @RequestParam(required = false) Integer year) {
+        return ResponseEntity.ok(userStreakService.getUserStreak(user.getId(), year));
     }
 }

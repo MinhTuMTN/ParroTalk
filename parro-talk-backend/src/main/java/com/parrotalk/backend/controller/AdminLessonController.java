@@ -21,6 +21,8 @@ import com.parrotalk.backend.dto.AdminCreateLessonRequest;
 import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.PageResponse;
+import com.parrotalk.backend.dto.SegmentTranslationResponse;
+import com.parrotalk.backend.dto.TranslationSummaryResponse;
 import com.parrotalk.backend.dto.UpdateLessonSegmentsRequest;
 import com.parrotalk.backend.dto.UpdateLessonStatusRequest;
 import com.parrotalk.backend.service.LessonService;
@@ -109,6 +111,32 @@ public class AdminLessonController {
     @GetMapping("/{id}")
     public ResponseEntity<LessonResponse> getLessonDetail(@PathVariable UUID id) {
         return ResponseEntity.ok(lessonService.getAdminLessonDetail(id));
+    }
+
+    /**
+     * Generate missing Vietnamese translations for a lesson managed by admin.
+     *
+     * @param id Lesson ID
+     * @return Current translation summary
+     */
+    @PostMapping("/{id}/translations/generate")
+    public ResponseEntity<TranslationSummaryResponse> generateTranslations(@PathVariable UUID id) {
+        return ResponseEntity.accepted()
+                .body(lessonService.requestAdminTranslationGeneration(id));
+    }
+
+    /**
+     * Generate or regenerate the Vietnamese translation for one segment.
+     *
+     * @param id        Lesson ID
+     * @param segmentId Segment ID
+     * @return Generated translation
+     */
+    @PostMapping("/{id}/segments/{segmentId}/translation/generate")
+    public ResponseEntity<SegmentTranslationResponse> generateSegmentTranslation(
+            @PathVariable UUID id,
+            @PathVariable UUID segmentId) {
+        return ResponseEntity.ok(lessonService.requestAdminSegmentTranslationGeneration(id, segmentId));
     }
 
     /**

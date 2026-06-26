@@ -12,10 +12,15 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import org.springframework.security.config.Customizer;
+
+import com.parrotalk.backend.security.CustomOAuth2UserService;
+import com.parrotalk.backend.security.OAuth2AuthenticationFailureHandler;
+import com.parrotalk.backend.security.OAuth2AuthenticationSuccessHandler;
 
 /**
  * Security config.
@@ -29,7 +34,7 @@ import org.springframework.security.config.Customizer;
 public class SecurityConfig {
 
     /** Public endpoints */
-    @Value("${application.security.public-endpoints:/api/auth/**}")
+    @Value("${application.security.public-endpoints}")
     private String[] publicEndpoints;
 
     /** Jwt authentication filter */
@@ -41,6 +46,12 @@ public class SecurityConfig {
     /** Jwt authentication entry point */
     private final JwtAuthenticationEntryPoint authEntryPoint;
 
+    private final CustomOAuth2UserService customOAuth2UserService;
+
+    private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+
+    private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
+
     /**
      * Security filter chain.
      *
@@ -49,7 +60,36 @@ public class SecurityConfig {
      * @throws Exception if an error occurs
      */
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    SecurityFilterChain oauth2SecurityFilterChain(HttpSecurity http) throws Exception {
+        http.securityMatcher("/oauth2/**", "/login/oauth2/**")
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(Customizer.withDefaults())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/oauth2/authorization/**").permitAll()
+                        .requestMatchers("/login/oauth2/code/**").permitAll()
+                        .anyRequest().authenticated())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .baseUri("/oauth2/authorization"))
+                        .redirectionEndpoint(endpoint -> endpoint
+                                .baseUri("/login/oauth2/code/*"))
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .oidcUserService(customOAuth2UserService))
+                        .successHandler(oauth2AuthenticationSuccessHandler)
+                        .failureHandler(oauth2AuthenticationFailureHandler));
+
+        return http.build();
+    }
+
+    /**
+     * Security filter chain for JWT-protected application endpoints.
+     */
+    @Bean
+    @Order(2)
+    SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         // Disable CSRF
         http.csrf(AbstractHttpConfigurer::disable)
                 // Enable CORS
@@ -59,6 +99,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authEntryPoint))
                 // Authorize HTTP requests
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/me").authenticated()
                         .requestMatchers(publicEndpoints).permitAll()
                         .anyRequest().authenticated())
                 // Disable session management due to JWT authentication

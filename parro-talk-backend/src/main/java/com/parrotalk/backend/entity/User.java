@@ -1,5 +1,6 @@
 package com.parrotalk.backend.entity;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -62,8 +63,7 @@ public class User extends BaseEntity implements UserDetails {
     private String email;
 
     /** User password */
-    @Column(nullable = false)
-    @NotBlank
+    @Column(nullable = true)
     private String password;
 
     /** User role */
@@ -71,10 +71,27 @@ public class User extends BaseEntity implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
+    /** Unique username used for admin management and display. */
+    @Column(name = "username", unique = true)
+    private String displayUsername;
+
     /** User full name */
     @Column(nullable = false)
     @NotBlank
     private String fullName;
+
+    /** Optional user avatar url. */
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    /** Whether the user's email address has been verified. */
+    @Builder.Default
+    @Column(name = "email_verified", nullable = false, columnDefinition = "boolean default true")
+    private boolean emailVerified = false;
+
+    /** When the user's email address was verified. */
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
 
     @Transient
     private Collection<? extends GrantedAuthority> authorities;

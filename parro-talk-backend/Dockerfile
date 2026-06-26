@@ -5,37 +5,40 @@ FROM eclipse-temurin:17-jdk-alpine AS builder
 
 WORKDIR /app
 
-# Copy Maven wrapper & pom.xml trước để tận dụng Docker layer cache
 COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
-
-# Download dependencies (cache layer riêng)
 RUN ./mvnw dependency:go-offline -B
 
-# Copy source code và build
 COPY src ./src
 RUN ./mvnw package -DskipTests -B
 
 # ============================================================
-# Stage 2: Runtime
+# Stage 2: Extract layers từ JAR
+# ============================================================
+FROM eclipse-temurin:17-jre-alpine AS extractor
+
+WORKDIR /app
+COPY --from=builder /app/target/*.jar app.jar
+
+# Use layertools to extract
+RUN java -Djarmode=layertools -jar app.jar extract
+
+# ============================================================
+# Stage 3: Runtime
 # ============================================================
 FROM eclipse-temurin:17-jre-alpine AS runtime
 
 WORKDIR /app
 
-# Tạo user non-root để bảo mật
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Copy JAR từ stage build
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=extractor --chown=appuser:appgroup /app/dependencies/ ./
+COPY --from=extractor --chown=appuser:appgroup /app/spring-boot-loader/ ./
+COPY --from=extractor --chown=appuser:appgroup /app/snapshot-dependencies/ ./
 
-# Đổi owner file về non-root user
-RUN chown appuser:appgroup app.jar
+COPY --from=extractor --chown=appuser:appgroup /app/application/ ./
 
 USER appuser
-
-# Expose port Spring Boot
 EXPOSE 8080
 
-# Chạy ứng dụng với profile mặc định (override khi chạy container)
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

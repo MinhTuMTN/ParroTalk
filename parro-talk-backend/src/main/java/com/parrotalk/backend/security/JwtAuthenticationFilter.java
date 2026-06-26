@@ -32,8 +32,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        // Skip authentication for auth endpoints
-        if (request.getServletPath().contains("/api/auth")) {
+        // Public auth endpoints do not need JWTs, but /api/auth/me does.
+        if (isPublicAuthEndpoint(request.getServletPath())) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -70,5 +70,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPublicAuthEndpoint(String servletPath) {
+        return "/api/auth/register".equals(servletPath)
+                || "/api/auth/login".equals(servletPath)
+                || "/api/auth/refresh".equals(servletPath)
+                || "/api/auth/verify-email".equals(servletPath)
+                || "/api/auth/resend-verification-email".equals(servletPath);
     }
 }

@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.entity.Lesson;
@@ -33,17 +34,22 @@ public class AudioProcessingService {
     /** Transcription segment service */
     private final TranscriptionSegmentService segmentService;
 
+    /** Translation service */
+    private final TranslationService translationService;
+
     /**
      * Process audio result from AI
      * 
      * @param node Result node from AI
      */
+    @Transactional
     public void process(JsonNode node) {
         try {
             String lessonId = node.get("lessonId").asString();
             Lesson lesson = lessonService.findLessonForUpdate(UUID.fromString(lessonId));
 
             String status = node.get("status").asString();
+            log.info("Received result for lesson: {}, status: {}", lessonId, status);
             // Handle progress status
             if ("PROGRESS".equalsIgnoreCase(status)) {
                 // Update lesson progress percentage and current step
@@ -71,6 +77,9 @@ public class AudioProcessingService {
                     lesson.setDuration(node.get("duration").asInt());
                 }
                 lessonService.updateProgress(lesson, 100, "Completed", LessonStatus.DONE, totalSegments);
+                translationService.translateLessonSegmentsAsync(
+                        lesson.getId(),
+                        TranslationService.DEFAULT_TARGET_LANGUAGE);
             }
 
         } catch (Exception e) {

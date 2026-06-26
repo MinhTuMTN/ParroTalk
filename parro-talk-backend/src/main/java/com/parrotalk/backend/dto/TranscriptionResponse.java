@@ -22,4 +22,5 @@ public class TranscriptionResponse {
     private double end;
     private Integer order;
     private Difficulty difficulty;
+    private SegmentTranslationResponse translation;
 }

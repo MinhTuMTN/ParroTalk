@@ -37,7 +37,6 @@ public class AudioResultConsumer {
     @RabbitListener(queues = RabbitMQConfig.RESULT_QUEUE)
     public void receiveResult(Message message) {
         JsonNode node = mapper.readTree(message.getBody());
-        log.info("Received message from {}, data: {}", RabbitMQConfig.RESULT_QUEUE, node);
         audioProcessingService.process(node);
     }
 }

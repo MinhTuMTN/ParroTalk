@@ -19,7 +19,6 @@ import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.dto.PageResponse;
-
 import com.parrotalk.backend.dto.SubmitLessonRequest;
 import com.parrotalk.backend.dto.SubmitLessonResponse;
 import com.parrotalk.backend.entity.User;

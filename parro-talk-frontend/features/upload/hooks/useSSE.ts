@@ -35,11 +35,7 @@ export function useSSE(lessonId: string | null) {
     const sseUrl = `${baseUrl}/lessons/sse/${lessonId}`;
 
     console.log(`useSSE: Connecting to ${sseUrl}`);
-    const eventSource = new EventSource(sseUrl, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
+    const eventSource = new EventSource(sseUrl);
 
     eventSource.onopen = () => {
       console.log('useSSE: SSE connection opened.');

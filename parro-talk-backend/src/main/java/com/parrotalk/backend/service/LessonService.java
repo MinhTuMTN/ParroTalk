@@ -9,10 +9,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +24,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.parrotalk.backend.config.AppSetting;
 import com.parrotalk.backend.constant.LessonStatus;
@@ -29,6 +33,7 @@ import com.parrotalk.backend.constant.LessonVisibilityStatus;
 import com.parrotalk.backend.constant.MediaType;
 import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.constant.SourceType;
+import com.parrotalk.backend.constant.TranslationStatus;
 import com.parrotalk.backend.dto.AdminCreateLessonRequest;
 import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
 import com.parrotalk.backend.dto.CategoryResponse;
@@ -37,6 +42,8 @@ import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.TranscriptionResponse;
+import com.parrotalk.backend.dto.SegmentTranslationResponse;
+import com.parrotalk.backend.dto.TranslationSummaryResponse;
 import com.parrotalk.backend.dto.UpsertSegmentRequest;
 import com.parrotalk.backend.entity.Category;
 import com.parrotalk.backend.entity.Lesson;
@@ -48,6 +55,7 @@ import com.parrotalk.backend.mapper.LessonMapper;
 import com.parrotalk.backend.repository.CategoryRepository;
 import com.parrotalk.backend.repository.LessonRepository;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
+import com.parrotalk.backend.repository.SegmentTranslationRepository;
 import com.parrotalk.backend.util.YoutubeUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -72,7 +80,9 @@ public class LessonService {
     private final LessonMapper lessonMapper;
     private final CategoryMapper categoryMapper;
     private final TranscriptionSegmentRepository transcriptionSegmentRepository;
+    private final SegmentTranslationRepository segmentTranslationRepository;
     private final CategoryRepository categoryRepository;
+    private final TranslationService translationService;
 
     /** App setting */
     private final AppSetting appSetting;
@@ -139,19 +149,11 @@ public class LessonService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
 
-        List<TranscriptionResponse> segments = lesson.getSegments().stream()
-                .map(segment -> TranscriptionResponse.builder()
-                        .id(segment.getId())
-                        .text(segment.getText())
-                        .start(segment.getStartTime())
-                        .end(segment.getEndTime())
-                        .order(segment.getDisplayOrder())
-                        .difficulty(segment.getDifficulty())
-                        .build())
-                .collect(Collectors.toList());
+        List<TranscriptionResponse> segments = buildSegmentResponses(lesson.getSegments());
 
         LessonResponse lessonResponse = lessonMapper.toLessonResponse(lesson);
         lessonResponse.setSegments(segments);
+        lessonResponse.setTranslationSummary(buildTranslationSummary(lesson.getId(), lesson.getSegments().size()));
 
         return lessonResponse;
     }
@@ -252,6 +254,7 @@ public class LessonService {
     @Transactional
     public void deleteLesson(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId).orElseThrow(() -> new RuntimeException("Lesson not found"));
+        segmentTranslationRepository.deleteBySegmentLessonId(lessonId);
         transcriptionSegmentRepository.deleteByLessonId(lessonId);
         lessonRepository.delete(lesson);
     }
@@ -350,21 +353,13 @@ public class LessonService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
 
-        List<TranscriptionResponse> segments = transcriptionSegmentRepository
-                .findByLessonIdOrderByDisplayOrderAsc(lessonId)
-                .stream()
-                .map(segment -> TranscriptionResponse.builder()
-                        .id(segment.getId())
-                        .text(segment.getText())
-                        .start(segment.getStartTime())
-                        .end(segment.getEndTime())
-                        .order(segment.getDisplayOrder())
-                        .difficulty(segment.getDifficulty())
-                        .build())
-                .collect(Collectors.toList());
+        List<TranscriptionSegment> lessonSegments = transcriptionSegmentRepository
+                .findByLessonIdOrderByDisplayOrderAsc(lessonId);
+        List<TranscriptionResponse> segments = buildSegmentResponses(lessonSegments);
 
         LessonResponse response = lessonMapper.toLessonResponse(lesson);
         response.setSegments(segments);
+        response.setTranslationSummary(buildTranslationSummary(lessonId, lessonSegments.size()));
         response.setCategories(lesson.getCategories().stream()
                 .map(categoryMapper::toCategoryResponse)
                 .collect(Collectors.toSet()));
@@ -395,6 +390,7 @@ public class LessonService {
      * @return Lesson response.
      */
     @Transactional
+    @CacheEvict(value = "lessonDetailCache", key = "#lessonId")
     public LessonResponse updateLessonSegments(
             UUID lessonId,
             List<UpsertSegmentRequest> requests,
@@ -414,10 +410,15 @@ public class LessonService {
                     .filter(segment -> deletedSegmentIds.contains(segment.getId()))
                     .collect(Collectors.toList());
             if (!toDelete.isEmpty()) {
+                segmentTranslationRepository.deleteBySegmentIdInAndTargetLanguage(
+                        toDelete.stream().map(TranscriptionSegment::getId).toList(),
+                        TranslationService.DEFAULT_TARGET_LANGUAGE);
                 transcriptionSegmentRepository.deleteAll(toDelete);
             }
         }
 
+        Set<UUID> changedTextSegmentIds = new HashSet<>();
+        AtomicBoolean hasNewSegments = new AtomicBoolean(false);
         List<TranscriptionSegment> upserts = requests.stream().map(request -> {
             TranscriptionSegment segment;
             if (request.getId() != null) {
@@ -425,9 +426,13 @@ public class LessonService {
                 if (segment == null) {
                     throw new ParroTalkException("Segment does not belong to lesson", HttpStatusCode.valueOf(400));
                 }
+                if (!Objects.equals(segment.getText(), request.getText().trim())) {
+                    changedTextSegmentIds.add(segment.getId());
+                }
             } else {
                 segment = new TranscriptionSegment();
                 segment.setLesson(lesson);
+                hasNewSegments.set(true);
             }
 
             segment.setText(request.getText().trim());
@@ -438,6 +443,14 @@ public class LessonService {
         }).collect(Collectors.toList());
 
         transcriptionSegmentRepository.saveAll(upserts);
+        if (!changedTextSegmentIds.isEmpty()) {
+            segmentTranslationRepository.deleteBySegmentIdInAndTargetLanguage(
+                    changedTextSegmentIds,
+                    TranslationService.DEFAULT_TARGET_LANGUAGE);
+        }
+        if (hasNewSegments.get() || !changedTextSegmentIds.isEmpty()) {
+            scheduleTranslationAfterCommit(lessonId);
+        }
 
         return getAdminLessonDetail(lessonId);
     }
@@ -450,26 +463,46 @@ public class LessonService {
      * @return Lesson
      */
     public LessonResponse getAccessibleLessonDetail(UUID lessonId, User user) {
-        Lesson lesson = lessonRepository.findByIdAndVisibilityStatus(lessonId, LessonVisibilityStatus.PUBLISHED)
-                .or(() -> lessonRepository.findByIdAndOwnerId(lessonId, user.getId()))
-                .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
+        Lesson lesson = findAccessibleLesson(lessonId, user);
 
-        List<TranscriptionResponse> segments = transcriptionSegmentRepository
-                .findByLessonIdOrderByDisplayOrderAsc(lessonId)
-                .stream()
-                .map(segment -> TranscriptionResponse.builder()
-                        .id(segment.getId())
-                        .text(segment.getText())
-                        .start(segment.getStartTime())
-                        .end(segment.getEndTime())
-                        .order(segment.getDisplayOrder())
-                        .difficulty(segment.getDifficulty())
-                        .build())
-                .collect(Collectors.toList());
+        List<TranscriptionSegment> lessonSegments = transcriptionSegmentRepository
+                .findByLessonIdOrderByDisplayOrderAsc(lessonId);
+        List<TranscriptionResponse> segments = buildSegmentResponses(lessonSegments);
 
         LessonResponse response = lessonMapper.toLessonResponse(lesson);
         response.setSegments(segments);
+        response.setTranslationSummary(buildTranslationSummary(lessonId, lessonSegments.size()));
         return response;
+    }
+
+    /**
+     * Trigger background generation for translations missing from an admin-managed lesson.
+     *
+     * @param lessonId Lesson ID
+     * @return Current translation summary
+     */
+    public TranslationSummaryResponse requestAdminTranslationGeneration(UUID lessonId) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
+        return requestTranslationGeneration(lesson);
+    }
+
+    /**
+     * Generate or regenerate one segment translation for an admin-managed lesson.
+     *
+     * @param lessonId  Lesson ID
+     * @param segmentId Segment ID
+     * @return Generated translation
+     */
+    public SegmentTranslationResponse requestAdminSegmentTranslationGeneration(UUID lessonId, UUID segmentId) {
+        lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
+        TranscriptionSegment segment = transcriptionSegmentRepository.findById(segmentId)
+                .orElseThrow(() -> new ParroTalkException("Segment not found", HttpStatusCode.valueOf(404)));
+        if (!lessonId.equals(segment.getLesson().getId())) {
+            throw new ParroTalkException("Segment does not belong to lesson", HttpStatusCode.valueOf(400));
+        }
+        return translationService.translateSegment(segmentId, TranslationService.DEFAULT_TARGET_LANGUAGE);
     }
 
     /**
@@ -551,5 +584,84 @@ public class LessonService {
     public Lesson findLessonForUpdate(UUID lessonId) {
         return lessonRepository.findByIdForUpdate(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatus.NOT_FOUND));
+    }
+
+    private List<TranscriptionResponse> buildSegmentResponses(List<TranscriptionSegment> segments) {
+        if (segments.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> segmentIds = segments.stream()
+                .map(TranscriptionSegment::getId)
+                .toList();
+        Map<UUID, SegmentTranslationResponse> translationsBySegmentId = segmentTranslationRepository
+                .findBySegmentIdInAndTargetLanguage(segmentIds, TranslationService.DEFAULT_TARGET_LANGUAGE)
+                .stream()
+                .collect(Collectors.toMap(
+                        translation -> translation.getSegment().getId(),
+                        translation -> new SegmentTranslationResponse(
+                                translation.getTargetLanguage(),
+                                translation.getTranslatedText())));
+
+        return segments.stream()
+                .map(segment -> TranscriptionResponse.builder()
+                        .id(segment.getId())
+                        .text(segment.getText())
+                        .start(segment.getStartTime())
+                        .end(segment.getEndTime())
+                        .order(segment.getDisplayOrder())
+                        .difficulty(segment.getDifficulty())
+                        .translation(translationsBySegmentId.get(segment.getId()))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private TranslationSummaryResponse buildTranslationSummary(UUID lessonId, int totalSegments) {
+        long translatedCount = segmentTranslationRepository.countBySegmentLessonIdAndTargetLanguage(
+                lessonId,
+                TranslationService.DEFAULT_TARGET_LANGUAGE);
+        TranslationStatus status = resolveTranslationStatus(translatedCount, totalSegments);
+        return new TranslationSummaryResponse(
+                TranslationService.DEFAULT_TARGET_LANGUAGE,
+                status,
+                translatedCount,
+                totalSegments);
+    }
+
+    TranslationStatus resolveTranslationStatus(long translatedCount, int totalSegments) {
+        return translatedCount == 0
+                ? TranslationStatus.NOT_STARTED
+                : translatedCount >= totalSegments
+                        ? TranslationStatus.COMPLETED
+                        : TranslationStatus.PARTIAL;
+    }
+
+    private void scheduleTranslationAfterCommit(UUID lessonId) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                translationService.translateLessonSegmentsAsync(
+                        lessonId,
+                        TranslationService.DEFAULT_TARGET_LANGUAGE);
+            }
+        });
+    }
+
+    private Lesson findAccessibleLesson(UUID lessonId, User user) {
+        return lessonRepository.findByIdAndVisibilityStatus(lessonId, LessonVisibilityStatus.PUBLISHED)
+                .or(() -> lessonRepository.findByIdAndOwnerId(lessonId, user.getId()))
+                .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
+    }
+
+    private TranslationSummaryResponse requestTranslationGeneration(Lesson lesson) {
+        List<TranscriptionSegment> segments = transcriptionSegmentRepository
+                .findByLessonIdOrderByDisplayOrderAsc(lesson.getId());
+        TranslationSummaryResponse summary = buildTranslationSummary(lesson.getId(), segments.size());
+        if (summary.status() != TranslationStatus.COMPLETED && !segments.isEmpty()) {
+            translationService.translateLessonSegmentsAsync(
+                    lesson.getId(),
+                    TranslationService.DEFAULT_TARGET_LANGUAGE);
+        }
+        return summary;
     }
 }

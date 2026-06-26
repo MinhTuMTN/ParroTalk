@@ -11,5 +11,8 @@ public class UserResponse {
     private UUID id;
     private String email;
     private String fullName;
+    private String username;
     private String role;
+    private String avatarUrl;
+    private boolean emailVerified;
 }

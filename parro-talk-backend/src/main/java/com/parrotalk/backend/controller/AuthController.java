@@ -20,7 +20,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
                 .result(authService.register(request))
-                .message("User registered successfully")
+                .message("Registration successful. Please verify your email.")
                 .build());
     }
 
@@ -37,6 +37,21 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.<AuthResponse>builder()
                 .result(authService.refreshToken(request))
                 .message("Token refreshed successfully")
+                .build());
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message(authService.verifyEmail(request))
+                .build());
+    }
+
+    @PostMapping("/resend-verification-email")
+    public ResponseEntity<ApiResponse<Void>> resendVerificationEmail(
+            @Valid @RequestBody ResendVerificationEmailRequest request) {
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
+                .message(authService.resendVerificationEmail(request))
                 .build());
     }
 

@@ -13,4 +13,9 @@ import java.util.UUID;
 public interface UserActiveDayRepository extends JpaRepository<UserActiveDay, Long> {
     Optional<UserActiveDay> findByUserIdAndActiveDate(UUID userId, LocalDate activeDate);
     List<UserActiveDay> findAllByUserIdOrderByActiveDateDesc(UUID userId);
+    List<UserActiveDay> findAllByUserIdOrderByActiveDateAsc(UUID userId);
+    List<UserActiveDay> findAllByUserIdAndActiveDateBetweenOrderByActiveDateAsc(
+            UUID userId,
+            LocalDate startDate,
+            LocalDate endDate);
 }

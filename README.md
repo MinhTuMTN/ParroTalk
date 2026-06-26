@@ -53,8 +53,11 @@ ParroTalk is a production-ready English dictation web application designed to he
 ### Backend Setup
 1. Navigate to `parro-talk-backend`.
 2. Copy `src/main/resources/application.yml.example` to `application.yml`.
-3. Update `application.yml` with your PostgreSQL and Cloudinary credentials.
+3. Export the required environment variables for PostgreSQL, RabbitMQ, Cloudinary, JWT, and Google OAuth credentials.
 4. Run `./mvnw spring-boot:run`.
+
+### Security Note
+Any credentials that were previously committed in plaintext should be rotated after moving configuration to environment variables.
 
 ### Frontend Setup
 1. Navigate to `parro-talk-frontend`.

@@ -14,4 +14,5 @@ import java.util.UUID;
 public class AnswerRequest {
     private UUID segmentId;
     private String userAnswer;
+    private Integer studySecondsDelta;
 }

@@ -60,6 +60,9 @@ public class LessonProgressService {
     /** Lesson Service */
     private final LessonService lessonService;
 
+    /** Shared learner activity service. */
+    private final UserLearningActivityService learningActivityService;
+
     /** Draft Segment Mapper */
     private final DraftSegmentMapper draftSegmentMapper;
 
@@ -128,6 +131,11 @@ public class LessonProgressService {
 
         // Save draft segment
         draftSegmentRepository.save(draft);
+
+        learningActivityService.recordSegmentAttempt(
+                user.getId(),
+                isCorrect,
+                request.getStudySecondsDelta() == null ? 0 : request.getStudySecondsDelta());
 
         // Update overall progress
         updateOverallProgress(user, lessonId, request.getSegmentId());
@@ -231,6 +239,7 @@ public class LessonProgressService {
 
         // 3. Cleanup Drafts
         draftSegmentRepository.deleteByUserIdAndLessonId(user.getId(), lessonId);
+        learningActivityService.recordCompletedLesson(user.getId(), averageScore);
         return SubmitLessonResponse.builder()
                 .score((double) averageScore)
                 .passed(true)
@@ -326,4 +335,5 @@ public class LessonProgressService {
                 .build();
         return draftSegmentRepository.save(draftSegment);
     }
+
 }

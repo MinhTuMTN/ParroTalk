@@ -23,10 +23,8 @@ import java.util.UUID;
 public class LearningService {
 
     private final UserLessonResultRepository resultRepository;
-    private final UserProgressRepository progressRepository;
-    private final UserStreakRepository streakRepository;
-    private final UserActiveDayRepository activeDayRepository;
     private final TranscriptionSegmentRepository segmentRepository;
+    private final UserLearningActivityService learningActivityService;
 
     @Transactional
     public SubmitLessonResponse submitLessonProgress(UUID userId, UUID lessonId, SubmitLessonRequest request) {
@@ -90,8 +88,7 @@ public class LearningService {
         resultRepository.save(lessonResult);
 
         if (request.isFinished()) {
-            updateUserProgress(userId, averageScore);
-            updateUserStreak(userId);
+            learningActivityService.recordCompletedLesson(userId, averageScore);
         }
 
         return SubmitLessonResponse.builder()
@@ -100,48 +97,4 @@ public class LearningService {
                 .build();
     }
 
-    private void updateUserProgress(UUID userId, double newScore) {
-        UserProgress progress = progressRepository.findById(userId)
-                .orElse(UserProgress.builder()
-                        .userId(userId)
-                        .build());
-
-        int count = progress.getTotalLessonsCompleted();
-        double total = progress.getTotalScore();
-        progress.setTotalLessonsCompleted(count + 1);
-        progress.setTotalScore(total + newScore);
-        progress.setAvgScore((total + newScore) / (count + 1));
-        progress.setLastActivityDate(LocalDateTime.now());
-        progressRepository.save(progress);
-    }
-
-    private void updateUserStreak(UUID userId) {
-        LocalDate today = LocalDate.now();
-        
-        Optional<UserActiveDay> todayActive = activeDayRepository.findByUserIdAndActiveDate(userId, today);
-        if (todayActive.isEmpty()) {
-            activeDayRepository.save(UserActiveDay.builder().userId(userId).activeDate(today).build());
-        }
-
-        UserStreak streak = streakRepository.findById(userId)
-                .orElse(UserStreak.builder().userId(userId).build());
-
-        LocalDate lastActive = streak.getLastActiveDate();
-        if (lastActive == null) {
-            streak.setCurrentStreak(1);
-            streak.setLongestStreak(1);
-            streak.setLastActiveDate(today);
-        } else if (!lastActive.equals(today)) {
-            if (lastActive.plusDays(1).equals(today)) {
-                streak.setCurrentStreak(streak.getCurrentStreak() + 1);
-                if (streak.getCurrentStreak() > streak.getLongestStreak()) {
-                    streak.setLongestStreak(streak.getCurrentStreak());
-                }
-            } else {
-                streak.setCurrentStreak(1);
-            }
-            streak.setLastActiveDate(today);
-        }
-        streakRepository.save(streak);
-    }
 }

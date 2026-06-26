@@ -51,4 +51,6 @@ public class LessonResponse {
     private Set<CategoryResponse> categories;
     /** Segments */
     private List<TranscriptionResponse> segments;
+    /** Aggregated translation state for lesson segments */
+    private TranslationSummaryResponse translationSummary;
 }
