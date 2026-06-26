@@ -33,9 +33,13 @@ export function useSSE(lessonId: string | null) {
     // Normalize URL: remove potential double slashes
     const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
     const sseUrl = `${baseUrl}/lessons/sse/${lessonId}`;
-    
+
     console.log(`useSSE: Connecting to ${sseUrl}`);
-    const eventSource = new EventSource(sseUrl);
+    const eventSource = new EventSource(sseUrl, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
 
     eventSource.onopen = () => {
       console.log('useSSE: SSE connection opened.');
@@ -44,10 +48,10 @@ export function useSSE(lessonId: string | null) {
     eventSource.onmessage = (event) => {
       console.log('useSSE: Received message:', event.data);
       if (event.data === 'connected') {
-        setState((prev) => ({ 
-          ...prev, 
-          status: 'PROCESSING', 
-          step: prev.step === 'Establishing connection...' ? 'Connected to stream' : prev.step 
+        setState((prev) => ({
+          ...prev,
+          status: 'PROCESSING',
+          step: prev.step === 'Establishing connection...' ? 'Connected to stream' : prev.step
         }));
         return;
       }
