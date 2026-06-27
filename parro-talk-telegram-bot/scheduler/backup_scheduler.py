@@ -18,8 +18,8 @@ class BackupScheduler:
         application.job_queue.run_daily(
             callback=self.backup_job,
             time=time(
-                hour=18,
-                minute=56,
+                hour=11,
+                minute=55,
                 tzinfo=ZoneInfo("Asia/Ho_Chi_Minh")
             ),
             name="daily_backup"

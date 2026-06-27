@@ -5,6 +5,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler
 
 from commands.health_command_handler import HealthCommandHandler
 from commands.backup_command_handler import BackupCommandHandler
+from commands.chat_command_handler import ChatCommandHandler
 
 class TelegramBot:
 
@@ -16,6 +17,7 @@ class TelegramBot:
     def register_handlers(self):
         self.app.add_handler(CommandHandler("health", HealthCommandHandler().execute))
         self.app.add_handler(CommandHandler("backup", BackupCommandHandler().handle))
+        self.app.add_handler(CommandHandler("chat", ChatCommandHandler().execute))
 
     def register_scheduler(self):
         backup_scheduler = BackupScheduler(self.telegram_service)
