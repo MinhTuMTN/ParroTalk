@@ -13,5 +13,7 @@ class HealthCommandHandler:
     async def execute(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         processing_message = await update.message.reply_text("⏳ Checking server health...")
         health = self.health_service.health_check()
-        message = HealthMessageFormatter.format(health)
+        user = update.message.from_user
+        user_full_name = f"{user.first_name} {user.last_name}".strip()
+        message = HealthMessageFormatter.format(health, user_full_name)
         await processing_message.edit_text(message, parse_mode="HTML")

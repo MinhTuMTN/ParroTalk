@@ -1,15 +1,14 @@
 from datetime import datetime
-
+from models.health_info import HealthInfo
 
 class HealthMessageFormatter:
 
     @staticmethod
-    def format(health) -> str:
-
+    def format(health: HealthInfo, user_full_name: str) -> str:
         api_status = "✅ Online" if health.api_status else "❌ Offline"
 
         message = (
-            "🤖 <b>Hello!</b>\n\n"
+            f"🤖 <b>Hello {user_full_name}!</b>\n\n"
             f"🕘 <b>Time</b>\n"
             f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n\n"
 
