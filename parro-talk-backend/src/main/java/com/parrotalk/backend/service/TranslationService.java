@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -36,8 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class TranslationService {
-
-    public static final String DEFAULT_TARGET_LANGUAGE = "vi";
 
     private static final String PROVIDER = "groq";
     private static final int DEFAULT_BATCH_SIZE = 10;
@@ -70,22 +67,10 @@ public class TranslationService {
     }
 
     /**
-     * Translate all missing lesson segments for a target language in the
-     * background.
-     */
-    @Async
-    public void translateLessonSegmentsAsync(UUID lessonId, String targetLanguage) {
-        try {
-            translateMissingSegments(lessonId, targetLanguage);
-        } catch (Exception e) {
-            log.error("Unexpected translation failure for lesson {} and language {}", lessonId, targetLanguage, e);
-        }
-    }
-
-    /**
      * Translate only segments that do not have a stored translation yet.
      */
     public void translateMissingSegments(UUID lessonId, String targetLanguage) {
+        log.info("Starting to translate lesson {} segments for language {}", lessonId, targetLanguage);
         List<TranscriptionSegment> segments = segmentRepository.findByLessonIdOrderByDisplayOrderAsc(lessonId);
         if (segments.isEmpty()) {
             return;
@@ -242,7 +227,7 @@ public class TranslationService {
             List<SegmentTranslationResponseItem> responseItems,
             String targetLanguage) {
         Map<UUID, TranscriptionSegment> segmentsById = batch.stream()
-                .collect(Collectors.toMap(TranscriptionSegment::getId, segment -> segment));
+                .collect(Collectors.toMap(segment -> segment.getId(), segment -> segment));
         Map<UUID, SegmentTranslationResponseItem> responseById = new HashMap<>();
         responseItems.forEach(item -> responseById.put(item.segmentId(), item));
 

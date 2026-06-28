@@ -33,6 +33,7 @@ import com.parrotalk.backend.constant.LessonVisibilityStatus;
 import com.parrotalk.backend.constant.MediaType;
 import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.constant.SourceType;
+import com.parrotalk.backend.constant.TranslationLanguage;
 import com.parrotalk.backend.constant.TranslationStatus;
 import com.parrotalk.backend.dto.AdminCreateLessonRequest;
 import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
@@ -412,7 +413,7 @@ public class LessonService {
             if (!toDelete.isEmpty()) {
                 segmentTranslationRepository.deleteBySegmentIdInAndTargetLanguage(
                         toDelete.stream().map(TranscriptionSegment::getId).toList(),
-                        TranslationService.DEFAULT_TARGET_LANGUAGE);
+                        TranslationLanguage.VIETNAMESE.getCode());
                 transcriptionSegmentRepository.deleteAll(toDelete);
             }
         }
@@ -446,7 +447,7 @@ public class LessonService {
         if (!changedTextSegmentIds.isEmpty()) {
             segmentTranslationRepository.deleteBySegmentIdInAndTargetLanguage(
                     changedTextSegmentIds,
-                    TranslationService.DEFAULT_TARGET_LANGUAGE);
+                    TranslationLanguage.VIETNAMESE.getCode());
         }
         if (hasNewSegments.get() || !changedTextSegmentIds.isEmpty()) {
             scheduleTranslationAfterCommit(lessonId);
@@ -476,7 +477,8 @@ public class LessonService {
     }
 
     /**
-     * Trigger background generation for translations missing from an admin-managed lesson.
+     * Trigger background generation for translations missing from an admin-managed
+     * lesson.
      *
      * @param lessonId Lesson ID
      * @return Current translation summary
@@ -502,7 +504,7 @@ public class LessonService {
         if (!lessonId.equals(segment.getLesson().getId())) {
             throw new ParroTalkException("Segment does not belong to lesson", HttpStatusCode.valueOf(400));
         }
-        return translationService.translateSegment(segmentId, TranslationService.DEFAULT_TARGET_LANGUAGE);
+        return translationService.translateSegment(segmentId, TranslationLanguage.VIETNAMESE.getCode());
     }
 
     /**
@@ -595,7 +597,7 @@ public class LessonService {
                 .map(TranscriptionSegment::getId)
                 .toList();
         Map<UUID, SegmentTranslationResponse> translationsBySegmentId = segmentTranslationRepository
-                .findBySegmentIdInAndTargetLanguage(segmentIds, TranslationService.DEFAULT_TARGET_LANGUAGE)
+                .findBySegmentIdInAndTargetLanguage(segmentIds, TranslationLanguage.VIETNAMESE.getCode())
                 .stream()
                 .collect(Collectors.toMap(
                         translation -> translation.getSegment().getId(),
@@ -619,10 +621,10 @@ public class LessonService {
     private TranslationSummaryResponse buildTranslationSummary(UUID lessonId, int totalSegments) {
         long translatedCount = segmentTranslationRepository.countBySegmentLessonIdAndTargetLanguage(
                 lessonId,
-                TranslationService.DEFAULT_TARGET_LANGUAGE);
+                TranslationLanguage.VIETNAMESE.getCode());
         TranslationStatus status = resolveTranslationStatus(translatedCount, totalSegments);
         return new TranslationSummaryResponse(
-                TranslationService.DEFAULT_TARGET_LANGUAGE,
+                TranslationLanguage.VIETNAMESE.getCode(),
                 status,
                 translatedCount,
                 totalSegments);
@@ -640,9 +642,9 @@ public class LessonService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                translationService.translateLessonSegmentsAsync(
+                translationService.translateMissingSegments(
                         lessonId,
-                        TranslationService.DEFAULT_TARGET_LANGUAGE);
+                        TranslationLanguage.VIETNAMESE.getCode());
             }
         });
     }
@@ -658,9 +660,9 @@ public class LessonService {
                 .findByLessonIdOrderByDisplayOrderAsc(lesson.getId());
         TranslationSummaryResponse summary = buildTranslationSummary(lesson.getId(), segments.size());
         if (summary.status() != TranslationStatus.COMPLETED && !segments.isEmpty()) {
-            translationService.translateLessonSegmentsAsync(
+            translationService.translateMissingSegments(
                     lesson.getId(),
-                    TranslationService.DEFAULT_TARGET_LANGUAGE);
+                    TranslationLanguage.VIETNAMESE.getCode());
         }
         return summary;
     }

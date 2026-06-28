@@ -4,11 +4,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.parrotalk.backend.constant.LessonStatus;
+import com.parrotalk.backend.constant.TranslationLanguage;
+import com.parrotalk.backend.dto.LessonCompletedEvent;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.exception.ParroTalkException;
@@ -34,8 +37,8 @@ public class AudioProcessingService {
     /** Transcription segment service */
     private final TranscriptionSegmentService segmentService;
 
-    /** Translation service */
-    private final TranslationService translationService;
+    /** Application event publisher */
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     /**
      * Process audio result from AI
@@ -77,11 +80,10 @@ public class AudioProcessingService {
                     lesson.setDuration(node.get("duration").asInt());
                 }
                 lessonService.updateProgress(lesson, 100, "Completed", LessonStatus.DONE, totalSegments);
-                translationService.translateLessonSegmentsAsync(
-                        lesson.getId(),
-                        TranslationService.DEFAULT_TARGET_LANGUAGE);
-            }
 
+                applicationEventPublisher.publishEvent(
+                        new LessonCompletedEvent(lesson.getId(), TranslationLanguage.VIETNAMESE));
+            }
         } catch (Exception e) {
             log.error("Failed to process result from RabbitMQ", e);
             throw new ParroTalkException("Requeue message", HttpStatus.BAD_REQUEST);
