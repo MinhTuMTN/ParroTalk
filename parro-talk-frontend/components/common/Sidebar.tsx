@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import {
   BarChart3,
   Boxes,
@@ -15,7 +16,6 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 
 type SidebarProps = {
   collapsed: boolean;
@@ -94,7 +94,7 @@ export default function Sidebar({
           className={`mb-10 flex ${collapsed ? "flex-col items-center gap-4" : "items-center justify-between"
             }`}
         >
-          <Link href="/admin/lessons" className="outline-none">
+          <Link href="/library" className="outline-none">
             {collapsed ? (
               <div className="relative h-14 w-14">
                 <Image
@@ -145,11 +145,10 @@ export default function Sidebar({
                 href={item.path}
                 title={collapsed ? item.label : ""}
                 onClick={onMobileClose}
-                className={`group relative flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold transition-all ${
-                  item.active
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
-                } ${collapsed ? "h-10 w-10 justify-center p-0" : ""}`}
+                className={`group relative flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold transition-all ${item.active
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                  } ${collapsed ? "h-10 w-10 justify-center p-0" : ""}`}
               >
                 <item.icon size={20} className="shrink-0" />
                 {!collapsed && <span className="text-sm">{item.label}</span>}
@@ -160,9 +159,8 @@ export default function Sidebar({
                 type="button"
                 disabled={item.disabled}
                 title={collapsed ? item.label : ""}
-                className={`flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold text-slate-400 ${
-                  collapsed ? "h-10 w-10 justify-center p-0" : ""
-                }`}
+                className={`flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold text-slate-400 ${collapsed ? "h-10 w-10 justify-center p-0" : ""
+                  }`}
               >
                 <item.icon size={20} className="shrink-0" />
                 {!collapsed && <span className="text-sm">{item.label}</span>}

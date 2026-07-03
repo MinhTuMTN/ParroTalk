@@ -26,7 +26,7 @@ export default function UploadDropzone({ onFileSelect, isLoading }: UploadDropzo
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragOver(false);
-      
+
       if (isLoading) return;
 
       const file = e.dataTransfer.files[0];
@@ -56,7 +56,7 @@ export default function UploadDropzone({ onFileSelect, isLoading }: UploadDropzo
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={`
-        relative w-full rounded-3xl border-2 border-dashed p-12 text-center transition-all
+        relative w-full rounded-3xl border-2 border-dashed p-3 sm:p-12 text-center transition-all flex-1
         ${isDragOver ? 'border-green-500 bg-green-50/50' : 'border-gray-200 bg-white hover:border-green-300 hover:bg-gray-50/50'}
         ${isLoading ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}
       `}
@@ -68,18 +68,18 @@ export default function UploadDropzone({ onFileSelect, isLoading }: UploadDropzo
         className="absolute inset-0 z-10 w-full h-full opacity-0 cursor-pointer"
         disabled={isLoading}
       />
-      
+
       <div className="flex flex-col items-center justify-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center mb-2">
+        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
           <CloudUpload className="w-8 h-8 text-green-600" />
         </div>
-        
+
         <h3 className="text-xl font-bold text-gray-900">Drag & drop audio files here</h3>
         <p className="text-gray-500 font-medium">
           or <span className="text-green-600 font-bold underline decoration-2 underline-offset-4 cursor-pointer">click to browse</span> your computer
         </p>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-2 mt-2">
           {FORMAT_LABELS.map(label => (
             <span key={label} className="px-4 py-1.5 rounded-full bg-gray-100 text-gray-500 text-xs font-bold tracking-wide">
               {label}

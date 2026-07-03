@@ -20,7 +20,7 @@ function LibraryContent() {
     const searchParams = useSearchParams();
     const pathname = usePathname();
 
-    const [jobs, setJobs] = useState<Lesson[]>([]);
+    const [lessons, setLessons] = useState<Lesson[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [activeCategory, setActiveCategory] = useState<string>(searchParams.get("category") || "");
     const [activeTab, setActiveTab] = useState<"library" | "my-lessons">(
@@ -61,7 +61,7 @@ function LibraryContent() {
             const data = activeTab === "my-lessons"
                 ? await lessonService.getMyLessons(page, 9, debouncedSearch)
                 : await lessonService.getAllLessons(page, 9, debouncedSearch, activeCategory);
-            setJobs(data.content || []);
+            setLessons(data.content || []);
             setTotalPages(data.totalPages || 0);
         } catch (err) {
             console.error("Error fetching lessons:", err);
@@ -107,9 +107,9 @@ function LibraryContent() {
         );
     }
 
-    const featuredJob = activeTab === "library" && page === 0 && jobs.length > 0 && !debouncedSearch && !activeCategory ? jobs[0] : null;
+    const featuredJob = activeTab === "library" && page === 0 && lessons.length > 0 && !debouncedSearch && !activeCategory ? lessons[0] : null;
     // const gridJobs = jobs.filter(job => job.id !== featuredJob?.id);
-    const gridJobs = jobs;
+    const gridJobs = lessons;
 
     return (
         <div className="min-h-screen bg-white flex flex-col">
@@ -130,7 +130,7 @@ function LibraryContent() {
                         >
                             Lesson Library
                         </button>
-                        {user?.role === "PRO_USER" && (
+                        {user?.role === "PRO_USER" || user?.role === "ADMIN" && (
                             <button
                                 onClick={() => {
                                     setActiveTab("my-lessons");
@@ -224,7 +224,7 @@ function LibraryContent() {
             </header>
 
             <main className="px-4 md:px-8 py-8 md:py-12 max-w-7xl w-full mx-auto flex flex-col gap-6 md:gap-10">
-                {user?.role === "PRO_USER" && (
+                {user?.role === "PRO_USER" || user?.role === "ADMIN" && (
                     <div className="flex lg:hidden rounded-2xl bg-gray-100 p-1">
                         <button
                             onClick={() => setActiveTab("library")}
@@ -263,29 +263,29 @@ function LibraryContent() {
                     </div>
 
                     {activeTab === "library" && (
-                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-                        <button
-                            onClick={() => { setActiveCategory(""); setPage(0); }}
-                            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === ""
-                                ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
-                                : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
-                                }`}
-                        >
-                            All
-                        </button>
-                        {categories.map(cat => (
+                        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
                             <button
-                                key={cat.id}
-                                onClick={() => { setActiveCategory(cat.id); setPage(0); }}
-                                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === cat.id
+                                onClick={() => { setActiveCategory(""); setPage(0); }}
+                                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === ""
                                     ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
                                     : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
                                     }`}
                             >
-                                {cat.name}
+                                All
                             </button>
-                        ))}
-                    </div>
+                            {categories.map(cat => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => { setActiveCategory(cat.id); setPage(0); }}
+                                    className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === cat.id
+                                        ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
+                                        : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
+                                        }`}
+                                >
+                                    {cat.name}
+                                </button>
+                            ))}
+                        </div>
                     )}
                 </div>
 
@@ -301,10 +301,10 @@ function LibraryContent() {
                 ) : (
                     <>
                         {featuredJob && <FeaturedLesson job={featuredJob} />}
-                        {jobs.length > 0 ? (
+                        {lessons.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                                {gridJobs.map(job => (
-                                    <LessonCard key={job.id} job={job} />
+                                {gridJobs.map(lesson => (
+                                    <LessonCard key={lesson.id} lesson={lesson} />
                                 ))}
                             </div>
                         ) : (

@@ -1,27 +1,30 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Zap, Languages, Sparkles, Info, FileAudio, CheckCircle2, Circle, Loader2, AlertCircle, Globe2 } from 'lucide-react';
-import UploadDropzone from '@/features/upload/components/UploadDropzone';
+import FloatingToast from '@/components/ui/FloatingToast';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { lessonService } from '@/features/lesson/services/lessonService';
-import { useSSE } from '@/features/upload/hooks/useSSE';
+import ProcessingCard from '@/features/upload/components/ProcessingCard';
 import ProgressBar from '@/features/upload/components/ProgressBar';
 import StatusBadge from '@/features/upload/components/StatusBadge';
-import ProcessingCard from '@/features/upload/components/ProcessingCard';
-import { useAuth } from '@/features/auth/hooks/useAuth';
+import UploadDropzone from '@/features/upload/components/UploadDropzone';
+import { useSSE } from '@/features/upload/hooks/useSSE';
+import { AlertCircle, CheckCircle2, Circle, FileAudio, Globe2, Info, Languages, Loader2, Sparkles, Zap } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const STEPS = [
   'Downloading file...',
   'Extracting audio...',
   'Transcribing audio...',
-  'Synthesizing Notes',
-  'Ready for Review'
+  'Ready for learn'
 ];
 
 export default function UploadPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const [toast, setToast] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(
+    null,
+  );
 
   // App State
   const [activeTab, setActiveTab] = useState<'upload' | 'youtube'>('upload');
@@ -84,7 +87,7 @@ export default function UploadPage() {
       setLessonId(response.lessonId);
     } catch (err: any) {
       console.error('Processing error:', err);
-      setLessonId('demo-lesson-' + Date.now());
+      setToast({ message: "Processing failed. Please try again.", variant: "error" });
     } finally {
       setIsUploading(false);
     }
@@ -179,7 +182,7 @@ export default function UploadPage() {
                             {idx === 0 && 'Secure transfer from source'}
                             {idx === 1 && 'Preparing high-fidelity stream'}
                             {idx === 2 && 'Generating bilingual mapping'}
-                            {idx === 3 && 'Extracting key vocabulary'}
+                            {idx === 3 && 'Generating translations'}
                             {idx === 4 && 'Finalizing dashboard'}
                           </p>
                         </div>
@@ -204,43 +207,6 @@ export default function UploadPage() {
             </div>
           </div>
         )}
-
-        {/* Bottom Meta Row */}
-        {!status.includes('FAILED') && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl mt-6">
-            <div className="bg-gray-50/50 rounded-2xl p-4 flex items-center gap-4">
-              <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400">
-                {activeTab === 'upload' ? <FileAudio size={20} /> : <FileAudio size={20} />}
-              </div>
-              <div>
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Source Type</div>
-                <div className="text-sm font-bold text-gray-900 truncate">
-                  {activeTab === 'upload' ? 'Local Audio File' : 'YouTube Stream'}
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50/50 rounded-2xl p-4 flex items-center gap-4">
-              <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400">
-                <Globe2 size={20} />
-              </div>
-              <div>
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Target Language</div>
-                <div className="text-sm font-bold text-gray-900">Auto-detect</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-50/50 rounded-2xl p-4 flex items-center gap-4">
-              <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-gray-400">
-                <Sparkles size={20} />
-              </div>
-              <div>
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Processing Engine</div>
-                <div className="text-sm font-bold text-gray-900">NeuralScribe Pro V2</div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -251,13 +217,13 @@ export default function UploadPage() {
 
   return (
     <div className="max-w-4xl mx-auto w-full px-6 py-12 flex flex-col items-center">
-      <div className="text-center mb-10">
+      <div className="text-center mb-4">
         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Create New Lesson</h1>
         <p className="text-gray-500 text-lg">Your linguistic growth starts with a simple sound. Let's process your next session.</p>
       </div>
 
       <div className="w-full max-w-2xl flex flex-col gap-6">
-        <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
+        <div className="bg-white rounded-[2rem] p-4 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50">
           <label className="block text-sm font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">
             Lesson Title
           </label>
@@ -266,7 +232,7 @@ export default function UploadPage() {
             value={lessonName}
             onChange={(e) => setLessonName(e.target.value)}
             placeholder="e.g. Daily English Breakfast - Episode 1"
-            className="w-full px-6 py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-lg font-semibold text-gray-900 placeholder:text-gray-300"
+            className="w-full px-3 sm:px-6 py-3 sm:py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10 outline-none transition-all text-lg font-semibold text-gray-900 placeholder:text-gray-300"
           />
         </div>
 
@@ -287,17 +253,17 @@ export default function UploadPage() {
           </button>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 min-h-[300px] flex flex-col justify-center">
+        <div className="bg-white rounded-[2rem] p-4 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50 min-h-[300px] flex flex-col justify-center">
           {activeTab === 'upload' ? (
-            <div>
+            <>
               <UploadDropzone onFileSelect={handleFileSelect} isLoading={isUploading} />
               {selectedFile && !isUploading && (
-                <div className="mt-6 p-4 bg-green-50 rounded-2xl text-center text-sm font-bold text-green-800 border border-green-100 flex items-center justify-center gap-2">
+                <div className="mt-3 sm:mt-6 p-2 sm:p-4 bg-green-50 rounded-2xl text-center text-sm font-bold text-green-800 border border-green-100 flex items-center justify-center gap-2">
                   <CheckCircle2 size={16} />
                   Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                 </div>
               )}
-            </div>
+            </>
           ) : (
             <div className="flex flex-col gap-6 items-center text-center">
               <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
@@ -311,7 +277,7 @@ export default function UploadPage() {
                   value={youtubeUrl}
                   onChange={(e) => setYoutubeUrl(e.target.value)}
                   placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full px-6 py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10 outline-none transition-all text-lg font-medium text-gray-900 placeholder:text-gray-300"
+                  className="w-full px-3 sm:px-6 py-3 sm:py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-red-500 focus:bg-white focus:ring-4 focus:ring-red-500/10 outline-none transition-all text-lg font-medium text-gray-900 placeholder:text-gray-300"
                 />
               </div>
             </div>
@@ -330,38 +296,9 @@ export default function UploadPage() {
         >
           {isUploading ? (activeTab === 'upload' ? `Uploading... ${uploadProgress}%` : 'Initiating Import...') : 'Create Lesson'}
         </button>
-
-        <div className="flex items-center justify-center gap-2 text-gray-400 text-sm font-bold py-4">
-          <Info size={16} />
-          <span>Automated transcription & NLP analysis will begin immediately.</span>
-        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-16">
-        <div className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-green-500 mb-4">
-            <Zap size={20} />
-          </div>
-          <h3 className="font-bold text-gray-900 mb-2">Fast Transcription</h3>
-          <p className="text-sm text-gray-500 leading-relaxed">Our AI processes audio in near real-time with 99% accuracy.</p>
-        </div>
-
-        <div className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-green-500 mb-4">
-            <Languages size={20} />
-          </div>
-          <h3 className="font-bold text-gray-900 mb-2">Multilingual Support</h3>
-          <p className="text-sm text-gray-500 leading-relaxed">Upload lessons in over 40 languages including regional dialects.</p>
-        </div>
-
-        <div className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-          <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-green-500 mb-4">
-            <Sparkles size={20} />
-          </div>
-          <h3 className="font-bold text-gray-900 mb-2">Smart Context</h3>
-          <p className="text-sm text-gray-500 leading-relaxed">Automatic speaker detection and vocabulary highlighting.</p>
-        </div>
-      </div>
+      {toast ? <FloatingToast message={toast.message} variant={toast.variant} /> : null}
     </div>
   );
 }

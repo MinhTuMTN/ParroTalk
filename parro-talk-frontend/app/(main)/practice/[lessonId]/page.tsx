@@ -20,7 +20,7 @@ interface SegmentStat {
 export default function PracticePage() {
   const params = useParams();
   const router = useRouter();
-  const jobId = params?.jobId as string;
+  const lessonId = params?.lessonId as string;
 
   const [segments, setSegments] = useState<Sentence[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -53,14 +53,14 @@ export default function PracticePage() {
   }, []);
 
   const saveToStorage = (idx: number, completed: Set<number>, dict: Record<number, string>, stats: Record<number, SegmentStat>) => {
-    if (!jobId) return;
+    if (!lessonId) return;
     const payload = {
       completed: Array.from(completed),
       inputs: dict,
       stats: stats,
       activeIndex: idx,
     };
-    localStorage.setItem(`parrotalk_progress_${jobId}`, JSON.stringify(payload));
+    localStorage.setItem(`parrotalk_progress_${lessonId}`, JSON.stringify(payload));
   };
 
   const getPayload = (isFinished: boolean): SubmitLessonRequest => {
@@ -79,19 +79,19 @@ export default function PracticePage() {
   };
 
   const saveProgressToDb = useCallback(async (isFinished: boolean = false) => {
-    if (!jobId) return;
+    if (!lessonId) return;
     try {
       if (isFinished) {
         setIsSubmitting(true);
-        const result = await lessonService.finalLessonSubmit(jobId);
+        const result = await lessonService.finalLessonSubmit(lessonId);
         setLastSaved(new Date());
         // Redirect to result screen
         localStorage.setItem('parrotalk_last_result', JSON.stringify({
-          lessonId: jobId,
+          lessonId: lessonId,
           score: result.score,
           passed: result.passed
         }));
-        localStorage.removeItem(`parrotalk_progress_${jobId}`);
+        localStorage.removeItem(`parrotalk_progress_${lessonId}`);
         router.push(`/result`);
       }
     } catch (e) {
@@ -99,7 +99,7 @@ export default function PracticePage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [jobId, router]);
+  }, [lessonId, router]);
 
   const consumeStudySeconds = useCallback(() => {
     const seconds = activeStudySecondsRef.current;
@@ -108,19 +108,17 @@ export default function PracticePage() {
   }, []);
 
   useEffect(() => {
-    if (!jobId) return;
+    if (!lessonId) return;
 
     const loadContent = async () => {
       try {
-        const [jobData, progressData] = await Promise.all([
-          lessonService.getLessonById(jobId),
-          lessonService.getLessonProgress(jobId).catch(() => null),
+        const [lessonData, progressData] = await Promise.all([
+          lessonService.getLessonById(lessonId),
+          lessonService.getLessonProgress(lessonId).catch(() => null),
         ]);
 
-        console.log("Job data: ", jobData);
-        console.log("Progress data: ", progressData);
-        setFileUrl(jobData.fileUrl || "");
-        const sentences = jobData.segments || [];
+        setFileUrl(lessonData.fileUrl || "");
+        const sentences = lessonData.segments || [];
         setSegments(sentences);
 
         // State initialization
@@ -165,7 +163,7 @@ export default function PracticePage() {
     };
 
     loadContent();
-  }, [jobId]);
+  }, [lessonId]);
 
   // Auto-save every 1 minute
   useEffect(() => {
@@ -191,8 +189,8 @@ export default function PracticePage() {
     const isCompleted = completedIndices.has(activeIndex);
 
     if (activeSegment?.id && !isCompleted) {
-      if (metric === 'replayCount') lessonService.incrementReplay(jobId, activeSegment.id);
-      if (metric === 'hintWords') lessonService.incrementHint(jobId, activeSegment.id);
+      if (metric === 'replayCount') lessonService.incrementReplay(lessonId, activeSegment.id);
+      if (metric === 'hintWords') lessonService.incrementHint(lessonId, activeSegment.id);
     }
 
     setSegmentStats(prev => {
@@ -201,7 +199,7 @@ export default function PracticePage() {
       saveToStorage(activeIndex, completedIndices, inputs, nextStats);
       return nextStats;
     });
-  }, [activeSegment?.id, activeIndex, completedIndices, inputs, jobId, saveToStorage]);
+  }, [activeSegment?.id, activeIndex, completedIndices, inputs, lessonId, saveToStorage]);
 
   const handleSentenceComplete = useCallback(async () => {
     console.log("handleSentenceComplete");
@@ -215,7 +213,7 @@ export default function PracticePage() {
     // Save to backend immediately
     if (!alreadyCompleted && activeSegment?.id) {
       try {
-        await lessonService.submitAnswer(jobId, activeSegment.id, inputs[activeIndex] || "", consumeStudySeconds());
+        await lessonService.submitAnswer(lessonId, activeSegment.id, inputs[activeIndex] || "", consumeStudySeconds());
       } catch (e) {
         console.error("Failed to submit individual answer", e);
       }
@@ -223,7 +221,7 @@ export default function PracticePage() {
 
     setAwaitingAdvance(true);
     saveToStorage(activeIndex, newCompleted, inputs, segmentStats);
-  }, [activeIndex, activeSegment, completedIndices, consumeStudySeconds, inputs, jobId, saveToStorage, segmentStats]);
+  }, [activeIndex, activeSegment, completedIndices, consumeStudySeconds, inputs, lessonId, saveToStorage, segmentStats]);
 
   const handleAdvanceAfterReview = useCallback(async () => {
     if (!awaitingAdvance) return;
