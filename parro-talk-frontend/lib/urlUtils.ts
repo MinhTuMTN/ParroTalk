@@ -1,5 +1,4 @@
 function isYoutubeUrl(url: string): boolean {
-    console.log(url)
     if (!url?.trim()) {
         return false;
     }
