@@ -367,7 +367,7 @@ export default function PracticePage() {
             onContinue={() => void handleAdvanceAfterReview()}
           />
         ) : (
-          <div className="relative z-10 shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+          <div className="relative bg-white border-t border-gray-100 z-10 shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.04) py-6 px-4">
             <WordDictation
               sentence={activeSentence}
               fullInput={inputs[activeIndex] || ""}
@@ -379,7 +379,6 @@ export default function PracticePage() {
           </div>
         )
       ) : null}
-
     </div>
   );
 }

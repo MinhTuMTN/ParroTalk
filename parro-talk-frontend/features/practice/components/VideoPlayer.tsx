@@ -3,6 +3,7 @@
 import ReactPlayer from "react-player/lazy";
 import { Play, Pause, RotateCcw, Zap, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
+import Switch from "@/components/ui/Switch";
 
 interface Segment {
   start: number;
@@ -123,6 +124,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
   }, [speed, isYoutube]);
 
   const togglePlay = () => {
+    console.log("Toggle play");
     if (isYoutube) {
       setIsPlaying(!isPlaying);
     } else if (videoRef.current) {
@@ -134,6 +136,11 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
       setIsPlaying(!videoRef.current.paused);
     }
   };
+
+  const toggleSpeed = useCallback(() => {
+    const nextSpeed = speed === 1.5 ? 0.5 : speed + 0.25;
+    setSpeed(nextSpeed)
+  }, [speed, setSpeed])
 
   const onYoutubeProgress = (state: { playedSeconds: number }) => {
     if (isYoutube && activeSegment) {
@@ -154,7 +161,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
   };
 
   return (
-    <div className="flex flex-col gap-3 w-full max-w-[360px] shrink-0">
+    <div className="flex flex-col gap-3 w-full max-w-[480px] shrink-0">
       <div className="relative aspect-[4/3] bg-gray-950 rounded-3xl overflow-hidden group shadow-xl border border-gray-100">
         {src ? (
           isYoutube ? (
@@ -194,33 +201,6 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
           <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold select-none bg-gray-900 animate-pulse">Loading Source...</div>
         )}
 
-        {/* Overlay Controller View */}
-        <div className={`absolute inset-0 flex flex-col items-center justify-center gap-4 transition-all duration-300 bg-black/40 ${isPlaying ? 'opacity-0 hover:opacity-100 pointer-events-none' : 'opacity-100'}`}>
-          <button
-            onClick={togglePlay}
-            className="w-14 h-14 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 hover:bg-green-400 active:scale-95 transition-all outline-none"
-          >
-            {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
-          </button>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleReplay}
-              className="px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-white/20 transition-all flex items-center gap-2 shadow-sm"
-            >
-              <RotateCcw size={14} />
-              Replay [ESC]
-            </button>
-            <button
-              onClick={() => setIsLooping(!isLooping)}
-              className={`px-4 py-2 backdrop-blur-md border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-sm ${isLooping ? 'bg-green-500/80 border-green-400 text-white' : 'bg-white/10 border-white/20 text-white hover:bg-white/20'}`}
-            >
-              <Repeat size={14} />
-              {isLooping ? 'Loop ON' : 'Loop OFF'}
-            </button>
-          </div>
-        </div>
-
         {/* Speed indicator on video */}
         <div className="absolute top-4 right-4 bg-black/40 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10 text-[9px] font-black text-white uppercase tracking-widest flex items-center gap-1 shadow-sm">
           <Zap size={10} className="text-yellow-400" fill="currentColor" />
@@ -234,49 +214,66 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
           </div>
         </div>
       </div>
-
       {/* Compact Controls Card */}
-      <div className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm flex flex-col gap-3">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Speed</span>
-          <div className="flex bg-gray-50 p-0.5 rounded-xl gap-0.5 border border-gray-100">
-            {[0.5, 0.75, 1, 1.25, 1.5].map(s => (
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <div className="flex items-center justify-between">
+          {/* Loop Setting */}
+          <div className="flex flex-row items-center gap-4">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+              Auto replay
+            </span>
+
+            <Switch
+              checked={isLooping}
+              onChange={() => setIsLooping(!isLooping)}
+            />
+          </div>
+
+          {/* Speed Setting */}
+          <div className="flex flex-row items-center gap-4">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+              Speed
+            </span>
+
+            <div className="flex bg-gray-50 p-0.5 rounded-xl gap-0.5 border border-gray-100">
               <button
-                key={s}
-                onClick={() => setSpeed(s)}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all active:scale-95 ${speed === s ? "bg-white text-green-600 shadow-sm border-gray-100 border" : "text-gray-400 hover:text-gray-600"}`}
+                onClick={toggleSpeed}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all active:scale-95bg-white text-green-600 shadow-sm border border-gray-100`}
               >
-                {s}x
+                {speed}x
               </button>
-            ))}
+            </div>
           </div>
         </div>
 
 
 
         {/* Mobile Navigation Buttons */}
-        <div className="md:hidden flex gap-2 mt-1">
+        <div className="md:hidden flex gap-2 mt-4">
           <button
             onClick={onPrevious}
             disabled={!hasPrevious}
             className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-100 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-gray-100 transition-all"
           >
             <ChevronLeft size={16} />
-            Prev
           </button>
           <button
             onClick={handleReplay}
             className="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
           >
             <RotateCcw size={16} />
-            Replay
+          </button>
+          <button
+            onClick={togglePlay}
+            className="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
+          >
+            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
           </button>
           <button
             onClick={onNext}
             disabled={!hasNext}
             className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-100 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-gray-100 transition-all"
           >
-            Next
             <ChevronRight size={16} />
           </button>
         </div>

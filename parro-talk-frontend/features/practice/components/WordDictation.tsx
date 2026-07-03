@@ -92,7 +92,7 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
   };
 
   return (
-    <div className="w-full bg-white border-t border-gray-100 pt-3 px-4 pb-1 sm:pt-5 sm:px-5 sm:pb-8 flex flex-col items-center gap-2 sm:gap-4 [padding-bottom:env(safe-area-inset-bottom)]">
+    <div className="w-full flex flex-col items-center gap-2 sm:gap-4 [padding-bottom:env(safe-area-inset-bottom)]">
       {/* Visual Word Progress */}
       < div className="flex flex-wrap justify-center gap-x-2 gap-y-3 max-w-4xl" >
         {
@@ -134,7 +134,7 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
       </div >
 
       {/* Actual Input Field */}
-      < div className="w-full max-w-2xl relative group mb-1" >
+      < div className="w-full max-w-2xl relative group" >
         <input
           ref={inputRef}
           type="text"
