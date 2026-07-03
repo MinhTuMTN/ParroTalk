@@ -18,10 +18,12 @@ export interface Lesson {
   progress: number;
   currentStep: string;
   fileUrl: string;
+  url: string;
   createdAt: string;
   mediaType?: string;
   title?: string;
   content?: string;
+  thumbnail?: string;
   duration?: number;
   categories?: Category[];
   segments?: Sentence[];

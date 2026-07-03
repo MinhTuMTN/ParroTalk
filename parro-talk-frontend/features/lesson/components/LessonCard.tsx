@@ -16,11 +16,10 @@ export default function LessonCard({ lesson }: { lesson: Lesson }) {
     const hash = lesson.id.charCodeAt(0) + lesson.id.charCodeAt(lesson.id.length - 1);
     const category = categories[hash % categories.length];
 
-    const duration = `${Math.floor(lesson.duration / 60)
-        .toString()
-        .padStart(2, "0")}:${Math.floor(lesson.duration % 60)
-            .toString()
-            .padStart(2, "0")}`;
+    const durationInSeconds = lesson.duration ?? 0;
+    const minutes = Math.floor(durationInSeconds / 60);
+    const seconds = durationInSeconds % 60;
+    const formattedDuration = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 
     const status = lesson.progress === 100 ? "DONE" : lesson.progress > 0 ? "IN_PROGRESS" : "NOT_STARTED";
     const isDone = status === "DONE";
@@ -70,7 +69,7 @@ export default function LessonCard({ lesson }: { lesson: Lesson }) {
                     <span className="text-green-600 bg-green-50 px-2 py-1 rounded-md">{category}</span>
                     <span className="flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                        {duration}
+                        {formattedDuration}
                     </span>
                 </div>
 
