@@ -1,7 +1,7 @@
 "use client";
 
 import ReactPlayer from "react-player/lazy";
-import { Play, Pause, RotateCcw, Zap, ChevronLeft, ChevronRight, Repeat } from "lucide-react";
+import { Play, Pause, RotateCcw, Zap, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Switch from "@/components/ui/Switch";
 
@@ -31,9 +31,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
     return false;
   });
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<ReactPlayer>(null);
-
+  const playerRef = useRef<ReactPlayer | HTMLVideoElement | null>(null);
   const [progressPercent, setProgressPercent] = useState(0);
   const isYoutube = src?.includes('youtube.com') || src?.includes('youtu.be');
 
@@ -42,15 +40,14 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
   }, [isLooping]);
 
   const handleReplay = useCallback(() => {
-    if (activeSegment) {
+    if (activeSegment && playerRef.current) {
       if (isYoutube) {
-        if (playerRef.current) {
-          playerRef.current.seekTo(activeSegment.start, 'seconds');
-          setIsPlaying(true);
-        }
-      } else if (videoRef.current) {
-        videoRef.current.currentTime = activeSegment.start;
-        videoRef.current.play().catch(e => console.log("Playback error", e));
+        (playerRef.current as ReactPlayer).seekTo(activeSegment.start, 'seconds');
+        setIsPlaying(true);
+      } else {
+        const video = playerRef.current as HTMLVideoElement;
+        video.currentTime = activeSegment.start;
+        video.play().catch(e => console.log("Playback error", e));
         setIsPlaying(true);
       }
       if (onReplay) onReplay();
@@ -71,7 +68,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
   // Handle loop clipping bounding
   useEffect(() => {
     if (isYoutube || !activeSegment) return;
-    const v = videoRef.current;
+    const v = playerRef.current as HTMLVideoElement;
     if (!v) return;
 
     const handleTimeUpdate = () => {
@@ -99,15 +96,14 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
 
   // Handle active Segment change payload
   useEffect(() => {
-    if (activeSegment) {
+    if (activeSegment && playerRef.current) {
       if (isYoutube) {
-        if (playerRef.current) {
-          playerRef.current.seekTo(activeSegment.start, 'seconds');
-          setIsPlaying(true);
-        }
-      } else if (videoRef.current) {
-        videoRef.current.currentTime = activeSegment.start;
-        videoRef.current.play()
+        (playerRef.current as ReactPlayer).seekTo(activeSegment.start, 'seconds');
+        setIsPlaying(true);
+      } else {
+        const video = playerRef.current as HTMLVideoElement;
+        video.currentTime = activeSegment.start;
+        video.play()
           .then(() => setIsPlaying(true))
           .catch(e => {
             console.log("Playback blocked or failed:", e);
@@ -118,37 +114,38 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
   }, [activeSegment, isYoutube]);
 
   useEffect(() => {
-    if (!isYoutube && videoRef.current) {
-      videoRef.current.playbackRate = speed;
+    if (!isYoutube && playerRef.current) {
+      (playerRef.current as HTMLVideoElement).playbackRate = speed;
     }
   }, [speed, isYoutube]);
 
   const togglePlay = () => {
     if (isYoutube) {
       setIsPlaying(!isPlaying);
-    } else if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play().catch(e => console.log(e));
+    } else if (playerRef.current) {
+      const video = playerRef.current as HTMLVideoElement;
+      if (video.paused) {
+        video.play().catch(e => console.log(e));
       } else {
-        videoRef.current.pause();
+        video.pause();
       }
-      setIsPlaying(!videoRef.current.paused);
+      setIsPlaying(!video.paused);
     }
   };
 
   const toggleSpeed = useCallback(() => {
     const nextSpeed = speed === 1.5 ? 0.5 : speed + 0.25;
-    setSpeed(nextSpeed)
-  }, [speed, setSpeed])
+    setSpeed(nextSpeed);
+  }, [speed, setSpeed]);
 
   const onYoutubeProgress = (state: { playedSeconds: number }) => {
-    if (isYoutube && activeSegment) {
+    if (isYoutube && activeSegment && playerRef.current) {
       const { start, end } = activeSegment;
       const ct = state.playedSeconds;
 
       if (ct >= end) {
         if (isLooping) {
-          playerRef.current?.seekTo(start, 'seconds');
+          (playerRef.current as ReactPlayer).seekTo(start, 'seconds');
         } else {
           setIsPlaying(false);
         }
@@ -166,7 +163,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
           isYoutube ? (
             <div className="absolute inset-0 w-full h-full">
               <ReactPlayer
-                ref={playerRef}
+                ref={playerRef as React.RefObject<ReactPlayer | null>}
                 url={src}
                 playing={isPlaying}
                 playbackRate={speed}
@@ -190,7 +187,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
             </div>
           ) : (
             <video
-              ref={videoRef}
+              ref={playerRef as React.RefObject<HTMLVideoElement | null>}
               src={src}
               className="w-full h-full object-cover opacity-90 transition-opacity"
               playsInline
@@ -198,6 +195,33 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
           )
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold select-none bg-gray-900 animate-pulse">Loading Source...</div>
+        )}
+
+        {/* Overlay Play/Pause Control for Non-YouTube Media */}
+        {!isYoutube && src && (
+          <div
+            onClick={togglePlay}
+            className={`
+              absolute inset-0 flex items-center justify-center cursor-pointer z-20 select-none transition-all duration-300
+              ${isPlaying ? "bg-transparent hover:bg-black/15" : "bg-black/25"}
+            `}
+          >
+            <div
+              className={`
+                flex items-center justify-center w-14 h-14 rounded-full
+                bg-white/20 backdrop-blur-md border border-white/30 text-white
+                shadow-xl transition-all duration-300 transform
+                hover:scale-110 hover:bg-white/30 active:scale-95
+                ${isPlaying ? "opacity-0 group-hover:opacity-100" : "opacity-100 bg-white/30 scale-105"}
+              `}
+            >
+              {isPlaying ? (
+                <Pause size={24} className="text-white" fill="currentColor" />
+              ) : (
+                <Play size={24} className="text-white translate-x-[1px]" fill="currentColor" />
+              )}
+            </div>
+          </div>
         )}
 
         {/* Speed indicator on video */}
@@ -237,7 +261,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
             <div className="flex bg-gray-50 p-0.5 rounded-xl gap-0.5 border border-gray-100">
               <button
                 onClick={toggleSpeed}
-                className={`px-3 py-1.5 rounded-lg text-[10px] font-black transition-all active:scale-95bg-white text-green-600 shadow-sm border border-gray-100`}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-black transition-all active:scale-95 bg-white text-green-600 shadow-sm border border-gray-100"
               >
                 {speed}x
               </button>

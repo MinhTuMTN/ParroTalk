@@ -1,5 +1,6 @@
 package com.parrotalk.backend.listener;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class LessonCompletedListener {
      *
      * @param event Lesson completed event
      */
+    @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTranslationLessonAfterCompleted(LessonCompletedEvent event) {

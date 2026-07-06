@@ -504,7 +504,7 @@ public class LessonService {
         if (!lessonId.equals(segment.getLesson().getId())) {
             throw new ParroTalkException("Segment does not belong to lesson", HttpStatusCode.valueOf(400));
         }
-        return translationService.translateSegment(segmentId, TranslationLanguage.VIETNAMESE.getCode());
+        return translationService.translateOneSegment(segmentId, TranslationLanguage.VIETNAMESE.getCode());
     }
 
     /**

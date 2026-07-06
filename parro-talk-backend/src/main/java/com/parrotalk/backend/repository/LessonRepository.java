@@ -92,7 +92,10 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
             )
             FROM Lesson l
             LEFT JOIN UserLessonProgress ulp
@@ -123,7 +126,10 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
             )
             FROM Lesson l
             LEFT JOIN UserLessonProgress ulp

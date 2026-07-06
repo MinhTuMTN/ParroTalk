@@ -62,7 +62,6 @@ def transcribe_with_groq(file_path: str):
                 )
 
     logger.error("All Groq keys failed for this attempt: %s", last_error)
-    raise last_error
 
 
 def should_chunk_audio(file_size_bytes):

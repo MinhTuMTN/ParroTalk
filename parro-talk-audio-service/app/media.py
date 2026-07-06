@@ -132,3 +132,138 @@ def download_youtube_audio_v2(url: str, output_path: str):
 
     session.close()
     raise RuntimeError(f"All keys failed. Last error: {last_error}")
+
+def download_youtube_audio_v3(url: str, output_path: str):
+    logger.info("Downloading YouTube audio (v3) from %s", url)
+
+    last_error = None
+
+    session = requests.Session()
+    session.headers.update({
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+    })
+
+    YOUTUBE_DOWNLOAD_KEYS = ["c7b9936555d212587abe19e38eba3dcad10471e5"]
+    for attempt, api_key in enumerate(YOUTUBE_DOWNLOAD_KEYS):
+        try:
+            logger.info(
+                "Attempt %s/%s with key ...%s",
+                attempt + 1,
+                len(YOUTUBE_DOWNLOAD_KEYS),
+                api_key[-6:]
+            )
+
+            # Step 1: Create download task
+            response = session.get(
+                "https://p.savenow.to/api/v2/download",
+                params={
+                    "format": "mp3",
+                    "url": url,
+                    "apikey": api_key,
+                },
+                timeout=60,
+            )
+
+            if response.status_code == 429:
+                logger.warning("Rate limit (429) for key ...%s", api_key[-6:])
+                last_error = "Rate limit"
+                time.sleep(60)
+                continue
+
+            if response.status_code != 200:
+                logger.error("API returned %s: %s", response.status_code, response.text)
+                last_error = f"HTTP {response.status_code}"
+                time.sleep(5)
+                continue
+
+            data = response.json()
+
+            progress_url = data.get("progress_url")
+            if not progress_url:
+                raise ValueError(f"No progress_url in response: {data}")
+
+            logger.info("Progress URL: %s", progress_url)
+
+            # Step 2-4: Poll progress
+            finished = False
+            download_url = None
+
+            count = 1
+
+            while count <= 5:
+                time.sleep(5 * count)
+
+                logger.info("Checking progress (%s/5)...", count)
+
+                progress_response = session.get(
+                    progress_url,
+                    timeout=30,
+                )
+
+                count += 1
+                logger.info("Progress response: %s", progress_response)
+                if progress_response.status_code != 200:
+                    logger.warning(
+                        "Progress check failed: HTTP %s",
+                        progress_response.status_code,
+                    )
+                    continue
+
+                progress_data = progress_response.json()
+
+                status = progress_data.get("text")
+
+                logger.info("Progress status: %s", status)
+
+                if status == "Finished":
+                    download_url = progress_data.get("download_url")
+                    if not download_url:
+                        raise ValueError(
+                            f"Finished but no download_url: {progress_data}"
+                        )
+
+                    finished = True
+                    break
+
+            if not finished:
+                raise TimeoutError("Download was not finished after 3 polling attempts")
+
+            # Step 5: Download mp3
+            logger.info("Downloading from %s", download_url)
+
+            download_response = session.get(
+                download_url,
+                stream=True,
+                timeout=120,
+                allow_redirects=True,
+            )
+
+            if download_response.status_code != 200:
+                raise ValueError(
+                    f"Download failed: HTTP {download_response.status_code}"
+                )
+
+            final_path = (
+                output_path
+                if output_path.endswith(".mp3")
+                else f"{output_path}.mp3"
+            )
+
+            with open(final_path, "wb") as file:
+                for chunk in download_response.iter_content(chunk_size=16384):
+                    if chunk:
+                        file.write(chunk)
+
+            logger.info("Downloaded successfully: %s", final_path)
+
+            session.close()
+            return final_path
+
+        except Exception as exc:
+            last_error = str(exc)
+            logger.error("Error (attempt %s): %s", attempt + 1, exc)
+            time.sleep(5)
+
+    session.close()
+    raise RuntimeError(f"All keys failed. Last error: {last_error}")

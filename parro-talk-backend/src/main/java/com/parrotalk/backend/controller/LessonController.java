@@ -60,10 +60,7 @@ public class LessonController {
     public ResponseEntity<PageResponse<LessonWithProgressDTO>> listLessons(
             @ModelAttribute LessonSearchRequest request,
             @AuthenticationPrincipal User user) {
-        long startTime = System.currentTimeMillis();
         PageResponse<LessonWithProgressDTO> response = lessonService.searchLessons(request, user);
-        long endTime = System.currentTimeMillis();
-        log.info("List lessons time: {} seconds", (endTime - startTime) / 1000.0);
         return ResponseEntity.ok(response);
     }
 

@@ -1,21 +1,22 @@
 package com.parrotalk.backend.service;
 
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.parrotalk.backend.constant.Difficulty;
 import com.parrotalk.backend.dto.SegmentResultRequest;
 import com.parrotalk.backend.dto.SubmitLessonRequest;
 import com.parrotalk.backend.dto.SubmitLessonResponse;
-import com.parrotalk.backend.entity.*;
-import com.parrotalk.backend.repository.*;
+import com.parrotalk.backend.entity.TranscriptionSegment;
+import com.parrotalk.backend.entity.UserLessonResult;
+import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
+import com.parrotalk.backend.repository.UserLessonResultRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -55,11 +56,17 @@ public class LearningService {
             int step = 2;
             switch (diff) {
                 case SHORT:
-                    free = 1; step = 2; break;
+                    free = 1;
+                    step = 2;
+                    break;
                 case MEDIUM:
-                    free = 2; step = 2; break;
+                    free = 2;
+                    step = 2;
+                    break;
                 case LONG:
-                    free = 3; step = 3; break;
+                    free = 3;
+                    step = 3;
+                    break;
             }
 
             int penalty = 0;

@@ -44,12 +44,22 @@ def detect_silence(audio_path: str, threshold: str = "-50dB", min_duration: floa
         "-af", f"silencedetect=noise={threshold}:d={min_duration}",
         "-f", "null", "-",
     ]
-    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    # result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, encoding='utf-8')
+
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=False
+    )
+
+    stderr = result.stderr.decode("utf-8", errors="replace")
 
     silences = []
     current_start = None
 
-    for line in result.stderr.splitlines():
+    # for line in result.stderr.splitlines():
+    for line in stderr.splitlines():
         if "silence_start:" in line:
             match = re.search(r"silence_start:\s+([\d\.]+)", line)
             if match:

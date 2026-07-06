@@ -4,7 +4,7 @@ import traceback
 
 from app.groq_result import to_dict
 from app.logging_config import logger
-from app.media import download_file, download_youtube_audio_v2, extract_audio, is_youtube_url
+from app.media import download_file, download_youtube_audio_v3, download_youtube_audio_v2, extract_audio, is_youtube_url
 from app.messaging import send_progress
 from app.preprocessing import (
     build_speech_segments,
@@ -38,7 +38,10 @@ def _prepare_audio(ch, lesson_id: str, file_url: str) -> tuple[str, str, str]:
 
     if is_youtube_url(file_url):
         send_progress(ch, lesson_id, 10, "Extracting YouTube audio...")
-        download_youtube_audio_v2(file_url, audio_path)
+        try:
+            download_youtube_audio_v3(file_url, audio_path)
+        except:
+            download_youtube_audio_v2(file_url, audio_path)
     else:
         send_progress(ch, lesson_id, 10, "Downloading file...")
         download_file(file_url, local_file_path)
@@ -121,7 +124,7 @@ def process_audio(ch, lesson_id: str, file_url: str) -> dict:
         send_progress(ch, lesson_id, 30, "Transcribing...")
         logger.info("Starting Whisper transcription for %s", lesson_id)
         raw_transcription_result, transcription_result = transcribe_chunked_audio(final_audio_path)
-        _write_debug_json(lesson_id, "raw", raw_transcription_result)
+        # _write_debug_json(lesson_id, "raw", raw_transcription_result)
 
         full_text, words_data = _extract_transcription_text_and_words(transcription_result)
         segments_data = build_canonical_segments(full_text, words_data)
@@ -130,7 +133,7 @@ def process_audio(ch, lesson_id: str, file_url: str) -> dict:
             remap_segments(segments_data, mapping)
 
         result_data = {"text": full_text.strip(), "segments": segments_data}
-        _write_debug_json(lesson_id, "processed", result_data)
+        # _write_debug_json(lesson_id, "processed", result_data)
 
         return {"status": "COMPLETED", "result": result_data, "duration": audio_duration}
 

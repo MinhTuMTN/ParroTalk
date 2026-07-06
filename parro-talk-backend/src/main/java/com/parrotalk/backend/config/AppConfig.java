@@ -3,6 +3,7 @@ package com.parrotalk.backend.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -22,6 +23,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 @EnableAsync
+@EnableRetry
 @RequiredArgsConstructor
 public class AppConfig implements WebMvcConfigurer {
 
@@ -36,8 +38,9 @@ public class AppConfig implements WebMvcConfigurer {
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String[] allowedOrigins = { "http://localhost:3000", "https://parrotalk.fun", "http://192.168.1.107:3000" };
         registry.addMapping("/**")
-                .allowedOrigins(frontendProperties.getAllowedOrigins().toArray(String[]::new))
+                .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)
