@@ -21,6 +21,7 @@ public interface LessonMapper {
      */
     @Mapping(target = "segments", ignore = true)
     @Mapping(target = "categories", ignore = true)
+    @Mapping(target = "tags", ignore = true)
     LessonResponse toLessonResponse(Lesson lesson);
 
 }

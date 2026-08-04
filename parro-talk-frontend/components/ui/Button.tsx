@@ -2,17 +2,19 @@
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   leftIcon?: ReactNode;
+  size?: "default" | "sm" | "lg" | "icon" | string;
 };
 
 const variantClassMap: Record<ButtonVariant, string> = {
   primary:
     "bg-emerald-600 text-white hover:bg-emerald-700 shadow-[0_10px_30px_rgba(16,185,129,0.28)]",
   secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
+  outline: "bg-transparent text-slate-700 border border-slate-200 hover:bg-slate-50",
   ghost: "bg-transparent text-slate-600 hover:bg-slate-100",
   danger: "bg-rose-600 text-white hover:bg-rose-700",
 };
@@ -34,4 +36,6 @@ export default function Button({
     </button>
   );
 }
+
+export { Button };
 

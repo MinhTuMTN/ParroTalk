@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { Brain } from "lucide-react";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -18,7 +19,8 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
 
   const menuItems = [
     { icon: Play, label: "Library", path: "/library", active: pathname === "/library", hidden: false },
-    { icon: Book, label: "Dictionary", path: "#", hidden: true },
+    { icon: Book, label: "Dictionary", path: "/dictionary", active: pathname.startsWith("/dictionary"), hidden: false },
+    { icon: Brain, label: "Practice", path: "/practice", active: pathname.startsWith("/practice"), hidden: false },
     { icon: FileText, label: "Notes", path: "#", hidden: true },
     { icon: Mic, label: "Transcript", path: "#", hidden: true },
     ...(user?.role === "ADMIN" ? [

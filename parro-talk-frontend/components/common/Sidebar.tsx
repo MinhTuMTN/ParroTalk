@@ -12,6 +12,8 @@ import {
   Settings,
   Tags,
   UsersRound,
+  BookType,
+  PieChart
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -63,12 +65,26 @@ export default function Sidebar({
     {
       icon: Boxes,
       label: "Categories",
-      disabled: true,
+      path: "/admin/categories",
+      active: pathname.startsWith("/admin/categories"),
     },
     {
       icon: Tags,
       label: "Tags",
-      disabled: true,
+      path: "/admin/tags",
+      active: pathname.startsWith("/admin/tags"),
+    },
+    {
+      icon: BookType,
+      label: "Vocabulary",
+      path: "/admin/vocabulary/list",
+      active: pathname.startsWith("/admin/vocabulary"),
+    },
+    {
+      icon: PieChart,
+      label: "CMS",
+      path: "/admin/cms",
+      active: pathname.startsWith("/admin/cms"),
     },
     {
       icon: BarChart3,

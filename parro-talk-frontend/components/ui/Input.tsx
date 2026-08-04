@@ -25,3 +25,5 @@ export default function Input({
   );
 }
 
+export { Input };
+

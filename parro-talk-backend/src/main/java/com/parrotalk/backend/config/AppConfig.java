@@ -63,4 +63,9 @@ public class AppConfig implements WebMvcConfigurer {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+    @Bean
+    public org.springframework.web.client.RestClient.Builder restClientBuilder() {
+        return org.springframework.web.client.RestClient.builder();
+    }
 }

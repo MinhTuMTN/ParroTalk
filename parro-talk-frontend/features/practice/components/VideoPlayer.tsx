@@ -156,6 +156,21 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
     }
   };
 
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!activeSegment || !playerRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickPercent = Math.max(0, Math.min(1, clickX / rect.width));
+    const seekTime = activeSegment.start + clickPercent * (activeSegment.end - activeSegment.start);
+
+    if (isYoutube) {
+      (playerRef.current as ReactPlayer).seekTo(seekTime, 'seconds');
+    } else {
+      (playerRef.current as HTMLVideoElement).currentTime = seekTime;
+    }
+    setProgressPercent(clickPercent * 100);
+  };
+
   return (
     <div className="flex flex-col gap-3 w-full max-w-[480px] shrink-0">
       <div className="relative aspect-[4/3] bg-gray-950 rounded-3xl overflow-hidden group shadow-xl border border-gray-100">
@@ -231,7 +246,10 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
         </div>
 
         {/* Progress Bar Overlaid on Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-white/20 flex z-10 overflow-hidden">
+        <div 
+          className="absolute bottom-0 left-0 right-0 h-2 bg-white/20 flex z-30 overflow-hidden cursor-pointer hover:h-3 transition-all"
+          onClick={handleProgressClick}
+        >
           <div className="h-full bg-green-500 transition-all duration-100 ease-linear shadow-[0_0_10px_rgba(34,197,94,0.5)] relative" style={{ width: `${progressPercent}%` }}>
             <div className="absolute top-0 right-0 bottom-0 w-2 bg-white/50 blur-sm rounded-full animate-pulse" />
           </div>

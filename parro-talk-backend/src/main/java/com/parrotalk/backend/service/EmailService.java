@@ -16,4 +16,19 @@ public interface EmailService {
      *                verification token
      */
     void sendVerificationEmail(VerifyEmailMessage message);
+
+    /**
+     * Sends a password reset email.
+     */
+    void sendPasswordResetEmail(String email, String resetUrl, String userName);
+
+    /**
+     * Sends a welcome email to a new user.
+     */
+    void sendWelcomeEmail(String email, String userName);
+
+    /**
+     * Sends a notification when user changes their email.
+     */
+    void sendEmailChangeNotification(String oldEmail, String newEmail, String userName);
 }

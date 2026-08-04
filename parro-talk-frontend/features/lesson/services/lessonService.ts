@@ -111,9 +111,11 @@ type BackendLesson = {
   duration?: number | null;
   visibilityStatus: LessonStatus;
   categories?: BackendCategory[];
+  tags?: BackendCategory[];
   segments?: BackendSegment[];
   translationSummary?: TranslationSummary;
   createdAt: string;
+  updatedAt: string;
 };
 
 type PageResponse<T> = {
@@ -158,7 +160,9 @@ const mapLesson = (lesson: BackendLesson): AdminLesson => ({
   duration: lesson.duration ?? 0,
   status: toLessonStatus(lesson.visibilityStatus),
   categories: lesson.categories ?? [],
+  tags: lesson.tags ?? [],
   createdAt: lesson.createdAt,
+  updatedAt: lesson.updatedAt,
   segments: (lesson.segments ?? []).map(mapSegment),
   translationSummary: lesson.translationSummary,
 });
@@ -244,6 +248,11 @@ export const lessonService = {
 
   async resetProgress(lessonId: string) {
     await axiosInstance.get(`/lessons/${lessonId}/progress/reset`);
+  },
+
+  async retryLesson(lessonId: string) {
+    const response = await axiosInstance.get<{ lessonId: string; message: string }>(`/audio/retry/${lessonId}`);
+    return response.data;
   },
 
   async uploadAudio(file: File, title: string, onProgress?: (progress: number) => void) {

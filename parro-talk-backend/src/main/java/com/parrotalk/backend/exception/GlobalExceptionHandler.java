@@ -4,9 +4,11 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.parrotalk.backend.constant.ErrorCode;
 import com.parrotalk.backend.dto.ApiResponse;
@@ -48,6 +50,31 @@ public class GlobalExceptionHandler {
                         ErrorCode.VALIDATION_ERROR.getCode(),
                         ErrorCode.VALIDATION_ERROR.name(),
                         message.isBlank() ? ErrorCode.VALIDATION_ERROR.getMessage() : message));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatchException(MethodArgumentTypeMismatchException e) {
+        String message = "Invalid value for parameter '%s'.".formatted(e.getName());
+        log.warn("Rejected request parameter: name={}", e.getName());
+
+        return ResponseEntity
+                .badRequest()
+                .body(buildError(
+                        ErrorCode.VALIDATION_ERROR.getCode(),
+                        ErrorCode.VALIDATION_ERROR.name(),
+                        message));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBodyException(HttpMessageNotReadableException e) {
+        log.warn("Rejected unreadable request body");
+
+        return ResponseEntity
+                .badRequest()
+                .body(buildError(
+                        ErrorCode.VALIDATION_ERROR.getCode(),
+                        ErrorCode.VALIDATION_ERROR.name(),
+                        "Request body is malformed or contains an unsupported value."));
     }
 
     @ExceptionHandler(RuntimeException.class)

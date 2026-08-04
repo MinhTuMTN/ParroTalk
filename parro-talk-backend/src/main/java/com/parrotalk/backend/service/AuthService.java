@@ -90,7 +90,14 @@ public class AuthService {
 
     public AuthResponse refreshToken(RefreshRequest request) {
         String refreshToken = request.getRefreshToken();
-        String userEmail = jwtUtils.extractUsername(refreshToken);
+        String userEmail;
+        try {
+            userEmail = jwtUtils.extractUsername(refreshToken);
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            throw new AuthException(ErrorCode.INVALID_REFRESH_TOKEN);
+        } catch (Exception e) {
+            throw new AuthException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
 
         if (userEmail != null) {
             User user = userService.findByEmail(userEmail)

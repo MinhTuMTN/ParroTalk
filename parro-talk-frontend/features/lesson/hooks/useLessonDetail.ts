@@ -273,6 +273,30 @@ export function useLessonDetail(id: string) {
     }
   };
 
+  const retryLesson = async () => {
+    setError(null);
+    setSuccess(null);
+    try {
+      await lessonService.retryLesson(id);
+      setSuccess("Lesson retry initiated.");
+      
+      // Reload lesson to get the updated status
+      const data = await lessonService.getAdminLessonById(id);
+      setLesson(data);
+      setForm({
+        title: data.title,
+        source: data.source,
+        duration: data.duration,
+        status: data.status,
+        categoryIds: data.categories.map((category) => category.id),
+      });
+      return true;
+    } catch {
+      setError("Failed to retry lesson.");
+      return false;
+    }
+  };
+
   return {
     lesson,
     form,
@@ -291,9 +315,8 @@ export function useLessonDetail(id: string) {
         splitSegment,
     hasSegmentChanges,
     saveChanges,
-
+    retryLesson,
     deleteLesson,
     clearMessages,
   };
 }
-

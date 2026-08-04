@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Languages, Pause, Play, RotateCcw, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { Languages, Pause, Play, RotateCcw, Trash2, X, RotateCw } from "lucide-react";
 
 import ReactPlayer from "react-player";
 
@@ -81,6 +82,7 @@ export default function LessonEditPage({ id }: { id: string }) {
     splitSegment,
     hasSegmentChanges,
     saveChanges,
+    retryLesson,
     deleteLesson,
 
     clearMessages,
@@ -401,6 +403,14 @@ export default function LessonEditPage({ id }: { id: string }) {
 
   return (
     <>
+      <div className="mb-6 flex items-center text-sm font-semibold text-slate-500">
+        <Link href="/admin/lessons" className="hover:text-emerald-600 transition-colors">
+          Lessons
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-slate-800">{lesson?.title || form.title || "Lesson Details"}</span>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
             <section className="rounded-[30px] bg-[#f4f7fa] p-6 shadow-inner">
               <h1 className="text-3xl font-black tracking-tight text-slate-900">Lesson Details</h1>
@@ -433,6 +443,21 @@ export default function LessonEditPage({ id }: { id: string }) {
                         onChange={(next) => updateForm("status", next ? LessonStatus.PUBLISHED : LessonStatus.HIDDEN)}
                       />
                     </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <span className="text-xs font-semibold text-slate-500">Created Time</span>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {lesson?.createdAt ? new Date(lesson.createdAt).toLocaleDateString() : "-"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                    <span className="text-xs font-semibold text-slate-500">Updated Time</span>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {lesson?.updatedAt ? new Date(lesson.updatedAt).toLocaleDateString() : "-"}
+                    </p>
                   </div>
                 </div>
 
@@ -528,6 +553,17 @@ export default function LessonEditPage({ id }: { id: string }) {
                     </Badge>
                   </div>
                 </div>
+                
+                <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-500">Vocabulary</span>
+                      <p className="mt-1 text-sm font-semibold text-slate-400 italic">
+                        Not linked
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
                 {error && (
                   <div className="flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -555,6 +591,15 @@ export default function LessonEditPage({ id }: { id: string }) {
                   onClick={() => void handleGenerateMissingTranslations()}
                 >
                   {generatingTranslations ? "Starting..." : "Generate Missing Translations"}
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  className="w-full border-blue-200 py-3 text-base text-blue-600 hover:bg-blue-50"
+                  leftIcon={<RotateCw className="h-4 w-4" />}
+                  onClick={() => void retryLesson()}
+                >
+                  Retry Lesson
                 </Button>
 
                 <Button

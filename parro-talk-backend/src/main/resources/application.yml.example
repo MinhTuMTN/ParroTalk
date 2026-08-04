@@ -55,17 +55,9 @@ spring:
               - email
               - profile
 
-  mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:1025}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: ${MAIL_SMTP_AUTH:false}
-          starttls:
-            enable: ${MAIL_STARTTLS_ENABLE:false}
+  # SMTP has been replaced by Resend API
+  # mail:
+  #   host: ${MAIL_HOST:localhost}
 
 app:
   upload:
@@ -77,6 +69,14 @@ app:
     api_key: ${CLOUDINARY_API_KEY}
     api_secret: ${CLOUDINARY_API_SECRET}
 
+email:
+  provider: resend
+  from: ${APP_MAIL_NAME:ParroTalk} <${APP_MAIL_FROM:noreply@parrotalk.local}>
+  reply-to: ${APP_SUPPORT_EMAIL:support@parrotalk.local}
+  resend:
+    api-key: ${RESEND_API_KEY:INSERT_SECRET_HERE}
+    base-url: ${RESEND_BASE_URL:https://api.resend.com}
+
 application:
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
@@ -85,11 +85,11 @@ application:
     token-expiration-minutes: ${EMAIL_VERIFICATION_TOKEN_EXPIRATION_MINUTES:30}
     resend-cooldown-seconds: ${EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS:60}
     metadata-retention-minutes: ${EMAIL_VERIFICATION_METADATA_RETENTION_MINUTES:1440}
-  mail:
-    app-name: ${APP_MAIL_NAME:ParroTalk}
-    support-email: ${APP_SUPPORT_EMAIL:}
+  password-reset:
+    token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:30}
+    max-requests-per-hour: ${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:5}
   security:
-    public-endpoints: /api/auth/register,/api/auth/login,/api/auth/refresh,/api/auth/verify-email,/api/auth/resend-verification-email
+    public-endpoints: /api/auth/register,/api/auth/login,/api/auth/refresh,/api/auth/verify-email,/api/auth/resend-verification-email,/api/auth/forgot-password,/api/auth/reset-password,/api/auth/reset-password/verify
     jwt:
       secret-key: ${JWT_SECRET_KEY}
       expiration: 86400000

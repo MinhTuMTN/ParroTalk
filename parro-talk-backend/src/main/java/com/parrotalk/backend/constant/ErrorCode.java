@@ -18,6 +18,11 @@ public enum ErrorCode {
     VERIFICATION_TOKEN_SUPERSEDED(1008, "A newer verification email has already been sent.", HttpStatus.BAD_REQUEST),
     RESEND_COOLDOWN_ACTIVE(1009, "Please wait before requesting another verification email.", HttpStatus.TOO_MANY_REQUESTS),
     VALIDATION_ERROR(1010, "Validation failed.", HttpStatus.BAD_REQUEST),
+    RESET_TOKEN_INVALID(1011, "Invalid reset link.", HttpStatus.BAD_REQUEST),
+    RESET_TOKEN_EXPIRED(1012, "Reset link has expired.", HttpStatus.BAD_REQUEST),
+    RESET_TOKEN_USED(1013, "This reset link has already been used.", HttpStatus.BAD_REQUEST),
+    PASSWORD_MISMATCH(1014, "Passwords do not match.", HttpStatus.BAD_REQUEST),
+    RATE_LIMIT_EXCEEDED(1015, "Too many requests. Please try again later.", HttpStatus.TOO_MANY_REQUESTS),
     INTERNAL_SERVER_ERROR(1500, "Internal server error.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

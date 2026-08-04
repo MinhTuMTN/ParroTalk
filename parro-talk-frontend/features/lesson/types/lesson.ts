@@ -28,6 +28,11 @@ export type LessonCategory = {
   name: string;
 };
 
+export type LessonTag = {
+  id: string;
+  name: string;
+};
+
 export type Lesson = {
   id: string;
   title: string;
@@ -35,9 +40,11 @@ export type Lesson = {
   duration: number;
   status: LessonStatus;
   categories: LessonCategory[];
+  tags: LessonTag[];
   segments: Segment[];
   translationSummary?: TranslationSummary;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type LessonFilter = "all" | LessonStatus;

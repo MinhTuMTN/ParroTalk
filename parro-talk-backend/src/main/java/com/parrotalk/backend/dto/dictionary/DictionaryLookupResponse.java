@@ -14,6 +14,10 @@ public record DictionaryLookupResponse(
         String synonymsJson,
         String antonymsJson,
         String source,
+        String cefrLevel,
+        String audioUkUrl,
+        String audioUsUrl,
+        String commonMeaningVi,
         boolean cacheHit
 ) {
 }

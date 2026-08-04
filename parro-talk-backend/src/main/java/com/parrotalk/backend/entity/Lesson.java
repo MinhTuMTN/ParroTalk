@@ -110,12 +110,22 @@ public class Lesson extends BaseEntity {
     /** Categories of the lesson */
     @ManyToMany(fetch = FetchType.LAZY)
     @BatchSize(size = 15)
-    @JoinTable(name = "lesson_categories", joinColumns = @JoinColumn(name = "lesson_id"), inverseJoinColumns = @JoinColumn(name = "category_id"), indexes = {
-            @Index(name = "idx_lesson_categories_lesson_id", columnList = "lesson_id"),
-            @Index(name = "idx_lesson_categories_category_id", columnList = "category_id"),
-            @Index(name = "idx_lesson_categories_lesson_category", columnList = "lesson_id, category_id")
+    @JoinTable(name = "lesson_category_lesson", joinColumns = @JoinColumn(name = "lesson_id"), inverseJoinColumns = @JoinColumn(name = "category_id"), indexes = {
+            @Index(name = "idx_lesson_category_lesson_id", columnList = "lesson_id"),
+            @Index(name = "idx_lesson_category_category_id", columnList = "category_id"),
+            @Index(name = "idx_lesson_category_lesson_category", columnList = "lesson_id, category_id")
     })
     private Set<Category> categories;
+
+    /** Tags of the lesson */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @BatchSize(size = 15)
+    @JoinTable(name = "lesson_tag_lesson", joinColumns = @JoinColumn(name = "lesson_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"), indexes = {
+            @Index(name = "idx_lesson_tag_lesson_id", columnList = "lesson_id"),
+            @Index(name = "idx_lesson_tag_tag_id", columnList = "tag_id"),
+            @Index(name = "idx_lesson_tag_lesson_tag", columnList = "lesson_id, tag_id")
+    })
+    private Set<Tag> tags;
 
     /** Transcription segments */
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)

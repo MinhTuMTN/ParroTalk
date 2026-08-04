@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 type BadgeProps = {
   children: ReactNode;
   tone?: "success" | "neutral" | "info" | "warning";
+  variant?: string;
   className?: string;
 };
 
@@ -27,3 +28,4 @@ export default function Badge({
   );
 }
 
+export { Badge };

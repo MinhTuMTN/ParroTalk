@@ -98,6 +98,36 @@ public class UserVocabulary extends BaseEntity {
     @Column(name = "next_review_at")
     private LocalDateTime nextReviewAt;
 
+    /** Ease factor for SM-2 algorithm. */
+    @Column(name = "ease_factor", nullable = false)
+    @Builder.Default
+    private Double easeFactor = 2.5;
+
+    /** Current interval in days. */
+    @Column(name = "interval_days", nullable = false)
+    @Builder.Default
+    private Integer intervalDays = 0;
+
+    /** Number of repetitions. */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer repetitions = 0;
+
+    /** Total correct answers. */
+    @Column(name = "correct_count", nullable = false)
+    @Builder.Default
+    private Integer correctCount = 0;
+
+    /** Total wrong answers. */
+    @Column(name = "wrong_count", nullable = false)
+    @Builder.Default
+    private Integer wrongCount = 0;
+
+    /** User favorite flag. */
+    @Column(name = "is_favorite", nullable = false)
+    @Builder.Default
+    private Boolean isFavorite = false;
+
     /** Lesson/segment occurrences where this word appears. */
     @OneToMany(mappedBy = "userVocabulary", fetch = FetchType.LAZY)
     private List<UserVocabularyOccurrence> occurrences;

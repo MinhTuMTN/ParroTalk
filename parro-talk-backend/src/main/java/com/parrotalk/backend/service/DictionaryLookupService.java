@@ -47,6 +47,10 @@ public class DictionaryLookupService {
                 saved.getSynonymsJson(),
                 saved.getAntonymsJson(),
                 saved.getSource(),
+                saved.getCefrLevel(),
+                saved.getAudioUkUrl(),
+                saved.getAudioUsUrl(),
+                saved.getCommonMeaningVi(),
                 true
         );
     }
@@ -64,6 +68,10 @@ public class DictionaryLookupService {
                 null,
                 null,
                 FALLBACK_SOURCE,
+                null,
+                null,
+                null,
+                null,
                 false
         );
     }

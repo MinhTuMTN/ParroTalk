@@ -65,6 +65,22 @@ public class DictionaryEntry extends BaseEntity {
     @Column(length = 255)
     private String phonetic;
 
+    /** CEFR Level (e.g., A1, B2). */
+    @Column(name = "cefr_level", length = 10)
+    private String cefrLevel;
+
+    /** Audio URL for UK pronunciation. */
+    @Column(name = "audio_uk_url", length = 500)
+    private String audioUkUrl;
+
+    /** Audio URL for US pronunciation. */
+    @Column(name = "audio_us_url", length = 500)
+    private String audioUsUrl;
+
+    /** Short common meaning in Vietnamese. */
+    @Column(name = "common_meaning_vi", length = 500)
+    private String commonMeaningVi;
+
     /** Dictionary definitions stored as JSON. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "definitions_json", nullable = false, columnDefinition = "jsonb")

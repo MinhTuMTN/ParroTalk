@@ -49,6 +49,10 @@ public class LessonResponse {
     private Integer duration;
     /** Categories */
     private Set<CategoryResponse> categories;
+    /** Tags */
+    private Set<TagResponse> tags;
+    /** Lesson updated date */
+    private LocalDateTime updatedAt;
     /** Segments */
     private List<TranscriptionResponse> segments;
     /** Aggregated translation state for lesson segments */
