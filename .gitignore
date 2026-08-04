@@ -1,6 +1,9 @@
-# vscode
 .vscode
 .agents
 .continue
 skills-lock.json
 .codex
+eclipse-java-google-style.xml
+docker-gui.bat
+.env
+parro-talk-vocab-pipeline/
