@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useEffect, useRef } from "react";
 import { getDictationMatching } from "@/lib/utils";
+import { useEffect, useRef } from "react";
 
 interface Segment {
   start: number;
@@ -17,7 +17,13 @@ interface TranscriptListProps {
   onSelectSentence: (index: number) => void;
 }
 
-export default function TranscriptList({ segments, activeIndex, completedIndices, inputs, onSelectSentence }: TranscriptListProps) {
+export default function TranscriptList({
+  segments,
+  activeIndex,
+  completedIndices,
+  inputs,
+  onSelectSentence
+}: TranscriptListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,10 +94,9 @@ export default function TranscriptList({ segments, activeIndex, completedIndices
                 </p>
               </div>
             </div>
-          )
+          );
         })}
       </div>
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { PracticeQuestion } from '../types';
 import { Button } from '@/components/ui/Button';
 import { Volume2 } from 'lucide-react';
@@ -11,19 +11,24 @@ interface ListeningQuestionProps {
 
 export const ListeningQuestion: React.FC<ListeningQuestionProps> = ({ question, onAnswer }) => {
   const [value, setValue] = useState('');
+  const [prevQuestion, setPrevQuestion] = useState(question);
 
-  const playAudio = () => {
+  if (question !== prevQuestion) {
+    setPrevQuestion(question);
+    setValue('');
+  }
+
+  const playAudio = useCallback(() => {
     if (question.audioUrl) {
       const audio = new Audio(question.audioUrl);
       audio.play().catch(console.error);
     }
-  };
+  }, [question.audioUrl]);
 
   useEffect(() => {
-    setValue('');
     // Auto play audio when question loads
     playAudio();
-  }, [question]);
+  }, [playAudio]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

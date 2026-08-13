@@ -92,7 +92,7 @@ export default function PracticeRunner({ params }: { params: Promise<{ sessionId
       <div className="h-screen flex flex-col items-center justify-center space-y-8 bg-slate-50 dark:bg-slate-950 p-4">
         <h1 className="text-4xl md:text-6xl font-bold text-slate-800 dark:text-white">Session Complete! 🎉</h1>
         <div className="p-8 bg-white dark:bg-slate-900 rounded-3xl shadow-xl space-y-4 text-center">
-          <p className="text-xl text-slate-600 dark:text-slate-300">Great job! You've reviewed {session.questions.length} words.</p>
+          <p className="text-xl text-slate-600 dark:text-slate-300">Great job! You&apos;ve reviewed {session.questions.length} words.</p>
           <Button 
             size="lg" 
             onClick={() => router.push('/practice')}

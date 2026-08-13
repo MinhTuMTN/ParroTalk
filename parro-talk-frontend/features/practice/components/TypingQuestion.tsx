@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { PracticeQuestion } from '../types';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import React, { useState } from 'react';
+import { PracticeQuestion } from '../types';
 
 interface TypingQuestionProps {
   question: PracticeQuestion;
@@ -10,6 +10,12 @@ interface TypingQuestionProps {
 
 export const TypingQuestion: React.FC<TypingQuestionProps> = ({ question, onAnswer }) => {
   const [value, setValue] = useState('');
+  const [prevQuestion, setPrevQuestion] = useState(question);
+
+  if (question !== prevQuestion) {
+    setPrevQuestion(question);
+    setValue('');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,10 +23,6 @@ export const TypingQuestion: React.FC<TypingQuestionProps> = ({ question, onAnsw
       onAnswer(value.trim());
     }
   };
-
-  useEffect(() => {
-    setValue(''); // Reset on question change
-  }, [question]);
 
   return (
     <div className="flex flex-col items-center justify-center space-y-8 animate-in fade-in zoom-in duration-300 w-full max-w-xl mx-auto">

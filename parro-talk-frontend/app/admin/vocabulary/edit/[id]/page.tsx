@@ -76,9 +76,11 @@ export default function VocabularyEditPage({ params }: { params: Promise<{ id: s
         await adminVocabularyApi.updateVocabulary(id, formData);
       }
       router.push('/admin/vocabulary/list');
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || 'Failed to save vocabulary');
+      const message = error instanceof Error ? error.message : 'Failed to save vocabulary';
+      const responseMessage = error && typeof error === 'object' && 'response' in error ? (error.response as { data?: { message?: string } })?.data?.message : undefined;
+      alert(responseMessage || message);
     } finally {
       setSaving(false);
     }

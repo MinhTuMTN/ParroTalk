@@ -1,4 +1,3 @@
-import React from 'react';
 
 interface StatusBadgeProps {
   status: 'PROCESSING' | 'DONE' | 'FAILED' | 'CONNECTING' | 'IDLE';
@@ -8,7 +7,7 @@ export default function StatusBadge({ status }: StatusBadgeProps) {
   let dotColor = 'bg-gray-400';
   let bgColor = 'bg-gray-100';
   let textColor = 'text-gray-600';
-  let label = status;
+  const label = status;
 
   if (status === 'PROCESSING' || status === 'CONNECTING') {
     dotColor = 'bg-blue-500 animate-pulse';

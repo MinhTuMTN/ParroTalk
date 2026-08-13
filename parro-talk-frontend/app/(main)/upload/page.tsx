@@ -85,7 +85,7 @@ export default function UploadPage() {
       }
 
       setLessonId(response.lessonId);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Processing error:', err);
       setToast({ message: "Processing failed. Please try again.", variant: "error" });
     } finally {
@@ -219,7 +219,7 @@ export default function UploadPage() {
     <div className="max-w-4xl mx-auto w-full px-6 py-12 flex flex-col items-center">
       <div className="text-center mb-4">
         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Create New Lesson</h1>
-        <p className="text-gray-500 text-lg">Your linguistic growth starts with a simple sound. Let's process your next session.</p>
+        <p className="text-gray-500 text-lg font-medium">Your linguistic growth starts with a simple sound. Let&apos;s process your next session.</p>
       </div>
 
       <div className="w-full max-w-2xl flex flex-col gap-6">

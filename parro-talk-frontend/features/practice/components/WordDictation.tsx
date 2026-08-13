@@ -1,8 +1,7 @@
 "use client";
 
 import { cleanWord, getDictationMatching } from "@/lib/utils";
-import { Keyboard } from "lucide-react";
-import React, { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 interface WordDictationProps {
   sentence: string;
@@ -15,13 +14,26 @@ interface WordDictationProps {
 
 export default function WordDictation({ sentence, fullInput, onInputChange, onSentenceComplete, onHintUsed, isCompleted }: WordDictationProps) {
   const targetWords = useMemo(() => sentence.split(" "), [sentence]);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Reset revealed words when sentence changes
+  // Auto-resize textarea height when input text changes
   useEffect(() => {
+    const textarea = inputRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      const style = window.getComputedStyle(textarea);
+      const borderTop = parseFloat(style.borderTopWidth) || 0;
+      const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+      textarea.style.height = `${textarea.scrollHeight + borderTop + borderBottom}px`;
+    }
+  }, [fullInput, sentence]);
+  const [revealedWords, setRevealedWords] = useState<Set<number>>(new Set());
+  const [prevSentence, setPrevSentence] = useState(sentence);
+
+  if (sentence !== prevSentence) {
+    setPrevSentence(sentence);
     setRevealedWords(new Set());
-  }, [sentence]);
+  }
 
   const { matchingResult, currentIdx, currentTypedPart, isAllMatched } = useMemo(() => {
     const userInput = fullInput.split(/\s+/);
@@ -51,18 +63,19 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
     }
   }, [isAllMatched, isCompleted, onSentenceComplete]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (isCompleted) return;
-    onInputChange(e.target.value);
+    // Replace newlines with spaces to maintain single-line text behavior in the data model
+    const cleanValue = e.target.value.replace(/\r?\n|\r/g, " ");
+    onInputChange(cleanValue);
   };
 
-  const handleFocusOrClick = useCallback((e: React.SyntheticEvent<HTMLInputElement>) => {
-    const input = e.currentTarget;
-    setTimeout(() => {
-      const len = input.value.length;
-      input.setSelectionRange(len, len);
-    }, 0);
-  }, []);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Prevent inserting newlines when Enter is pressed
+    if (e.key === "Enter") {
+      e.preventDefault();
+    }
+  };
 
   const handleWordClick = useCallback((idx: number) => {
     if (isCompleted || isAllMatched) return;
@@ -143,19 +156,19 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
 
       {/* Actual Input Field */}
       < div className="w-full max-w-2xl relative group" >
-        <input
+        <textarea
           ref={inputRef}
-          type="text"
           value={fullInput}
           onChange={handleInputChange}
-          onFocus={handleFocusOrClick}
-          onClick={handleFocusOrClick}
+          onKeyDown={handleKeyDown}
           placeholder="Type what you hear..."
+          rows={1}
           className={`
             w-full bg-gray-50 border-2 rounded-2xl 
             py-2 px-3 sm:py-3 sm:px-4 lg:py-3 lg:px-4
-            text-base lg:text-lg
+            text-base lg:text-lg leading-normal
             font-bold transition-all outline-none
+            resize-none overflow-hidden
             
             ${currentIdx !== -1 &&
               currentTypedPart.length > 0 &&

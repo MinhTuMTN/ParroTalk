@@ -29,16 +29,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const savedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
 
+    let parsedUser: User | null = null;
+    let shouldClear = false;
+
     if (savedUser && token) {
       try {
-        setUser(JSON.parse(savedUser));
+        parsedUser = JSON.parse(savedUser);
       } catch {
-        localStorage.removeItem("token");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("user");
+        shouldClear = true;
       }
     }
-    setIsLoading(false);
+
+    if (shouldClear) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
+    }
+
+    setTimeout(() => {
+      if (parsedUser) {
+        setUser(parsedUser);
+      }
+      setIsLoading(false);
+    }, 0);
   }, []);
 
   const login = (token: string, refreshToken: string, user: User) => {

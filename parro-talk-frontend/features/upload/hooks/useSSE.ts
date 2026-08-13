@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { API_URL } from '@/lib/axios';
+import { useEffect, useState } from 'react';
 
 type SSEStatus = 'PROCESSING' | 'DONE' | 'FAILED' | 'CONNECTING' | 'IDLE';
 
@@ -11,11 +11,34 @@ interface SSEState {
 }
 
 export function useSSE(lessonId: string | null) {
-  const [state, setState] = useState<SSEState>({
-    status: 'IDLE',
-    progress: 0,
-    step: 'Initializing...',
+  const [state, setState] = useState<SSEState>(() => {
+    if (lessonId) {
+      return {
+        status: 'CONNECTING',
+        progress: 0,
+        step: 'Establishing connection...',
+      };
+    }
+    return {
+      status: 'IDLE',
+      progress: 0,
+      step: 'Initializing...',
+    };
   });
+
+  const [prevLessonId, setPrevLessonId] = useState(lessonId);
+  if (lessonId !== prevLessonId) {
+    setPrevLessonId(lessonId);
+    setState(lessonId ? {
+      status: 'CONNECTING',
+      progress: 0,
+      step: 'Establishing connection...',
+    } : {
+      status: 'IDLE',
+      progress: 0,
+      step: 'Initializing...',
+    });
+  }
 
   useEffect(() => {
     if (!lessonId) {
@@ -24,11 +47,6 @@ export function useSSE(lessonId: string | null) {
     }
 
     console.log(`useSSE: Initializing connection for lessonId: ${lessonId}`);
-    setState({
-      status: 'CONNECTING',
-      progress: 0,
-      step: 'Establishing connection...',
-    });
 
     // Normalize URL: remove potential double slashes
     const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;

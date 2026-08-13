@@ -12,7 +12,10 @@ export default function ResultPage() {
     const data = localStorage.getItem('parrotalk_last_result');
     if (data) {
       try {
-        setResult(JSON.parse(data));
+        const parsed = JSON.parse(data);
+        setTimeout(() => {
+          setResult(parsed);
+        }, 0);
       } catch (e) {
         console.error("Failed to parse result data", e);
       }

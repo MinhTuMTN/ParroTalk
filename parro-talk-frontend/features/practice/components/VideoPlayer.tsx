@@ -1,9 +1,9 @@
 "use client";
 
-import ReactPlayer from "react-player/lazy";
-import { Play, Pause, RotateCcw, Zap, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
 import Switch from "@/components/ui/Switch";
+import { Pause, Play, Zap } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ReactPlayer from "react-player/lazy";
 
 interface Segment {
   start: number;
@@ -11,18 +11,45 @@ interface Segment {
   text: string;
 }
 
-export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNext, onPrevious, hasNext, hasPrevious }: {
+const formatDuration = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  if (m === 0) return `${s}s`;
+  return `${m}m ${s}s`;
+};
+
+export default function VideoPlayer({
+  src,
+  activeSegment,
+  onReplay,
+  isPlaying: isPlayingProp,
+  setIsPlaying: setIsPlayingProp,
+  replayTrigger = 0,
+  speed: speedProp,
+  setSpeed: setSpeedProp,
+  lessonTitle,
+  lessonDuration,
+  totalSegments
+}: {
   src?: string,
   activeSegment?: Segment,
   onReplay?: () => void,
-  onSave?: () => void,
-  onNext?: () => void,
-  onPrevious?: () => void,
-  hasNext?: boolean,
-  hasPrevious?: boolean
+  isPlaying?: boolean,
+  setIsPlaying?: React.Dispatch<React.SetStateAction<boolean>> | ((val: boolean) => void),
+  replayTrigger?: number,
+  speed?: number,
+  setSpeed?: React.Dispatch<React.SetStateAction<number>>,
+  lessonTitle?: string,
+  lessonDuration?: number,
+  totalSegments?: number
 }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [localIsPlaying, localSetIsPlaying] = useState(false);
+  const isPlaying = isPlayingProp !== undefined ? isPlayingProp : localIsPlaying;
+  const setIsPlaying = setIsPlayingProp !== undefined ? setIsPlayingProp : localSetIsPlaying;
+
+  const [localSpeed, localSetSpeed] = useState(1);
+  const speed = speedProp !== undefined ? speedProp : localSpeed;
+  const setSpeed = setSpeedProp !== undefined ? setSpeedProp : localSetSpeed;
   const [isLooping, setIsLooping] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("parrotalk_video_loop");
@@ -30,6 +57,21 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
     }
     return false;
   });
+
+  const hasEndedRef = useRef(false);
+
+  // Reset segment end state when activeSegment changes
+  useEffect(() => {
+    hasEndedRef.current = false;
+  }, [activeSegment]);
+
+  // Sync replay metric when user starts playing again after the video segment finishes
+  useEffect(() => {
+    if (isPlaying && hasEndedRef.current) {
+      if (onReplay) onReplay();
+      hasEndedRef.current = false;
+    }
+  }, [isPlaying, onReplay]);
 
   const playerRef = useRef<ReactPlayer | HTMLVideoElement | null>(null);
   const [progressPercent, setProgressPercent] = useState(0);
@@ -52,7 +94,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
       }
       if (onReplay) onReplay();
     }
-  }, [activeSegment, onReplay, isYoutube]);
+  }, [activeSegment, onReplay, isYoutube, setIsPlaying]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -64,6 +106,19 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleReplay]);
+
+  // Use ref to hold latest handleReplay closure and avoid infinite rendering loops
+  const handleReplayRef = useRef(handleReplay);
+  useEffect(() => {
+    handleReplayRef.current = handleReplay;
+  }, [handleReplay]);
+
+  // Handle external replay trigger
+  useEffect(() => {
+    if (replayTrigger > 0) {
+      handleReplayRef.current();
+    }
+  }, [replayTrigger]);
 
   // Handle loop clipping bounding
   useEffect(() => {
@@ -79,9 +134,11 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
         v.currentTime = start;
         if (isLooping) {
           v.play().catch(e => console.log(e));
+          if (onReplay) onReplay();
         } else {
           v.pause();
           setIsPlaying(false);
+          hasEndedRef.current = true;
         }
       }
 
@@ -92,7 +149,7 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
 
     v.addEventListener('timeupdate', handleTimeUpdate);
     return () => v.removeEventListener('timeupdate', handleTimeUpdate);
-  }, [activeSegment, isLooping, isPlaying, isYoutube]);
+  }, [activeSegment, isLooping, isPlaying, isYoutube, onReplay, setIsPlaying]);
 
   // Handle active Segment change payload
   useEffect(() => {
@@ -111,13 +168,30 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
           });
       }
     }
-  }, [activeSegment, isYoutube]);
+  }, [activeSegment, isYoutube, setIsPlaying]);
 
   useEffect(() => {
     if (!isYoutube && playerRef.current) {
       (playerRef.current as HTMLVideoElement).playbackRate = speed;
     }
   }, [speed, isYoutube]);
+
+  // Sync HTML5 video play/pause status with isPlaying prop
+  useEffect(() => {
+    if (isYoutube) return;
+    const video = playerRef.current as HTMLVideoElement;
+    if (!video) return;
+
+    if (isPlaying) {
+      if (video.paused) {
+        video.play().catch(e => console.log("Playback error", e));
+      }
+    } else {
+      if (!video.paused) {
+        video.pause();
+      }
+    }
+  }, [isPlaying, isYoutube]);
 
   const togglePlay = () => {
     if (isYoutube) {
@@ -134,9 +208,9 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
   };
 
   const toggleSpeed = useCallback(() => {
-    const nextSpeed = speed === 1.5 ? 0.5 : speed + 0.25;
-    setSpeed(nextSpeed);
-  }, [speed, setSpeed]);
+    setSpeed(prev => prev === 1.5 ? 0.5 : prev + 0.25);
+  }, [setSpeed]);
+
 
   const onYoutubeProgress = (state: { playedSeconds: number }) => {
     if (isYoutube && activeSegment && playerRef.current) {
@@ -146,8 +220,11 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
       if (ct >= end) {
         if (isLooping) {
           (playerRef.current as ReactPlayer).seekTo(start, 'seconds');
+          if (onReplay) onReplay();
         } else {
           setIsPlaying(false);
+          (playerRef.current as ReactPlayer).seekTo(start, 'seconds');
+          hasEndedRef.current = true;
         }
       }
 
@@ -256,7 +333,25 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
         </div>
       </div>
       {/* Compact Controls Card */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
+        {/* Lesson Info Section */}
+        {lessonTitle && (
+          <div className="flex flex-col gap-1 pb-3 border-b border-gray-100">
+            <h3 className="text-sm font-black text-gray-800 leading-snug tracking-tight">
+              {lessonTitle}
+            </h3>
+            <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+              {lessonDuration !== undefined && lessonDuration > 0 && (
+                <>
+                  <span>{formatDuration(lessonDuration)}</span>
+                  <span className="text-gray-200">•</span>
+                </>
+              )}
+              <span>{totalSegments} segments</span>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           {/* Loop Setting */}
           <div className="flex flex-row items-center gap-4">
@@ -285,36 +380,6 @@ export default function VideoPlayer({ src, activeSegment, onReplay, onSave, onNe
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Mobile Navigation Buttons */}
-        <div className="md:hidden flex gap-2 mt-4">
-          <button
-            onClick={onPrevious}
-            disabled={!hasPrevious}
-            className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-100 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-gray-100 transition-all"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onClick={handleReplay}
-            className="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
-          >
-            <RotateCcw size={16} />
-          </button>
-          <button
-            onClick={togglePlay}
-            className="flex-1 py-3 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
-          >
-            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-          </button>
-          <button
-            onClick={onNext}
-            disabled={!hasNext}
-            className="flex-1 py-3 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-100 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-gray-100 transition-all"
-          >
-            <ChevronRight size={16} />
-          </button>
         </div>
       </div>
 

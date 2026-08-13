@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
 import PracticeHeader from "@/features/practice/components/PracticeHeader";
-import VideoPlayer from "@/features/practice/components/VideoPlayer";
 import TranscriptList from "@/features/practice/components/TranscriptList";
-import WordDictation from "@/features/practice/components/WordDictation";
 import TranslationReview from "@/features/practice/components/TranslationReview";
-import { Save, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import VideoPlayer from "@/features/practice/components/VideoPlayer";
+import WordDictation from "@/features/practice/components/WordDictation";
+import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { lessonService, Sentence, SubmitLessonRequest, SegmentResultRequest } from "@/features/lesson/services/lessonService";
+import { SegmentResultRequest, Sentence, SubmitLessonRequest, lessonService } from "@/features/lesson/services/lessonService";
 
 interface SegmentStat {
   hintWords: number;
@@ -33,6 +33,16 @@ export default function PracticePage() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [activeTab, setActiveTab] = useState<'practice' | 'transcript'>('practice');
   const [awaitingAdvance, setAwaitingAdvance] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [replayTrigger, setReplayTrigger] = useState(0);
+  const [speed, setSpeed] = useState(1);
+  const [lessonTitle, setLessonTitle] = useState("");
+  const [lessonDuration, setLessonDuration] = useState(0);
+
+  const toggleSpeed = useCallback(() => {
+    setSpeed(prev => prev === 1.5 ? 0.5 : prev + 0.25);
+  }, []);
+
   const activeStudySecondsRef = useRef(0);
 
 
@@ -118,6 +128,8 @@ export default function PracticePage() {
         ]);
 
         setFileUrl(lessonData.fileUrl || "");
+        setLessonTitle(lessonData.title || "Untitled Lesson");
+        setLessonDuration(lessonData.duration || 0);
         const sentences = lessonData.segments || [];
         setSegments(sentences);
 
@@ -328,11 +340,14 @@ export default function PracticePage() {
               src={fileUrl}
               activeSegment={activeSegment}
               onReplay={() => incrementMetric('replayCount')}
-              onSave={() => saveProgressToDb(false)}
-              onNext={handleNext}
-              onPrevious={handlePrevious}
-              hasNext={activeIndex < segments.length - 1}
-              hasPrevious={activeIndex > 0}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              replayTrigger={replayTrigger}
+              speed={speed}
+              setSpeed={setSpeed}
+              lessonTitle={lessonTitle}
+              lessonDuration={lessonDuration}
+              totalSegments={segments.length}
             />
           </div>
 
@@ -365,15 +380,55 @@ export default function PracticePage() {
             onContinue={() => void handleAdvanceAfterReview()}
           />
         ) : (
-          <div className="relative bg-white border-t border-gray-100 z-10 shrink-0 bg-white shadow-[0_-8px_30px_rgba(0,0,0,0.04) py-6 px-4">
-            <WordDictation
-              sentence={activeSentence}
-              fullInput={inputs[activeIndex] || ""}
-              onInputChange={handleInputChange}
-              onSentenceComplete={handleSentenceComplete}
-              onHintUsed={() => incrementMetric('hintWords')}
-              isCompleted={completedIndices.has(activeIndex)}
-            />
+          <div className="relative bg-white border-t border-gray-100 z-10 shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] py-3 px-4 sm:py-4">
+            <div className="flex flex-col gap-3">
+              {/* Mobile Navigation Buttons inside sticky footer */}
+              <div className="md:hidden flex gap-2 w-full max-w-2xl mx-auto">
+                <button
+                  onClick={handlePrevious}
+                  disabled={activeIndex === 0}
+                  className="flex-1 py-2.5 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-100 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-gray-100 transition-all"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => {
+                    setReplayTrigger(prev => prev + 1);
+                  }}
+                  className="flex-1 py-2.5 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
+                >
+                  <RotateCcw size={16} />
+                </button>
+                <button
+                  onClick={() => setIsPlaying(prev => !prev)}
+                  className="flex-1 py-2.5 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
+                >
+                  {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <button
+                  onClick={toggleSpeed}
+                  className="flex-1 py-2.5 bg-green-50 text-green-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-green-100 flex items-center justify-center gap-2 active:bg-green-100 transition-all shadow-sm"
+                >
+                  {speed}x
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={activeIndex >= segments.length - 1}
+                  className="flex-1 py-2.5 bg-gray-50 text-gray-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-gray-100 flex items-center justify-center gap-2 disabled:opacity-30 active:bg-gray-100 transition-all"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              <WordDictation
+                sentence={activeSentence}
+                fullInput={inputs[activeIndex] || ""}
+                onInputChange={handleInputChange}
+                onSentenceComplete={handleSentenceComplete}
+                onHintUsed={() => incrementMetric('hintWords')}
+                isCompleted={completedIndices.has(activeIndex)}
+              />
+            </div>
           </div>
         )
       ) : null}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AdminTagDto } from '../types';
+import { AdminTagDto, AdminTagCreateRequest, AdminTagUpdateRequest } from '../types';
 import { tagService } from '../services/tagService';
 import TagEditorModal from './TagEditorModal';
 
@@ -27,9 +27,9 @@ export default function TagList() {
         }
     };
 
-    const handleSave = async (data: any) => {
+    const handleSave = async (data: AdminTagCreateRequest) => {
         if (editingTag) {
-            await tagService.updateTag(editingTag.id, data);
+            await tagService.updateTag(editingTag.id, data as AdminTagUpdateRequest);
         } else {
             await tagService.createTag(data);
         }
@@ -41,8 +41,18 @@ export default function TagList() {
             try {
                 await tagService.deleteTag(id);
                 fetchTags();
-            } catch (err: any) {
-                alert(err?.response?.data?.message || 'Failed to delete tag');
+            } catch (err) {
+                let message = 'Failed to delete tag';
+                if (err instanceof Error) {
+                    message = err.message;
+                }
+                if (err && typeof err === 'object' && 'response' in err) {
+                    const response = (err as { response?: { data?: { message?: string } } }).response;
+                    if (response?.data?.message) {
+                        message = response.data.message;
+                    }
+                }
+                alert(message);
             }
         }
     };

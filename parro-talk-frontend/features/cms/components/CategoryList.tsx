@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AdminCategoryDto } from '../types';
+import { AdminCategoryDto, AdminCategoryCreateRequest, AdminCategoryUpdateRequest } from '../types';
 import { categoryService } from '../services/categoryService';
 import CategoryEditorModal from './CategoryEditorModal';
 
@@ -27,9 +27,9 @@ export default function CategoryList() {
         }
     };
 
-    const handleSave = async (data: any) => {
+    const handleSave = async (data: AdminCategoryCreateRequest) => {
         if (editingCategory) {
-            await categoryService.updateCategory(editingCategory.id, data);
+            await categoryService.updateCategory(editingCategory.id, data as AdminCategoryUpdateRequest);
         } else {
             await categoryService.createCategory(data);
         }
@@ -41,8 +41,18 @@ export default function CategoryList() {
             try {
                 await categoryService.deleteCategory(id);
                 fetchTree();
-            } catch (err: any) {
-                alert(err?.response?.data?.message || 'Failed to delete category');
+            } catch (err) {
+                let message = 'Failed to delete category';
+                if (err instanceof Error) {
+                    message = err.message;
+                }
+                if (err && typeof err === 'object' && 'response' in err) {
+                    const response = (err as { response?: { data?: { message?: string } } }).response;
+                    if (response?.data?.message) {
+                        message = response.data.message;
+                    }
+                }
+                alert(message);
             }
         }
     };

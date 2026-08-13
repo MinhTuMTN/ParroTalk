@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { AdminCategoryDto, AdminCategoryCreateRequest, AdminCategoryUpdateRequest } from '../types';
+import { AdminCategoryDto, AdminCategoryCreateRequest, CmsItemStatus } from '../types';
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: any) => Promise<void>;
+    onSave: (data: AdminCategoryCreateRequest & { id?: string }) => Promise<void>;
     category?: AdminCategoryDto | null;
     categories: AdminCategoryDto[]; // For parent selection
 }
@@ -74,8 +74,18 @@ export default function CategoryEditorModal({ isOpen, onClose, onSave, category,
             }
             await onSave(submitData);
             onClose();
-        } catch (err: any) {
-            setError(err?.response?.data?.message || err.message || 'An error occurred while saving.');
+        } catch (err) {
+            let message = 'An error occurred while saving.';
+            if (err instanceof Error) {
+                message = err.message;
+            }
+            if (err && typeof err === 'object' && 'response' in err) {
+                const response = (err as { response?: { data?: { message?: string } } }).response;
+                if (response?.data?.message) {
+                    message = response.data.message;
+                }
+            }
+            setError(message);
         } finally {
             setLoading(false);
         }
@@ -166,7 +176,7 @@ export default function CategoryEditorModal({ isOpen, onClose, onSave, category,
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
                             <select 
                                 value={formData.status}
-                                onChange={e => setFormData({...formData, status: e.target.value as any})}
+                                onChange={e => setFormData({...formData, status: e.target.value as CmsItemStatus})}
                                 className="w-full px-4 py-2 border rounded-md dark:bg-gray-950 dark:border-gray-700 focus:ring-2 focus:ring-indigo-500"
                             >
                                 <option value="ACTIVE">Active</option>
