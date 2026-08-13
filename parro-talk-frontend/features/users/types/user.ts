@@ -2,7 +2,7 @@ export type AdminUserRole = "ADMIN" | "PRO_USER" | "USER";
 
 export type AdminUserStatus = "ACTIVE" | "INACTIVE";
 
-export type AdminUser = {
+export type AdminUserSummary = {
   id: string;
   fullName: string;
   username: string;
@@ -10,9 +10,12 @@ export type AdminUser = {
   role: AdminUserRole;
   status: AdminUserStatus;
   avatarUrl?: string | null;
+  emailVerified: boolean;
   createdAt: string;
   lastActiveAt?: string | null;
-  emailVerified: boolean;
+};
+
+export type AdminUser = AdminUserSummary & {
   totalLessonsCompleted: number;
   totalScore: number;
   avgScore: number;
@@ -29,7 +32,7 @@ export type UserListParams = {
 };
 
 export type UserListResult = {
-  users: AdminUser[];
+  users: AdminUserSummary[];
   page: number;
   size: number;
   totalItems: number;

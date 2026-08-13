@@ -1,17 +1,17 @@
 import UserRow from "@/features/users/components/UserRow";
-import type { AdminUser } from "@/features/users/types/user";
+import type { AdminUserSummary } from "@/features/users/types/user";
 
 type UsersTableProps = {
-  users: AdminUser[];
+  users: AdminUserSummary[];
   selectedIds: string[];
   currentUserId?: string;
   onSelectAll: (checked: boolean) => void;
   onSelect: (id: string, checked: boolean) => void;
-  onView: (user: AdminUser) => void;
-  onEdit: (user: AdminUser) => void;
-  onToggleStatus: (user: AdminUser) => void;
-  onResetPassword: (user: AdminUser) => void;
-  onDelete: (user: AdminUser) => void;
+  onView: (user: AdminUserSummary) => void;
+  onEdit: (user: AdminUserSummary) => void;
+  onToggleStatus: (user: AdminUserSummary) => void;
+  onResetPassword: (user: AdminUserSummary) => void;
+  onDelete: (user: AdminUserSummary) => void;
 };
 
 export default function UsersTable({

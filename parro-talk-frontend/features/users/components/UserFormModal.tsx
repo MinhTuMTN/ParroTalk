@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import type {
-  AdminUser,
+  AdminUserSummary,
   AdminUserRole,
   AdminUserStatus,
   CreateAdminUserInput,
@@ -14,7 +14,7 @@ import type {
 
 type UserFormModalProps = {
   mode: "create" | "edit";
-  user?: AdminUser | null;
+  user?: AdminUserSummary | null;
   submitting: boolean;
   onClose: () => void;
   onSubmit: (payload: CreateAdminUserInput | UpdateAdminUserInput) => Promise<void>;

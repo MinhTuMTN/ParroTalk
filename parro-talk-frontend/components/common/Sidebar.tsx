@@ -77,6 +77,12 @@ export default function Sidebar({
     {
       icon: BookType,
       label: "Vocabulary",
+      path: "/vocabulary",
+      active: pathname.startsWith("/vocabulary") && !pathname.startsWith("/admin/vocabulary"),
+    },
+    {
+      icon: BookType,
+      label: "Admin Vocabulary",
       path: "/admin/vocabulary/list",
       active: pathname.startsWith("/admin/vocabulary"),
     },

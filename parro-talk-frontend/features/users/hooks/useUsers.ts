@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDebounce } from "use-debounce";
 import { adminUserService } from "@/features/users/services/adminUserService";
 import type {
-  AdminUser,
+  AdminUserSummary,
   AdminUserRole,
   AdminUserStatus,
 } from "@/features/users/types/user";
@@ -33,7 +33,7 @@ export function useUsers(enabled = true) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") ?? "");
   const [debouncedSearch] = useDebounce(searchQuery, 400);
   const [roleFilter, setRoleFilter] = useState<AdminUserRole | "all">(

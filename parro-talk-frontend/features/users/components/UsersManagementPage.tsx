@@ -23,6 +23,7 @@ import { useUsers } from "@/features/users/hooks/useUsers";
 import { adminUserService } from "@/features/users/services/adminUserService";
 import type {
   AdminUser,
+  AdminUserSummary,
   AdminUserRole,
   AdminUserStatus,
   CreateAdminUserInput,
@@ -96,11 +97,11 @@ export default function UsersManagementPage() {
   } = useUsers(user?.role === "ADMIN");
 
   const [formMode, setFormMode] = useState<"create" | "edit" | null>(null);
-  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [editingUser, setEditingUser] = useState<AdminUserSummary | null>(null);
   const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUserSummary | null>(null);
   const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; variant: "success" | "error" | "info" } | null>(
@@ -161,7 +162,7 @@ export default function UsersManagementPage() {
     }
   };
 
-  const handleViewUser = async (target: AdminUser) => {
+  const handleViewUser = async (target: AdminUserSummary) => {
     setIsDetailOpen(true);
     setDetailLoading(true);
     try {
@@ -177,7 +178,7 @@ export default function UsersManagementPage() {
     }
   };
 
-  const handleToggleStatus = async (target: AdminUser) => {
+  const handleToggleStatus = async (target: AdminUserSummary) => {
     const nextStatus = target.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     try {
       await adminUserService.updateStatus(target.id, nextStatus);
@@ -194,7 +195,7 @@ export default function UsersManagementPage() {
     }
   };
 
-  const handleResetPassword = async (target: AdminUser) => {
+  const handleResetPassword = async (target: AdminUserSummary) => {
     try {
       const result = await adminUserService.resetPassword(target.id);
       setTemporaryPassword(result.temporaryPassword);

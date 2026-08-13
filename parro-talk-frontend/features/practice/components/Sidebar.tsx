@@ -19,7 +19,7 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
 
   const menuItems = [
     { icon: Play, label: "Library", path: "/library", active: pathname === "/library", hidden: false },
-    { icon: Book, label: "Dictionary", path: "/dictionary", active: pathname.startsWith("/dictionary"), hidden: false },
+    { icon: Book, label: "Vocabulary", path: "/vocabulary", active: pathname.startsWith("/vocabulary"), hidden: false },
     { icon: Brain, label: "Practice", path: "/practice", active: pathname.startsWith("/practice"), hidden: false },
     { icon: FileText, label: "Notes", path: "#", hidden: true },
     { icon: Mic, label: "Transcript", path: "#", hidden: true },

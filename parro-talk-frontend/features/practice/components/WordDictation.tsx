@@ -2,7 +2,7 @@
 
 import { cleanWord, getDictationMatching } from "@/lib/utils";
 import { Keyboard } from "lucide-react";
-import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import React, { useMemo, useRef, useEffect, useState, useCallback } from "react";
 
 interface WordDictationProps {
   sentence: string;
@@ -55,6 +55,14 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
     if (isCompleted) return;
     onInputChange(e.target.value);
   };
+
+  const handleFocusOrClick = useCallback((e: React.SyntheticEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    setTimeout(() => {
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    }, 0);
+  }, []);
 
   const handleWordClick = useCallback((idx: number) => {
     if (isCompleted || isAllMatched) return;
@@ -140,6 +148,8 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
           type="text"
           value={fullInput}
           onChange={handleInputChange}
+          onFocus={handleFocusOrClick}
+          onClick={handleFocusOrClick}
           placeholder="Type what you hear..."
           className={`
             w-full bg-gray-50 border-2 rounded-2xl 

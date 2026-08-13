@@ -4,20 +4,20 @@ import { Eye, MoreVertical, Pencil } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Badge from "@/components/ui/Badge";
 import type {
-  AdminUser,
+  AdminUserSummary,
   AdminUserRole,
 } from "@/features/users/types/user";
 
 type UserRowProps = {
-  user: AdminUser;
+  user: AdminUserSummary;
   selected: boolean;
   isCurrentUser: boolean;
   onSelect: (id: string, checked: boolean) => void;
-  onView: (user: AdminUser) => void;
-  onEdit: (user: AdminUser) => void;
-  onToggleStatus: (user: AdminUser) => void;
-  onResetPassword: (user: AdminUser) => void;
-  onDelete: (user: AdminUser) => void;
+  onView: (user: AdminUserSummary) => void;
+  onEdit: (user: AdminUserSummary) => void;
+  onToggleStatus: (user: AdminUserSummary) => void;
+  onResetPassword: (user: AdminUserSummary) => void;
+  onDelete: (user: AdminUserSummary) => void;
 };
 
 const roleLabelMap: Record<AdminUserRole, string> = {
@@ -69,7 +69,7 @@ const formatRelativeTime = (value?: string | null) => {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 };
 
-const hasRecentActivity = (user: AdminUser) => {
+const hasRecentActivity = (user: AdminUserSummary) => {
   if (!user.lastActiveAt || user.status !== "ACTIVE") return false;
 
   const threshold = 2 * 24 * 60 * 60 * 1000;
