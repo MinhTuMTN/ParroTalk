@@ -162,19 +162,6 @@ export default function PracticePage() {
           }
         }
 
-        // Find the smallest index of a sentence that is not completed yet
-        let firstUncompletedIdx = -1;
-        for (let i = 0; i < sentences.length; i++) {
-          if (!initialCompleted.has(i)) {
-            firstUncompletedIdx = i;
-            break;
-          }
-        }
-
-        if (firstUncompletedIdx !== -1) {
-          initialActiveIndex = firstUncompletedIdx;
-        }
-
         setCompletedIndices(initialCompleted);
         setInputs(initialInputs);
         setSegmentStats(initialStats);
