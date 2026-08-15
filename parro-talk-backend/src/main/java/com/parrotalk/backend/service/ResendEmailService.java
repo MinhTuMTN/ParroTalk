@@ -28,7 +28,7 @@ public class ResendEmailService implements EmailService {
         log.info("Preparing verification email for: {}", message.email());
         
         Context context = new Context();
-        context.setVariable("appName", emailProperties.getFrom());
+        context.setVariable("appName", emailProperties.getAppName());
         context.setVariable("userName", message.fullName());
         context.setVariable("verificationUrl", message.verificationUrl());
         context.setVariable("expirationMinutes", message.expirationMinutes());
@@ -39,7 +39,7 @@ public class ResendEmailService implements EmailService {
         String plainText = """
                 Hello %s,
 
-                Thank you for registering with %s.
+                Thank you for signing up for %s.
                 Verify your email address using this link:
                 %s
 

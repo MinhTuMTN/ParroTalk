@@ -28,6 +28,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.parrotalk.backend.config.AppSetting;
+import com.parrotalk.backend.constant.CacheNames;
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.LessonVisibilityStatus;
 import com.parrotalk.backend.constant.MediaType;
@@ -145,7 +146,7 @@ public class LessonService {
      * @param lessonId Lesson id
      * @return Lesson response
      */
-    @Cacheable(value = "lessonDetailCache", key = "#lessonId")
+    @Cacheable(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
     public LessonResponse getLessonDetail(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
@@ -391,7 +392,7 @@ public class LessonService {
      * @return Lesson response.
      */
     @Transactional
-    @CacheEvict(value = "lessonDetailCache", key = "#lessonId")
+    @CacheEvict(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
     public LessonResponse updateLessonSegments(
             UUID lessonId,
             List<UpsertSegmentRequest> requests,

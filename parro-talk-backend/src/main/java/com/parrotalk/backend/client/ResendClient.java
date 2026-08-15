@@ -8,6 +8,7 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 
 import com.parrotalk.backend.config.EmailProperties;
 import com.parrotalk.backend.dto.resend.ResendEmailRequest;
@@ -25,7 +26,13 @@ public class ResendClient {
 
     public ResendClient(RestClient.Builder restClientBuilder, EmailProperties emailProperties) {
         this.emailProperties = emailProperties;
+        
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(5000); // 5 seconds
+        requestFactory.setReadTimeout(10000); // 10 seconds
+
         this.restClient = restClientBuilder
+                .requestFactory(requestFactory)
                 .baseUrl(emailProperties.getResend().getBaseUrl())
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + emailProperties.getResend().getApiKey())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)

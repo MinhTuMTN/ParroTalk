@@ -1,24 +1,36 @@
 package com.parrotalk.backend.service;
 
-import com.parrotalk.backend.entity.User;
-import com.parrotalk.backend.security.JwtUtils;
-import com.parrotalk.backend.constant.Role;
-import com.parrotalk.backend.dto.*;
-import com.parrotalk.backend.mapper.UserMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import java.util.UUID;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.parrotalk.backend.constant.ErrorCode;
+import com.parrotalk.backend.constant.Role;
+import com.parrotalk.backend.dto.AuthResponse;
+import com.parrotalk.backend.dto.LoginRequest;
+import com.parrotalk.backend.dto.RefreshRequest;
+import com.parrotalk.backend.dto.RegisterRequest;
+import com.parrotalk.backend.dto.ResendVerificationEmailRequest;
+import com.parrotalk.backend.dto.TokenPair;
+import com.parrotalk.backend.dto.UserResponse;
+import com.parrotalk.backend.dto.VerifyEmailRequest;
+import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.exception.AuthException;
+import com.parrotalk.backend.mapper.UserMapper;
+import com.parrotalk.backend.security.JwtUtils;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Auth Service.
+ * 
+ * @author MinhTuMTN
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -32,10 +44,32 @@ public class AuthService {
     private final TokenService tokenService;
     private final EmailVerificationService emailVerificationService;
 
+    /**
+     * Register a new user.
+     * 
+     * @param request The register request.
+     * @return The auth response.
+     */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userService.existsByEmail(request.getEmail())) {
-            throw new AuthException(ErrorCode.DUPLICATE_EMAIL);
+        Optional<User> existingUserOpt = userService.findByEmailIncludeDeleted(request.getEmail());
+
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (!existingUser.isDeleted() && existingUser.isEmailVerified()) {
+                throw new AuthException(ErrorCode.DUPLICATE_EMAIL);
+            }
+            
+            // For already deleted accounts that haven't had their email suffixed yet,
+            // or unverified accounts being discarded, we suffix the email
+            // and ensure they are marked as deleted so a new user can be created.
+            String suffix = "_deleted_" + UUID.randomUUID().toString().substring(0, 8);
+            existingUser.setEmail(existingUser.getEmail() + suffix);
+            if (existingUser.getDisplayUsername() != null) {
+                existingUser.setDisplayUsername(existingUser.getDisplayUsername() + suffix);
+            }
+            existingUser.setDeleted(true);
+            userService.saveAndFlush(existingUser);
         }
 
         User user = User.builder()
@@ -43,8 +77,8 @@ public class AuthService {
                 .displayUsername(buildDefaultUsername(request.getEmail()))
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER) // Default to normal USER
-                .enabled(true)
+                .role(Role.PRO_USER) // Default to normal PRO_USER
+                .enabled(false)
                 .emailVerified(false)
                 .build();
 
@@ -79,6 +113,7 @@ public class AuthService {
         }
 
         User user = (User) authentication.getPrincipal();
+        user = userService.updateLastActiveAt(user);
         TokenPair tokenPair = tokenService.issueTokens(user);
 
         return AuthResponse.builder()
@@ -104,6 +139,7 @@ public class AuthService {
                     .orElseThrow(() -> new AuthException(ErrorCode.INVALID_REFRESH_TOKEN));
 
             if (jwtUtils.isTokenValid(refreshToken, user)) {
+                user = userService.updateLastActiveAt(user);
                 String accessToken = jwtUtils.generateToken(user);
                 return AuthResponse.builder()
                         .token(accessToken)

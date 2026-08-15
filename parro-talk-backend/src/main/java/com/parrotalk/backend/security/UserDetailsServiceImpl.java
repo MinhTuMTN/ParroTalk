@@ -6,6 +6,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.parrotalk.backend.constant.CacheNames;
 import com.parrotalk.backend.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     private final UserRepository userRepository;
 
     @Override
-    @Cacheable(value = "userCache", key = "#username")
+    @Cacheable(value = CacheNames.USER_CACHE, key = "#username")
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));

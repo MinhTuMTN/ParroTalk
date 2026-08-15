@@ -105,6 +105,7 @@ public class EmailVerificationService {
 
         user.setEmailVerified(true);
         user.setEmailVerifiedAt(LocalDateTime.now());
+        user.setEnabled(true);
         userService.save(user);
         return "Email verified successfully";
     }

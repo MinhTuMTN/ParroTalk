@@ -23,6 +23,8 @@ import java.util.UUID;
 
 /**
  * Shared dictionary cache entry.
+ *
+ * @author MinhTuMTN
  */
 @Entity
 @Table(name = "dictionary_entries", indexes = {
@@ -100,6 +102,25 @@ public class DictionaryEntry extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "antonyms_json", columnDefinition = "jsonb")
     private String antonymsJson;
+
+    /** Topic category. */
+    @Column(name = "topic", length = 100)
+    private String topic;
+
+    /** Collocations stored as JSON. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "collocations_json", columnDefinition = "jsonb")
+    private String collocationsJson;
+
+    /** Idioms stored as JSON. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "idioms_json", columnDefinition = "jsonb")
+    private String idiomsJson;
+
+    /** Phrasal verbs stored as JSON. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "phrasal_verbs_json", columnDefinition = "jsonb")
+    private String phrasalVerbsJson;
 
     /** Cache source/provider name. */
     @Column(length = 100)

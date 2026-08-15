@@ -21,6 +21,7 @@ import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.constant.UserStatus;
 import com.parrotalk.backend.dto.AdminResetPasswordResponse;
 import com.parrotalk.backend.dto.AdminUserResponse;
+import com.parrotalk.backend.dto.AdminUserSummaryResponse;
 import com.parrotalk.backend.dto.CreateUserRequest;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.UpdateUserRequest;
@@ -31,6 +32,11 @@ import com.parrotalk.backend.service.AdminUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Admin User Controller.
+ *
+ * @author MinhTuMTN
+ */
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
@@ -38,10 +44,21 @@ import lombok.RequiredArgsConstructor;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
 
+    /** Admin user service */
     private final AdminUserService adminUserService;
 
+    /**
+     * Search users.
+     * 
+     * @param search Search string
+     * @param role Role
+     * @param status Status
+     * @param page Page number
+     * @param size Page size
+     * @return Page response with user summaries
+     */
     @GetMapping
-    public ResponseEntity<PageResponse<AdminUserResponse>> getUsers(
+    public ResponseEntity<PageResponse<AdminUserSummaryResponse>> getUsers(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) Role role,
             @RequestParam(required = false) UserStatus status,

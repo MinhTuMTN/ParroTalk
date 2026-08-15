@@ -1,6 +1,7 @@
 package com.parrotalk.backend.dto;
 
 import lombok.*;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -15,4 +16,5 @@ public class UserResponse {
     private String role;
     private String avatarUrl;
     private boolean emailVerified;
+    private LocalDateTime lastActiveAt;
 }

@@ -9,7 +9,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.parrotalk.backend.config.FrontendProperties;
 import com.parrotalk.backend.dto.TokenPair;
+import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.service.TokenService;
+import com.parrotalk.backend.service.UserService;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccessHandler {
 
     private final TokenService tokenService;
+    private final UserService userService;
     private final FrontendProperties frontendProperties;
 
     @Override
@@ -34,7 +37,8 @@ public class OAuth2AuthenticationSuccessHandler implements AuthenticationSuccess
             throw new ServletException("Unexpected OAuth2 principal type");
         }
 
-        TokenPair tokenPair = tokenService.issueTokens(principal.getUser());
+        User user = userService.updateLastActiveAt(principal.getUser());
+        TokenPair tokenPair = tokenService.issueTokens(user);
         String redirectUrl = UriComponentsBuilder
                 .fromUriString(frontendProperties.getBaseUrl())
                 .path("/oauth/success")

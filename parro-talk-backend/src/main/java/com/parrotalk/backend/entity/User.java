@@ -93,6 +93,10 @@ public class User extends BaseEntity implements UserDetails {
     @Column(name = "email_verified_at")
     private LocalDateTime emailVerifiedAt;
 
+    /** Last active at */
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
+
     @Transient
     private Collection<? extends GrantedAuthority> authorities;
 

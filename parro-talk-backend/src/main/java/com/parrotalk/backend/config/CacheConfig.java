@@ -17,6 +17,7 @@ import org.springframework.security.jackson2.CoreJackson2Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.parrotalk.backend.constant.CacheNames;
 
 /**
  * Redis cache config.
@@ -60,14 +61,17 @@ public class CacheConfig {
 
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
 
-        cacheConfigs.put("lessonSearchCache",
+        cacheConfigs.put(CacheNames.LESSON_SEARCH_CACHE,
                 defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
-        cacheConfigs.put("lessonDetailCache",
+        cacheConfigs.put(CacheNames.LESSON_DETAIL_CACHE,
                 defaultConfig.entryTtl(Duration.ofHours(1)));
 
-        cacheConfigs.put("userCache",
+        cacheConfigs.put(CacheNames.USER_CACHE,
                 defaultConfig.entryTtl(Duration.ofHours(2)));
+
+        cacheConfigs.put(CacheNames.ADMIN_USER_DETAIL_CACHE,
+                defaultConfig.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)

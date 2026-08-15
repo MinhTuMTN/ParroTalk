@@ -4,6 +4,8 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -14,10 +16,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.parrotalk.backend.constant.CacheNames;
 import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.constant.UserStatus;
 import com.parrotalk.backend.dto.AdminResetPasswordResponse;
 import com.parrotalk.backend.dto.AdminUserResponse;
+import com.parrotalk.backend.dto.AdminUserSummaryResponse;
 import com.parrotalk.backend.dto.CreateUserRequest;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.UpdateUserRequest;
@@ -25,6 +29,7 @@ import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.entity.UserProgress;
 import com.parrotalk.backend.entity.UserStreak;
 import com.parrotalk.backend.exception.ParroTalkException;
+import com.parrotalk.backend.mapper.admin.AdminUserMapper;
 import com.parrotalk.backend.repository.UserProgressRepository;
 import com.parrotalk.backend.repository.UserRepository;
 import com.parrotalk.backend.repository.UserStreakRepository;
@@ -32,6 +37,11 @@ import com.parrotalk.backend.specification.UserSpecification;
 
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Admin user service.
+ * 
+ * @author MinhTuMTN
+ */
 @Service
 @RequiredArgsConstructor
 public class AdminUserService {
@@ -44,8 +54,9 @@ public class AdminUserService {
     private final UserProgressRepository userProgressRepository;
     private final UserStreakRepository userStreakRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminUserMapper adminUserMapper;
 
-    public PageResponse<AdminUserResponse> searchUsers(
+    public PageResponse<AdminUserSummaryResponse> searchUsers(
             String search,
             Role role,
             UserStatus status,
@@ -57,10 +68,10 @@ public class AdminUserService {
                 .and(UserSpecification.hasRole(role))
                 .and(UserSpecification.hasStatus(status));
 
-        Page<AdminUserResponse> userPage = userRepository.findAll(specification, pageable)
-                .map(this::toResponse);
+        Page<AdminUserSummaryResponse> userPage = userRepository.findAll(specification, pageable)
+                .map(adminUserMapper::toSummaryResponse);
 
-        return PageResponse.<AdminUserResponse>builder()
+        return PageResponse.<AdminUserSummaryResponse>builder()
                 .content(userPage.getContent())
                 .page(userPage.getNumber())
                 .size(userPage.getSize())
@@ -69,8 +80,9 @@ public class AdminUserService {
                 .build();
     }
 
+    @Cacheable(value = CacheNames.ADMIN_USER_DETAIL_CACHE, key = "#id")
     public AdminUserResponse getUserDetail(UUID id) {
-        return toResponse(findUser(id));
+        return toDetailResponse(findUser(id));
     }
 
     @Transactional
@@ -89,10 +101,11 @@ public class AdminUserService {
                 .emailVerifiedAt(LocalDateTime.now())
                 .build();
 
-        return toResponse(userRepository.save(user));
+        return toDetailResponse(userRepository.save(user));
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ADMIN_USER_DETAIL_CACHE, key = "#id")
     public AdminUserResponse updateUser(UUID id, UpdateUserRequest request) {
         User user = findUser(id);
         ensureEmailAvailable(request.getEmail(), id);
@@ -104,10 +117,11 @@ public class AdminUserService {
         user.setRole(request.getRole());
         user.setEnabled(request.getStatus() == UserStatus.ACTIVE);
 
-        return toResponse(userRepository.save(user));
+        return toDetailResponse(userRepository.save(user));
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ADMIN_USER_DETAIL_CACHE, key = "#id")
     public AdminUserResponse updateStatus(UUID id, UserStatus status, UUID currentAdminId) {
         User user = findUser(id);
         if (user.getId().equals(currentAdminId) && status == UserStatus.INACTIVE) {
@@ -118,10 +132,11 @@ public class AdminUserService {
         }
 
         user.setEnabled(status == UserStatus.ACTIVE);
-        return toResponse(userRepository.save(user));
+        return toDetailResponse(userRepository.save(user));
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ADMIN_USER_DETAIL_CACHE, key = "#id")
     public AdminResetPasswordResponse resetPassword(UUID id) {
         User user = findUser(id);
         String temporaryPassword = generateTemporaryPassword();
@@ -134,6 +149,7 @@ public class AdminUserService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ADMIN_USER_DETAIL_CACHE, key = "#id")
     public void deleteUser(UUID id, UUID currentAdminId) {
         if (id.equals(currentAdminId)) {
             throw new ParroTalkException(
@@ -142,7 +158,14 @@ public class AdminUserService {
                     HttpStatus.BAD_REQUEST);
         }
 
-        userRepository.delete(findUser(id));
+        User user = findUser(id);
+        String suffix = "_deleted_" + UUID.randomUUID().toString().substring(0, 8);
+        user.setEmail(user.getEmail() + suffix);
+        if (user.getDisplayUsername() != null) {
+            user.setDisplayUsername(user.getDisplayUsername() + suffix);
+        }
+        userRepository.save(user); // Flush changes before soft-delete
+        userRepository.delete(user);
     }
 
     private User findUser(UUID id) {
@@ -175,31 +198,10 @@ public class AdminUserService {
         });
     }
 
-    private AdminUserResponse toResponse(User user) {
+    private AdminUserResponse toDetailResponse(User user) {
         UserProgress progress = userProgressRepository.findById(user.getId()).orElse(null);
         UserStreak streak = userStreakRepository.findById(user.getId()).orElse(null);
-
-        LocalDateTime lastActiveAt = progress != null ? progress.getLastActivityDate() : null;
-
-        return AdminUserResponse.builder()
-                .id(user.getId())
-                .fullName(user.getFullName())
-                .username(resolveDisplayUsername(user))
-                .email(user.getEmail())
-                .role(user.getRole())
-                .status(user.isEnabled() ? UserStatus.ACTIVE : UserStatus.INACTIVE)
-                .avatarUrl(user.getAvatarUrl())
-                .emailVerified(user.isEmailVerified())
-                .createdAt(user.getCreatedAt())
-                .lastActiveAt(lastActiveAt)
-                .totalLessonsCompleted(progress != null && progress.getTotalLessonsCompleted() != null
-                        ? progress.getTotalLessonsCompleted()
-                        : 0)
-                .totalScore(progress != null && progress.getTotalScore() != null ? progress.getTotalScore() : 0.0)
-                .avgScore(progress != null && progress.getAvgScore() != null ? progress.getAvgScore() : 0.0)
-                .currentStreak(streak != null && streak.getCurrentStreak() != null ? streak.getCurrentStreak() : 0)
-                .longestStreak(streak != null && streak.getLongestStreak() != null ? streak.getLongestStreak() : 0)
-                .build();
+        return adminUserMapper.toDetailResponse(user, progress, streak);
     }
 
     private String generateTemporaryPassword() {
@@ -208,13 +210,5 @@ public class AdminUserService {
             password.append(TEMP_PASSWORD_CHARS[SECURE_RANDOM.nextInt(TEMP_PASSWORD_CHARS.length)]);
         }
         return password.toString();
-    }
-
-    private String resolveDisplayUsername(User user) {
-        if (user.getDisplayUsername() != null && !user.getDisplayUsername().isBlank()) {
-            return user.getDisplayUsername();
-        }
-
-        return user.getEmail().substring(0, user.getEmail().indexOf("@"));
     }
 }

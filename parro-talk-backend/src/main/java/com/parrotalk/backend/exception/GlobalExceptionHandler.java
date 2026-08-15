@@ -84,8 +84,8 @@ public class GlobalExceptionHandler {
                 .badRequest()
                 .body(buildError(
                         HttpStatus.BAD_REQUEST.value(),
-                        null,
-                        e.getMessage() == null ? "Bad request" : e.getMessage()));
+                        ErrorCode.VALIDATION_ERROR.name(),
+                        "An unexpected error occurred. Please try again."));
     }
 
     @ExceptionHandler(Exception.class)
