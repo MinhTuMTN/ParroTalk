@@ -1,3 +1,4 @@
+import { COLORS, THEME_COLOR } from "@/lib/constants/colors";
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -9,8 +10,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    background_color: "#fffaf0",
-    theme_color: "#10b981",
+    background_color: COLORS.background.page,
+    theme_color: THEME_COLOR,
     icons: [
       {
         src: "/logo.png",

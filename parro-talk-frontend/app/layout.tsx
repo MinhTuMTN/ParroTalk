@@ -1,12 +1,22 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
 import { AuthProvider } from "@/features/auth/hooks/useAuth";
 
+import { THEME_COLOR } from "@/lib/constants/colors";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-plus-jakarta-sans",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "ParroTalk - English Dictation Practice",
+  title: "ParroTalk - Nền Tảng Luyện Nghe & Chép Chính Tả Tiếng Anh",
   description:
-    "Practice English listening with real videos, focused dictation, instant checking, Vietnamese translations, and mobile-friendly progress tracking.",
+    "Rèn luyện phản xạ nghe chép chính tả tiếng Anh với video thực tế. Điều chỉnh tốc độ, lặp lại thông minh và nhận gợi ý độ chính xác tức thì.",
   applicationName: "ParroTalk",
   appleWebApp: {
     capable: true,
@@ -23,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#10b981",
+  themeColor: THEME_COLOR,
 };
 
 export default function RootLayout({
@@ -32,8 +42,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="antialiased">
-      <body>
+    <html lang="vi" className={`antialiased ${plusJakartaSans.variable}`}>
+      <body className="font-sans min-h-screen bg-slate-50 text-slate-900">
         <AuthProvider>
           {children}
         </AuthProvider>
