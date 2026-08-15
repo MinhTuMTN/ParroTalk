@@ -48,7 +48,7 @@ export const steps: StepItem[] = [
     title: "Chọn bài học",
     description:
       "Chọn video phù hợp trình độ từ kho nội dung phong phú: TED, Phim, Tin tức và Hội thoại đời thường.",
-    rotation: "rotate-1 hover:rotate-0",
+    rotation: "md:rotate-1 md:hover:rotate-0",
   },
   {
     icon: Headphones,
@@ -56,7 +56,7 @@ export const steps: StepItem[] = [
     title: "Nghe & Gõ",
     description:
       "Nghe từng câu ngắn, tập trung cao độ và gõ lại chính xác những gì bạn nghe được với bộ điều tốc linh hoạt.",
-    rotation: "-rotate-1 hover:rotate-0",
+    rotation: "md:-rotate-1 md:hover:rotate-0",
   },
   {
     icon: SpellCheck,
@@ -64,7 +64,7 @@ export const steps: StepItem[] = [
     title: "Kiểm tra lỗi",
     description:
       "AI chấm điểm tức thì, chỉ ra lỗi sai nối âm, từ vựng và giải thích ngữ cảnh chi tiết kèm dịch nghĩa tiếng Việt.",
-    rotation: "rotate-1 hover:rotate-0",
+    rotation: "md:rotate-1 md:hover:rotate-0",
   },
 ];
 
