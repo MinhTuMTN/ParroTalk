@@ -3,11 +3,10 @@
 import { Info, Menu, Search } from "lucide-react";
 import Link from "next/link";
 import { useUI } from "@/hooks/useUI";
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import UserMenu from "@/components/common/UserMenu";
 
 export default function StreakHeader() {
   const { openMobileMenu } = useUI();
-  const { user } = useAuth();
 
   return (
     <>
@@ -44,14 +43,8 @@ export default function StreakHeader() {
             </label>
           </div>
 
-          <div className="flex items-center gap-3 border-l border-gray-100 pl-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-black uppercase leading-none text-gray-900">{user?.fullName ?? "User"}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">{user?.role ?? "USER"}</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-50 font-black text-green-600">
-              {user?.fullName?.charAt(0) ?? "U"}
-            </div>
+          <div className="flex items-center gap-3">
+            <UserMenu />
           </div>
         </div>
       </header>

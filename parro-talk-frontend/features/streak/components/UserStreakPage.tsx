@@ -43,7 +43,7 @@ export default function UserStreakPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FCFDFC] ">
+    <div className="bg-[#FCFDFC] flex flex-col flex-1 min-w-0">
       <StreakHeader />
 
       <main className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 md:px-8 md:py-8">

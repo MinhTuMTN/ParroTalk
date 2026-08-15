@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import LessonCard from "@/features/lesson/components/LessonCard";
 import FeaturedLesson from "@/features/lesson/components/FeaturedLesson";
-import { Search, Bell, LogOut, Loader2, ChevronLeft, ChevronRight, Settings, User as UserIcon, LogOut as LogOutIcon } from "lucide-react";
+import { Search, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -12,6 +12,7 @@ import { useDebounce } from "use-debounce";
 import { useUI } from "@/hooks/useUI";
 import { Menu } from "lucide-react";
 import { lessonService, Lesson, Category } from "@/features/lesson/services/lessonService";
+import UserMenu from "@/components/common/UserMenu";
 
 function LibraryContent() {
     const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
@@ -31,8 +32,6 @@ function LibraryContent() {
     const [page, setPage] = useState(Number(searchParams.get("page")) || 0);
     const [totalPages, setTotalPages] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-    const userMenuRef = useRef<HTMLDivElement>(null);
 
     // Reset page when filters change
     useEffect(() => {
@@ -83,15 +82,7 @@ function LibraryContent() {
         }
     }, [activeTab, isAuthLoading, user?.role]);
 
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-                setIsUserMenuOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -112,7 +103,7 @@ function LibraryContent() {
     const gridJobs = lessons;
 
     return (
-        <div className="min-h-screen bg-white flex flex-col">
+        <div className="bg-white flex flex-col flex-1 min-w-0">
             {/* Top Header */}
             <header className="px-4 md:px-8 py-4 md:py-5 flex items-center justify-between border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="flex items-center gap-1">
@@ -122,7 +113,7 @@ function LibraryContent() {
                     >
                         <Menu size={24} />
                     </button>
-
+ 
                     <div className="hidden lg:flex gap-10 text-sm font-bold">
                         <button
                             onClick={() => setActiveTab("library")}
@@ -143,12 +134,12 @@ function LibraryContent() {
                         )}
                         <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer shrink-0">User Streak</Link>
                     </div>
-
+ 
                     <div className="lg:hidden relative w-24 h-7 sm:w-28 sm:h-8 flex items-center">
                         <Image src="/logo_long.png" alt="ParroTalk" width={75} height={30} className="object-contain" />
                     </div>
                 </div>
-
+ 
                 <div className="relative flex-1 md:flex-none">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -159,67 +150,9 @@ function LibraryContent() {
                         className="bg-gray-50 border border-gray-100 rounded-full pl-10 pr-4 py-2 w-full md:w-64 lg:w-96 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 text-gray-800 transition-all"
                     />
                 </div>
-
+ 
                 <div className="flex items-center gap-3 sm:gap-6">
-                    <div className="relative" ref={userMenuRef}>
-                        <div
-                            onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                            className="flex items-center gap-2 sm:gap-3 pl-2 sm:pl-4 border-l border-gray-100 cursor-pointer group"
-                        >
-                            <div className="hidden sm:flex flex-col items-end">
-                                <span className="text-sm font-black text-gray-800 leading-none group-hover:text-green-600 transition-colors uppercase">{user?.fullName}</span>
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role}</span>
-                            </div>
-                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold outline outline-offset-2 outline-white group-hover:bg-green-200 group-hover:outline-green-50 transition-all shadow-sm text-sm sm:text-base">
-                                {user?.fullName?.charAt(0) || "U"}
-                            </div>
-                        </div>
-
-                        {isUserMenuOpen && (
-                            <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-[60] animate-in fade-in zoom-in duration-200 origin-top-right">
-                                <div className="px-4 py-3 border-b border-gray-50 flex flex-col gap-1 sm:hidden">
-                                    <p className="text-sm font-black text-gray-900 leading-none">{user?.fullName}</p>
-                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role}</p>
-                                </div>
-
-                                <div className="p-1.5 flex flex-col gap-0.5">
-                                    <Link
-                                        href="/profile"
-                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all group"
-                                        onClick={() => setIsUserMenuOpen(false)}
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                            <UserIcon size={16} />
-                                        </div>
-                                        Profile
-                                    </Link>
-                                    <Link
-                                        href="/settings"
-                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all group"
-                                        onClick={() => setIsUserMenuOpen(false)}
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                            <Settings size={16} />
-                                        </div>
-                                        Settings
-                                    </Link>
-                                    <div className="h-px bg-gray-50 my-1 mx-2" />
-                                    <button
-                                        onClick={() => {
-                                            logout();
-                                            setIsUserMenuOpen(false);
-                                        }}
-                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all group w-full text-left"
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                            <LogOutIcon size={16} />
-                                        </div>
-                                        Log out
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                    <UserMenu />
                 </div>
             </header>
 
