@@ -42,6 +42,10 @@ public class Category extends BaseEntity {
     @Column(nullable = false)
     private String name;
 
+    /** Category Name in Vietnamese */
+    @Column(name = "name_vi")
+    private String nameVi;
+
     /** Slug (unique) */
     @Column(nullable = false, unique = true)
     private String slug;

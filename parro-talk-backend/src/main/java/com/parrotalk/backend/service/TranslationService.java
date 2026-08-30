@@ -57,16 +57,18 @@ public class TranslationService {
             new ParameterizedTypeReference<>() {};
 
     private final ChatModelProvider chatModelProvider;
+    private final AiCoreClient aiCoreClient;
     private final ObjectMapper objectMapper;
     private final TranscriptionSegmentRepository segmentRepository;
     private final SegmentTranslationRepository translationRepository;
     private final TransactionTemplate transactionTemplate;
     private final CacheManager cacheManager;
 
-    public TranslationService(ChatModelProvider chatModelProvider, ObjectMapper objectMapper,
+    public TranslationService(ChatModelProvider chatModelProvider, AiCoreClient aiCoreClient, ObjectMapper objectMapper,
             TranscriptionSegmentRepository segmentRepository, SegmentTranslationRepository translationRepository,
             TransactionTemplate transactionTemplate, CacheManager cacheManager) {
         this.chatModelProvider = chatModelProvider;
+        this.aiCoreClient = aiCoreClient;
         this.objectMapper = objectMapper;
         this.segmentRepository = segmentRepository;
         this.translationRepository = translationRepository;
@@ -116,8 +118,7 @@ public class TranslationService {
         for (int start = 0; start < missingSegments.size(); start += DEFAULT_BATCH_SIZE) {
             int end = Math.min(start + DEFAULT_BATCH_SIZE, missingSegments.size());
             List<TranscriptionSegment> batch = missingSegments.subList(start, end);
-            List<SegmentTranslationResponseItem> responseItems = requestTranslations(batch, lessonId, chatModelNode);
-            validateResponse(batch, responseItems);
+            List<SegmentTranslationResponseItem> responseItems = requestTranslations(batch);
             saveBatch(batch, responseItems, targetLanguage, chatModelNode.modelName());
             evictLessonDetailCache(lessonId);
         }
@@ -139,9 +140,7 @@ public class TranslationService {
         String modelName = chatModelNode.modelName();
 
         try {
-            List<SegmentTranslationResponseItem> responseItems =
-                    requestTranslations(List.of(segment), segment.getLesson().getId(), chatModelNode);
-            validateResponse(List.of(segment), responseItems);
+            List<SegmentTranslationResponseItem> responseItems = requestTranslations(List.of(segment));
             SegmentTranslationResponseItem responseItem = responseItems.get(0);
 
             transactionTemplate.executeWithoutResult(status -> {
@@ -175,8 +174,7 @@ public class TranslationService {
         }
     }
 
-    private List<SegmentTranslationResponseItem> requestTranslations(List<TranscriptionSegment> batch, UUID lessonId,
-            ChatModelNode chatModelNode) {
+    private List<SegmentTranslationResponseItem> requestTranslations(List<TranscriptionSegment> batch) {
 
         List<LlmTranslateRequestItem> requestItems = IntStream
                 .range(0, batch.size())
@@ -190,16 +188,18 @@ public class TranslationService {
             throw new RuntimeException("Failed to serialize translation request items to JSON", e);
         }
 
-        return chatModelNode
-                .chatClient()
-                .prompt()
-                .system(SYSTEM_PROMPT)
-                .user(requestJson)
-                .call()
-                .entity(LLM_RESPONSE_LIST_TYPE)
-                .stream()
-                .map(r -> new SegmentTranslationResponseItem(batch.get(r.index()).getId(), r.text()))
-                .toList();
+        return aiCoreClient.callAndValidate(
+                SYSTEM_PROMPT,
+                requestJson,
+                LLM_RESPONSE_LIST_TYPE,
+                rawResponse -> {
+                    List<SegmentTranslationResponseItem> items = rawResponse.stream()
+                            .map(r -> new SegmentTranslationResponseItem(batch.get(r.index()).getId(), r.text()))
+                            .toList();
+                    validateResponse(batch, items);
+                    return items;
+                }
+        );
     }
 
     void validateResponse(List<TranscriptionSegment> batch, List<SegmentTranslationResponseItem> responseItems) {

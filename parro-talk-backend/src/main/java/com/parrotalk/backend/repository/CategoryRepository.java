@@ -36,4 +36,6 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     Optional<Category> findByNameIgnoreCase(String name);
 
     Page<Category> findByNameContainingIgnoreCase(String name, Pageable pageable);
+
+    List<Category> findByStatus(CmsItemStatus status);
 }

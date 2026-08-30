@@ -1,7 +1,6 @@
 package com.parrotalk.backend.constant;
 
 import org.springframework.http.HttpStatus;
-
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +22,13 @@ public enum ErrorCode {
     RESET_TOKEN_USED(1013, "This reset link has already been used.", HttpStatus.BAD_REQUEST),
     PASSWORD_MISMATCH(1014, "Passwords do not match.", HttpStatus.BAD_REQUEST),
     RATE_LIMIT_EXCEEDED(1015, "Too many requests. Please try again later.", HttpStatus.TOO_MANY_REQUESTS),
+
+    // AI & Classification
+    LESSON_NOT_FOUND(2001, "Lesson not found.", HttpStatus.NOT_FOUND),
+    LESSON_TITLE_MISSING(2002, "Lesson title is missing or blank.", HttpStatus.BAD_REQUEST),
+    LESSON_TRANSCRIPT_EMPTY(2003, "Lesson transcript is empty or not available.", HttpStatus.BAD_REQUEST),
+    ACTIVE_CATEGORIES_NOT_FOUND(2004, "No active allowed categories available for classification.", HttpStatus.BAD_REQUEST),
+
     INTERNAL_SERVER_ERROR(1500, "Internal server error.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;
