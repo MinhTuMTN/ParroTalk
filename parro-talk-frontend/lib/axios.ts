@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8080/api";
 export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? API_URL.replace(/\/api\/?$/, "");
 
 const axiosInstance = axios.create({
@@ -10,13 +10,14 @@ const axiosInstance = axios.create({
   },
 });
 
-
 // Request interceptor: attach token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -31,26 +32,40 @@ axiosInstance.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = localStorage.getItem("refreshToken");
+      const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
 
       if (refreshToken) {
         try {
           const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
           const { token: newToken } = response.data.result;
           
-          localStorage.setItem("token", newToken);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("token", newToken);
+          }
           axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
           
           return axiosInstance(originalRequest);
-        } catch (refreshError) {
+        } catch {
           // Refresh failed, logout user
-          localStorage.removeItem("token");
-          localStorage.removeItem("refreshToken");
-          localStorage.removeItem("user");
-          window.location.href = "/login";
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("user");
+
+            const publicPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
+            if (!publicPaths.includes(window.location.pathname)) {
+              window.location.href = "/login";
+            }
+          }
         }
       } else {
-        window.location.href = "/login";
+        // If user has no refresh token, only redirect if they are on a protected route
+        if (typeof window !== "undefined") {
+          const publicPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
+          if (!publicPaths.includes(window.location.pathname)) {
+            window.location.href = "/login";
+          }
+        }
       }
     }
 
@@ -59,4 +74,3 @@ axiosInstance.interceptors.response.use(
 );
 
 export default axiosInstance;
-

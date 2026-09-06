@@ -1,5 +1,6 @@
 package com.parrotalk.backend;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +13,7 @@ import com.parrotalk.backend.client.ResendClient;
 import java.util.List;
 import java.util.Map;
 
+@Disabled("Utility script for manual execution")
 @SpringBootTest(properties = {
     "spring.jpa.hibernate.ddl-auto=none"
 })

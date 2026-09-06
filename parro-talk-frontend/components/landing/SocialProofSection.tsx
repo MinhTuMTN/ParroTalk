@@ -2,15 +2,18 @@ import { stats } from "./constants";
 
 export function SocialProofSection() {
   return (
-    <section className="border-y border-slate-200/80 bg-white py-10">
+    <section className="border-y border-emerald-900/5 bg-white py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-6 text-center divide-y sm:divide-y-0 sm:divide-x divide-slate-100 md:grid-cols-4">
-          {stats.map((stat, index) => (
-            <div key={stat.label} className={index > 1 ? "pt-4 sm:pt-0" : ""}>
-              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700 tracking-tight">
+        <div className="grid grid-cols-2 gap-4 text-center sm:gap-6 md:grid-cols-4">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className="soft-card flex flex-col items-center justify-center rounded-2xl p-5 border border-emerald-100/60 bg-emerald-50/20 transition hover:border-emerald-300"
+            >
+              <div className="text-3xl sm:text-4xl font-black text-emerald-700 tracking-tight">
                 {stat.value}
               </div>
-              <div className="mt-1 text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500">
+              <div className="mt-2 text-xs sm:text-sm font-bold tracking-normal text-slate-600">
                 {stat.label}
               </div>
             </div>

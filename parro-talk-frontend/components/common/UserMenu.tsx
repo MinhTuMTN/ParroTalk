@@ -49,6 +49,7 @@ export default function UserMenu() {
           <div className="p-1.5 flex flex-col gap-0.5">
             <Link
               href="/profile"
+              prefetch={false}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all group"
               onClick={() => setIsUserMenuOpen(false)}
             >
@@ -59,6 +60,7 @@ export default function UserMenu() {
             </Link>
             <Link
               href="/settings"
+              prefetch={false}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all group"
               onClick={() => setIsUserMenuOpen(false)}
             >

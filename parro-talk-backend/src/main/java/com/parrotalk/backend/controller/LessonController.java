@@ -1,5 +1,6 @@
 package com.parrotalk.backend.controller;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.parrotalk.backend.dto.FeaturedLessonDTO;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
@@ -48,6 +50,19 @@ public class LessonController {
 
     /** Learning Service */
     private final LearningService learningService;
+
+    /** Temporary fixed limit for featured lessons */
+    private static final int FEATURED_LESSONS_LIMIT = 2;
+
+    /**
+     * Get featured lessons for public landing page.
+     * 
+     * @return List of featured lessons
+     */
+    @GetMapping("/featured")
+    public ResponseEntity<List<FeaturedLessonDTO>> getFeaturedLessons() {
+        return ResponseEntity.ok(lessonService.getFeaturedLessons(FEATURED_LESSONS_LIMIT));
+    }
 
     /**
      * Get list published lessons.

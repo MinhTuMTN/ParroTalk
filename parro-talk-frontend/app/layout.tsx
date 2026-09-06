@@ -43,7 +43,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`antialiased ${plusJakartaSans.variable}`}>
-      <body className="font-sans min-h-screen bg-slate-50 text-slate-900">
+      <body className="font-sans min-h-screen bg-[#F8FAF9] text-slate-900">
         <AuthProvider>
           {children}
         </AuthProvider>

@@ -13,36 +13,40 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-emerald-900/5 bg-white/90 backdrop-blur-xl transition-all">
       <nav
-        className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8"
+        className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8"
         aria-label="Main navigation"
       >
         <div className="flex items-center gap-8">
           <Link
             href="/"
-            className="flex items-center gap-2.5 transition hover:opacity-90"
+            className="group flex items-center gap-2.5 transition"
             aria-label="ParroTalk home"
           >
-            <Image
-              src="/logo.png"
-              alt="ParroTalk logo"
-              width={38}
-              height={38}
-              className="rounded-xl shadow-sm"
-              priority
-            />
-            <span className="text-xl font-extrabold tracking-tight text-emerald-800">
-              ParroTalk
-            </span>
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 border border-emerald-200/60 p-1 shadow-sm transition-transform group-hover:scale-105">
+              <Image
+                src="/logo.png"
+                alt="ParroTalk logo"
+                width={32}
+                height={32}
+                className="rounded-xl object-contain"
+                priority
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xl font-extrabold tracking-tight text-slate-900 group-hover:text-emerald-700 transition-colors">
+                Parro<span className="text-emerald-600">Talk</span>
+              </span>
+            </div>
           </Link>
 
-          <div className="hidden items-center gap-7 md:flex">
+          <div className="hidden items-center gap-1.5 md:flex bg-slate-50/80 p-1 rounded-full border border-slate-200/60">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
-                className="text-sm font-semibold text-slate-600 transition-colors hover:text-emerald-700"
+                className="rounded-full px-4 py-1.5 text-xs font-bold text-slate-600 transition-all hover:bg-white hover:text-emerald-700 hover:shadow-xs"
               >
                 {item.label}
               </Link>
@@ -60,7 +64,7 @@ export function Header() {
 
         <button
           type="button"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 md:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200/80 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95 md:hidden"
           aria-label="Toggle navigation menu"
           aria-expanded={isMobileMenuOpen}
           onClick={() => setIsMobileMenuOpen((value) => !value)}
@@ -70,14 +74,14 @@ export function Header() {
       </nav>
 
       {isMobileMenuOpen && (
-        <div className="mx-4 mb-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-900/5 md:hidden">
-          <div className="grid gap-1">
+        <div className="mx-4 mb-4 rounded-3xl border border-emerald-100 bg-white p-4 shadow-xl shadow-slate-900/5 md:hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="grid gap-1.5">
             {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700"
+                className="rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-700"
               >
                 {item.label}
               </Link>

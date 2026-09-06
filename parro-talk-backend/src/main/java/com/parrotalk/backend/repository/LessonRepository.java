@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Repository;
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.LessonVisibilityStatus;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
+import com.parrotalk.backend.dto.SectionLessonProjection;
 import com.parrotalk.backend.entity.Lesson;
 
 import jakarta.persistence.LockModeType;
@@ -70,6 +72,15 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
      * @return Page of lessons
      */
     Page<Lesson> findAllByVisibilityStatus(LessonVisibilityStatus visibilityStatus, Pageable pageable);
+
+    /**
+     * Find lessons by visibility status ordered by creation date descending with limit.
+     * 
+     * @param visibilityStatus Visibility status
+     * @param limit            Limit
+     * @return List of lessons
+     */
+    List<Lesson> findByVisibilityStatusOrderByCreatedAtDesc(LessonVisibilityStatus visibilityStatus, Limit limit);
 
     /**
      * Find lesson by id and visibility status.
@@ -181,4 +192,296 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
     Optional<Lesson> findByIdForUpdate(UUID lessonId);
 
     Optional<Lesson> findByIdAndOwnerId(UUID id, UUID ownerId);
+
+    /**
+     * Find lessons in progress for user.
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                ulp.lastProgress * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
+            )
+            FROM UserLessonProgress ulp
+            JOIN ulp.lesson l
+            WHERE ulp.user.id = :userId
+                AND ulp.lastProgress > 0
+                AND ulp.lastProgress < 1.0
+            ORDER BY ulp.updatedAt DESC
+            """)
+    List<LessonWithProgressDTO> findContinueLearning(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Find user lessons currently processing or pending.
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
+            )
+            FROM Lesson l
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE l.ownerId = :userId
+                AND l.status IN (com.parrotalk.backend.constant.LessonStatus.PENDING, com.parrotalk.backend.constant.LessonStatus.PROCESSING)
+            ORDER BY l.createdAt DESC
+            """)
+    List<LessonWithProgressDTO> findUserProcessing(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Find user uploaded lessons that are done.
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
+            )
+            FROM Lesson l
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE l.ownerId = :userId
+                AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
+            ORDER BY l.createdAt DESC
+            """)
+    List<LessonWithProgressDTO> findUserUploaded(
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Find published lessons by category.
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
+            )
+            FROM Lesson l
+            JOIN l.categories c
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE c.id = :categoryId
+                AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
+            ORDER BY l.createdAt DESC
+            """)
+    List<LessonWithProgressDTO> findByCategory(
+            @Param("categoryId") UUID categoryId,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Find published lessons by program.
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
+            )
+            FROM Lesson l
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE l.program = :program
+                AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
+            ORDER BY l.createdAt DESC
+            """)
+    List<LessonWithProgressDTO> findByProgram(
+            @Param("program") String program,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Find category lessons by slug with optional program and source filters.
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
+            )
+            FROM Lesson l
+            JOIN l.categories c
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE c.slug = :categorySlug
+                AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
+                AND (:program IS NULL OR :program = '' OR l.program = :program)
+                AND (:source IS NULL OR :source = '' OR l.source = :source)
+            """, countQuery = """
+            SELECT COUNT(l.id)
+            FROM Lesson l
+            JOIN l.categories c
+            WHERE c.slug = :categorySlug
+                AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
+                AND (:program IS NULL OR :program = '' OR l.program = :program)
+                AND (:source IS NULL OR :source = '' OR l.source = :source)
+            """)
+    Page<LessonWithProgressDTO> findCategoryLessonsBySlug(
+            @Param("categorySlug") String categorySlug,
+            @Param("program") String program,
+            @Param("source") String source,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Search public lessons with optional filters.
+     */
+    @Query(value = """
+            SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
+                l.id,
+                l.title,
+                COALESCE(ulp.lastProgress, 0) * 100,
+                l.thumbnailUrl,
+                l.fileUrl,
+                l.duration
+            )
+            FROM Lesson l
+            LEFT JOIN UserLessonProgress ulp
+                ON ulp.lesson.id = l.id
+                AND ulp.user.id = :userId
+            WHERE l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
+                AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
+                AND (:category IS NULL OR :category = '' OR EXISTS (SELECT 1 FROM l.categories c WHERE c.slug = :category OR c.name = :category))
+                AND (:program IS NULL OR :program = '' OR l.program = :program)
+                AND (:source IS NULL OR :source = '' OR l.source = :source)
+            """, countQuery = """
+            SELECT COUNT(l.id)
+            FROM Lesson l
+            WHERE l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
+                AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
+                AND (:category IS NULL OR :category = '' OR EXISTS (SELECT 1 FROM l.categories c WHERE c.slug = :category OR c.name = :category))
+                AND (:program IS NULL OR :program = '' OR l.program = :program)
+                AND (:source IS NULL OR :source = '' OR l.source = :source)
+            """)
+    Page<LessonWithProgressDTO> searchPublicLessons(
+            @Param("query") String query,
+            @Param("category") String category,
+            @Param("program") String program,
+            @Param("source") String source,
+            @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Batch query lessons for multiple categories without user progress (for guests).
+     */
+    @Query(value = """
+            WITH ranked_category_lessons AS (
+                SELECT 
+                    CAST(c.category_id AS VARCHAR) AS section_key,
+                    CAST(l.id AS VARCHAR) AS id,
+                    l.title AS title,
+                    0.0 AS progress,
+                    l.thumbnail_url AS thumbnail_url,
+                    l.file_url AS file_url,
+                    l.duration AS duration,
+                    ROW_NUMBER() OVER (PARTITION BY c.category_id ORDER BY l.created_at DESC) AS rank
+                FROM lessons l
+                JOIN lesson_category_lesson c ON l.id = c.lesson_id
+                WHERE c.category_id IN (:categoryIds)
+                  AND l.visibility_status = 'PUBLISHED'
+                  AND l.status = 'DONE'
+                  AND l.is_deleted = false
+            )
+            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration
+            FROM ranked_category_lessons
+            WHERE rank <= :maxItems
+            ORDER BY rank ASC
+            """, nativeQuery = true)
+    List<SectionLessonProjection> findBatchCategoryLessons(
+            @Param("categoryIds") List<UUID> categoryIds,
+            @Param("maxItems") int maxItems);
+
+    /**
+     * Batch query lessons for multiple programs without user progress (for guests).
+     */
+    @Query(value = """
+            WITH ranked_program_lessons AS (
+                SELECT 
+                    l.program AS section_key,
+                    CAST(l.id AS VARCHAR) AS id,
+                    l.title AS title,
+                    0.0 AS progress,
+                    l.thumbnail_url AS thumbnail_url,
+                    l.file_url AS file_url,
+                    l.duration AS duration,
+                    ROW_NUMBER() OVER (PARTITION BY l.program ORDER BY l.created_at DESC) AS rank
+                FROM lessons l
+                WHERE l.program IN (:programs)
+                  AND l.visibility_status = 'PUBLISHED'
+                  AND l.status = 'DONE'
+                  AND l.is_deleted = false
+            )
+            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration
+            FROM ranked_program_lessons
+            WHERE rank <= :maxItems
+            ORDER BY rank ASC
+            """, nativeQuery = true)
+    List<SectionLessonProjection> findBatchProgramLessons(
+            @Param("programs") List<String> programs,
+            @Param("maxItems") int maxItems);
+
+    /**
+     * Batch query user-specific lessons (IN_PROGRESS).
+     */
+    @Query(value = """
+            WITH in_progress_lessons AS (
+                SELECT 
+                    'IN_PROGRESS' AS section_key,
+                    CAST(l.id AS VARCHAR) AS id,
+                    l.title AS title,
+                    COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
+                    l.thumbnail_url AS thumbnail_url,
+                    l.file_url AS file_url,
+                    l.duration AS duration,
+                    ROW_NUMBER() OVER (ORDER BY l.created_at DESC) AS rank
+                FROM lessons l
+                LEFT JOIN user_lesson_progress ulp
+                    ON ulp.lesson_id = l.id
+                    AND ulp.user_id = :userId
+                WHERE l.status = 'DONE'
+                  AND l.visibility_status = 'PUBLISHED'
+                  AND l.is_deleted = false
+            )
+            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration
+            FROM in_progress_lessons WHERE rank <= :maxItems
+            """, nativeQuery = true)
+    List<SectionLessonProjection> findBatchUserLessons(
+            @Param("userId") UUID userId,
+            @Param("maxItems") int maxItems);
 }
+

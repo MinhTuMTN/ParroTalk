@@ -3,6 +3,8 @@ package com.parrotalk.backend.config;
 import com.parrotalk.backend.security.JwtAuthenticationEntryPoint;
 import com.parrotalk.backend.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import java.util.Arrays;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -90,6 +92,11 @@ public class SecurityConfig {
     @Bean
     @Order(2)
     SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
+        String[] trimmedPublicEndpoints = Arrays.stream(publicEndpoints)
+                .map(String::trim)
+                .filter(StringUtils::isNotBlank)
+                .toArray(String[]::new);
+
         // Disable CSRF
         http.csrf(AbstractHttpConfigurer::disable)
                 // Enable CORS
@@ -100,7 +107,7 @@ public class SecurityConfig {
                 // Authorize HTTP requests
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/me").authenticated()
-                        .requestMatchers(publicEndpoints).permitAll()
+                        .requestMatchers(trimmedPublicEndpoints).permitAll()
                         .anyRequest().authenticated())
                 // Disable session management due to JWT authentication
                 .sessionManagement(session -> session

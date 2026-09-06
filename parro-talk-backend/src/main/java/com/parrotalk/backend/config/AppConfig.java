@@ -3,6 +3,8 @@ package com.parrotalk.backend.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -12,8 +14,12 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.util.concurrent.Executor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
  * Application configuration class that sets up CORS, authentication, and
@@ -38,7 +44,9 @@ public class AppConfig implements WebMvcConfigurer {
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        String[] allowedOrigins = { "http://localhost:3000", "https://parrotalk.fun", "http://192.168.1.107:3000" };
+        String[] allowedOrigins = frontendProperties.getAllowedOrigins() != null
+                ? frontendProperties.getAllowedOrigins().toArray(String[]::new)
+                : new String[0];
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
@@ -64,8 +72,47 @@ public class AppConfig implements WebMvcConfigurer {
         return new BCryptPasswordEncoder();
     }
 
+    /**
+     * Creates a {@link RestClient.Builder} with custom timeouts.
+     * Used for making HTTP requests to other services (Resend,...)
+     * 
+     * @return the {@link RestClient.Builder} with custom timeouts
+     */
     @Bean
-    public org.springframework.web.client.RestClient.Builder restClientBuilder() {
-        return org.springframework.web.client.RestClient.builder();
+    public RestClient.Builder restClientBuilder() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(5000);
+        requestFactory.setReadTimeout(10000);
+        return RestClient.builder().requestFactory(requestFactory);
+    }
+
+    /**
+     * Dedicated executor for blocking database operations.
+     * Prevents blocking queries from exhausting the ForkJoinPool common pool.
+     */
+    @Bean(name = "dbQueryExecutor")
+    public Executor dbQueryExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("db-query-");
+        executor.initialize();
+        return executor;
+    }
+
+    /**
+     * Default primary task executor for asynchronous processing and general application tasks.
+     */
+    @Primary
+    @Bean(name = { "applicationTaskExecutor", "taskExecutor" })
+    public Executor applicationTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(16);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("app-task-");
+        executor.initialize();
+        return executor;
     }
 }

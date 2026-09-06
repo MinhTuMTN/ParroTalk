@@ -8,7 +8,7 @@ import com.parrotalk.backend.repository.StudyActivityRepository;
 import com.parrotalk.backend.repository.UserActiveDayRepository;
 import com.parrotalk.backend.repository.UserLessonHistoryRepository;
 import com.parrotalk.backend.repository.UserProgressRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,9 +24,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 @Service
-@RequiredArgsConstructor
 public class UserStreakService {
 
     private static final int WEEKLY_GOAL_DAYS = 7;
@@ -39,12 +40,47 @@ public class UserStreakService {
     private final UserProgressRepository progressRepository;
     private final StudyActivityRepository studyActivityRepository;
     private final UserLearningActivityService learningActivityService;
+    private final Executor dbQueryExecutor;
+
+    public UserStreakService(
+            UserActiveDayRepository activeDayRepository,
+            UserLessonHistoryRepository historyRepository,
+            UserProgressRepository progressRepository,
+            StudyActivityRepository studyActivityRepository,
+            UserLearningActivityService learningActivityService,
+            @Qualifier("dbQueryExecutor") Executor dbQueryExecutor) {
+        this.activeDayRepository = activeDayRepository;
+        this.historyRepository = historyRepository;
+        this.progressRepository = progressRepository;
+        this.studyActivityRepository = studyActivityRepository;
+        this.learningActivityService = learningActivityService;
+        this.dbQueryExecutor = dbQueryExecutor;
+    }
 
     @Transactional(readOnly = true)
     public UserStreakResponse getUserStreak(UUID userId, Integer requestedCalendarYear) {
         LocalDate today = learningActivityService.today();
-        List<LocalDate> activeDates = activeDayRepository.findAllByUserIdOrderByActiveDateAsc(userId)
-                .stream()
+
+        // Start concurrent DB queries to overcome network latency
+        CompletableFuture<List<UserActiveDay>> activeDaysFuture = 
+            CompletableFuture.supplyAsync(
+                () -> activeDayRepository.findAllByUserIdOrderByActiveDateAsc(userId), 
+                dbQueryExecutor
+            );
+
+        CompletableFuture<Integer> lessonsCompletedFuture = 
+            CompletableFuture.supplyAsync(
+                () -> resolveLessonsCompleted(userId), 
+                dbQueryExecutor
+            );
+
+        CompletableFuture<List<StudyActivity>> studyActivitiesFuture = 
+            CompletableFuture.supplyAsync(
+                () -> studyActivityRepository.findAllByUserIdOrderByActivityDateAsc(userId), 
+                dbQueryExecutor
+            );
+
+        List<LocalDate> activeDates = activeDaysFuture.join().stream()
                 .map(UserActiveDay::getActiveDate)
                 .distinct()
                 .toList();
@@ -56,9 +92,10 @@ public class UserStreakService {
                 .filter(UserStreakResponse.WeeklyProgressDay::isStudied)
                 .count();
 
-        int lessonsCompleted = resolveLessonsCompleted(userId);
+        int lessonsCompleted = lessonsCompletedFuture.join();
         int totalStudyDays = activeDates.size();
-        List<StudyActivity> studyActivities = studyActivityRepository.findAllByUserIdOrderByActivityDateAsc(userId);
+        
+        List<StudyActivity> studyActivities = studyActivitiesFuture.join();
         int totalStudyMinutes = studyActivities.stream()
                 .mapToInt(activity -> activity.getStudySeconds() == null ? 0 : activity.getStudySeconds())
                 .sum() / 60;
@@ -95,10 +132,22 @@ public class UserStreakService {
     }
 
     private int resolveLessonsCompleted(UUID userId) {
-        int progressCount = progressRepository.findById(userId)
-                .map(UserProgress::getTotalLessonsCompleted)
-                .orElse(0);
-        long historyCount = historyRepository.countByUserId(userId);
+        CompletableFuture<Integer> progressFuture = 
+            CompletableFuture.supplyAsync(
+                () -> progressRepository.findById(userId)
+                        .map(UserProgress::getTotalLessonsCompleted)
+                        .orElse(0),
+                dbQueryExecutor
+            );
+            
+        CompletableFuture<Long> historyFuture = 
+            CompletableFuture.supplyAsync(
+                () -> historyRepository.countByUserId(userId),
+                dbQueryExecutor
+            );
+            
+        int progressCount = progressFuture.join();
+        long historyCount = historyFuture.join();
         return Math.max(progressCount, Math.toIntExact(historyCount));
     }
 

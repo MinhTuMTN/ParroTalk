@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +40,7 @@ import com.parrotalk.backend.constant.TranslationStatus;
 import com.parrotalk.backend.dto.AdminCreateLessonRequest;
 import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
 import com.parrotalk.backend.dto.CategoryResponse;
+import com.parrotalk.backend.dto.FeaturedLessonDTO;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
@@ -190,7 +192,7 @@ public class LessonService {
 
         Page<LessonWithProgressDTO> lessonPage = lessonRepository.searchPublishedLessonsWithProgress(
                 request.getQuery(),
-                user.getId(),
+                user != null ? user.getId() : null,
                 pageable);
 
         return PageResponse.<LessonWithProgressDTO>builder()
@@ -200,6 +202,24 @@ public class LessonService {
                 .totalElements(lessonPage.getTotalElements())
                 .totalPages(lessonPage.getTotalPages())
                 .build();
+    }
+
+    /**
+     * Get featured published lessons for public landing page.
+     *
+     * @param limit Number of lessons to retrieve
+     * @return List of featured lessons
+     */
+    @Cacheable(value = CacheNames.FEATURED_LESSONS_CACHE, key = "#limit")
+    @Transactional(readOnly = true)
+    public List<FeaturedLessonDTO> getFeaturedLessons(int limit) {
+        int pageLimit = Math.min(Math.max(limit, 1), 10);
+        List<Lesson> publishedLessons = lessonRepository.findByVisibilityStatusOrderByCreatedAtDesc(
+                LessonVisibilityStatus.PUBLISHED,
+                Limit.of(pageLimit));
+        return publishedLessons.stream()
+                .map(lessonMapper::toFeaturedLessonDTO)
+                .toList();
     }
 
     /**
@@ -254,6 +274,7 @@ public class LessonService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true)
     public void deleteLesson(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId).orElseThrow(() -> new RuntimeException("Lesson not found"));
         segmentTranslationRepository.deleteBySegmentLessonId(lessonId);
@@ -321,6 +342,7 @@ public class LessonService {
      * @return Updated lesson response
      */
     @Transactional
+    @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true)
     public LessonResponse updateGeneralInformation(UUID lessonId, UpdateLessonInfoRequest request) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
@@ -376,6 +398,7 @@ public class LessonService {
      * @return Lesson response.
      */
     @Transactional
+    @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true)
     public LessonResponse updateLessonVisibility(UUID lessonId, LessonVisibilityStatus status) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
@@ -652,7 +675,7 @@ public class LessonService {
 
     private Lesson findAccessibleLesson(UUID lessonId, User user) {
         return lessonRepository.findByIdAndVisibilityStatus(lessonId, LessonVisibilityStatus.PUBLISHED)
-                .or(() -> lessonRepository.findByIdAndOwnerId(lessonId, user.getId()))
+                .or(() -> user != null ? lessonRepository.findByIdAndOwnerId(lessonId, user.getId()) : Optional.empty())
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
     }
 

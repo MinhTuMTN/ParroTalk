@@ -1,18 +1,15 @@
 package com.parrotalk.backend.security;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -21,6 +18,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
@@ -31,12 +29,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
-
-        // Public auth endpoints do not need JWTs, but /api/auth/me does.
-        if (isPublicAuthEndpoint(request.getServletPath())) {
-            filterChain.doFilter(request, response);
-            return;
-        }
 
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
@@ -64,19 +56,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (ExpiredJwtException | SignatureException | MalformedJwtException | UsernameNotFoundException e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+        } catch (Exception e) {
+            log.debug("Invalid or expired JWT token for request {}: {}", request.getServletPath(), e.getMessage());
+            // Do not abort filter chain here; let Spring Security decide based on configured request authorization rules
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private boolean isPublicAuthEndpoint(String servletPath) {
-        return "/api/auth/register".equals(servletPath)
-                || "/api/auth/login".equals(servletPath)
-                || "/api/auth/refresh".equals(servletPath)
-                || "/api/auth/verify-email".equals(servletPath)
-                || "/api/auth/resend-verification-email".equals(servletPath);
     }
 }

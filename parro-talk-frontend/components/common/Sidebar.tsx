@@ -13,6 +13,7 @@ import {
   Tags,
   UsersRound,
   BookType,
+  Layers,
   PieChart
 } from "lucide-react";
 import Image from "next/image";
@@ -55,6 +56,14 @@ export default function Sidebar({
       label: "Lessons",
       path: "/admin/lessons",
       active: pathname.startsWith("/admin/lessons"),
+    },
+    {
+      icon: Layers,
+      label: "Library Sections",
+      path: "/admin/library/sections",
+      active:
+        pathname.startsWith("/admin/library/sections") ||
+        pathname.startsWith("/admin/sections"),
     },
     {
       icon: UsersRound,
@@ -165,6 +174,7 @@ export default function Sidebar({
               <Link
                 key={item.label}
                 href={item.path}
+                prefetch={false}
                 title={collapsed ? item.label : ""}
                 onClick={onMobileClose}
                 className={`group relative flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold transition-all ${item.active

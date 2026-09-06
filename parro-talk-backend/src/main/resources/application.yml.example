@@ -89,7 +89,7 @@ application:
     token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:30}
     max-requests-per-hour: ${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:5}
   security:
-    public-endpoints: /api/auth/register,/api/auth/login,/api/auth/refresh,/api/auth/verify-email,/api/auth/resend-verification-email,/api/auth/forgot-password,/api/auth/reset-password,/api/auth/reset-password/verify
+    public-endpoints: /api/auth/**, /api/lessons/featured, /api/lessons/sse/**, /api/health/**, /api/vocabulary/featured, /api/vocabulary/topics, /api/vocabulary, /api/library/**
     jwt:
       secret-key: ${JWT_SECRET_KEY}
       expiration: 86400000

@@ -24,6 +24,7 @@ export interface Lesson {
   title?: string;
   content?: string;
   thumbnail?: string;
+  thumbnailUrl?: string;
   duration?: number;
   categories?: Category[];
   segments?: Sentence[];
@@ -89,7 +90,6 @@ export interface UserProfileResponse {
   activeDays: string[];
 }
 
-
 type BackendSegment = {
   id: string;
   text: string;
@@ -118,7 +118,54 @@ type BackendLesson = {
   updatedAt: string;
 };
 
-type PageResponse<T> = {
+import type { ApiResponse } from "@/types/api";
+
+export interface LessonWithProgressDTO {
+  id: string;
+  title: string;
+  progress: number;
+  thumbnailUrl?: string | null;
+  url?: string | null;
+  duration?: number | null;
+}
+
+export type LibrarySectionType =
+  | "IN_PROGRESS"
+  | "USER_PROCESSING"
+  | "USER_UPLOADED"
+  | "CATEGORY"
+  | "PROGRAM";
+
+export interface LibrarySectionDTO {
+  id: string;
+  title: string;
+  type: LibrarySectionType | string;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  categorySlug?: string | null;
+  program?: string | null;
+  items: LessonWithProgressDTO[];
+}
+
+export interface CategoryLessonsParams {
+  page?: number;
+  size?: number;
+  program?: string;
+  source?: string;
+  sort?: string;
+}
+
+export interface SearchLessonsParams {
+  q?: string;
+  category?: string;
+  program?: string;
+  source?: string;
+  sort?: string;
+  page?: number;
+  size?: number;
+}
+
+export type PageResponse<T> = {
   content: T[];
   page: number;
   size: number;
@@ -177,9 +224,29 @@ const mapSegmentsPayload = (segments: Segment[]) => ({
   })),
 });
 
+export interface FeaturedLesson {
+  id: string;
+  title: string;
+  duration?: number;
+  thumbnailUrl?: string;
+  fileUrl?: string;
+  categories?: string[];
+  mediaType?: string;
+}
 
 export const lessonService = {
-  async getAllLessons(page = 0, size = 10, query?: string, categoryId?: string) {
+  async getFeaturedLessons() {
+    const response =
+      await axiosInstance.get<FeaturedLesson[]>(`/lessons/featured`);
+    return response.data;
+  },
+
+  async getAllLessons(
+    page = 0,
+    size = 10,
+    query?: string,
+    categoryId?: string,
+  ) {
     let url = `/lessons?page=${page}&size=${size}`;
     if (query) url += `&query=${encodeURIComponent(query)}`;
     if (categoryId) url += `&categoryId=${categoryId}`;
@@ -209,32 +276,46 @@ export const lessonService = {
   },
 
   async createCategory(name: string) {
-    const response = await axiosInstance.post<Category>("/categories", { name });
-    return response.data;
-  },
-
-
-  async getUserProfile() {
-    const response = await axiosInstance.get<UserProfileResponse>("/users/profile");
-    return response.data;
-  },
-
-  async getLessonProgress(lessonId: string) {
-    const response = await axiosInstance.get<LessonProgressResponse>(`/lessons/${lessonId}/progress`);
-    return response.data;
-  },
-
-  async submitAnswer(lessonId: string, segmentId: string | number, userAnswer: string, studySecondsDelta = 0) {
-    const response = await axiosInstance.post<DraftSegmentResponse>(`/lessons/${lessonId}/answer`, {
-      segmentId,
-      userAnswer,
-      studySecondsDelta,
+    const response = await axiosInstance.post<Category>("/categories", {
+      name,
     });
     return response.data;
   },
 
+  async getUserProfile() {
+    const response =
+      await axiosInstance.get<UserProfileResponse>("/users/profile");
+    return response.data;
+  },
+
+  async getLessonProgress(lessonId: string) {
+    const response = await axiosInstance.get<LessonProgressResponse>(
+      `/lessons/${lessonId}/progress`,
+    );
+    return response.data;
+  },
+
+  async submitAnswer(
+    lessonId: string,
+    segmentId: string | number,
+    userAnswer: string,
+    studySecondsDelta = 0,
+  ) {
+    const response = await axiosInstance.post<DraftSegmentResponse>(
+      `/lessons/${lessonId}/answer`,
+      {
+        segmentId,
+        userAnswer,
+        studySecondsDelta,
+      },
+    );
+    return response.data;
+  },
+
   async incrementReplay(lessonId: string, segmentId: string | number) {
-    await axiosInstance.post(`/lessons/${lessonId}/segments/${segmentId}/replay`);
+    await axiosInstance.post(
+      `/lessons/${lessonId}/segments/${segmentId}/replay`,
+    );
   },
 
   async incrementHint(lessonId: string, segmentId: string | number) {
@@ -242,7 +323,9 @@ export const lessonService = {
   },
 
   async finalLessonSubmit(lessonId: string) {
-    const response = await axiosInstance.post<SubmitLessonResponse>(`/lessons/${lessonId}/submit-lesson`);
+    const response = await axiosInstance.post<SubmitLessonResponse>(
+      `/lessons/${lessonId}/submit-lesson`,
+    );
     return response.data;
   },
 
@@ -251,21 +334,33 @@ export const lessonService = {
   },
 
   async retryLesson(lessonId: string) {
-    const response = await axiosInstance.get<{ lessonId: string; message: string }>(`/audio/retry/${lessonId}`);
+    const response = await axiosInstance.get<{
+      lessonId: string;
+      message: string;
+    }>(`/audio/retry/${lessonId}`);
     return response.data;
   },
 
-  async uploadAudio(file: File, title: string, onProgress?: (progress: number) => void) {
+  async uploadAudio(
+    file: File,
+    title: string,
+    onProgress?: (progress: number) => void,
+  ) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("title", title);
-    const response = await axiosInstance.post<{ lessonId: string; message: string }>("/audio/upload", formData, {
+    const response = await axiosInstance.post<{
+      lessonId: string;
+      message: string;
+    }>("/audio/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.total) {
-          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          const progress = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total,
+          );
           onProgress(progress);
         }
       },
@@ -274,19 +369,28 @@ export const lessonService = {
   },
 
   async processYoutube(url: string, title: string) {
-    const response = await axiosInstance.post<{ lessonId: string; message: string }>("/audio/youtube", { url, title });
+    const response = await axiosInstance.post<{
+      lessonId: string;
+      message: string;
+    }>("/audio/youtube", { url, title });
     return response.data;
   },
 
   async getLessons(params: LessonListParams = {}): Promise<LessonListResult> {
-    const response = await axiosInstance.get<PageResponse<BackendLesson>>("/admin/lessons", {
-      params: {
-        search: params.search?.trim() || undefined,
-        status: params.status && params.status !== "all" ? toBackendStatus(params.status) : undefined,
-        page: params.page ?? 0,
-        limit: params.limit ?? 10,
+    const response = await axiosInstance.get<PageResponse<BackendLesson>>(
+      "/admin/lessons",
+      {
+        params: {
+          search: params.search?.trim() || undefined,
+          status:
+            params.status && params.status !== "all"
+              ? toBackendStatus(params.status)
+              : undefined,
+          page: params.page ?? 0,
+          limit: params.limit ?? 10,
+        },
       },
-    });
+    );
 
     return {
       lessons: response.data.content.map(mapLesson),
@@ -298,12 +402,16 @@ export const lessonService = {
   },
 
   async getAdminLessonById(id: string): Promise<AdminLesson> {
-    const response = await axiosInstance.get<BackendLesson>(`/admin/lessons/${id}`);
+    const response = await axiosInstance.get<BackendLesson>(
+      `/admin/lessons/${id}`,
+    );
     return mapLesson(response.data);
   },
 
   async generateAdminTranslations(id: string) {
-    const response = await axiosInstance.post<TranslationSummary>(`/admin/lessons/${id}/translations/generate`);
+    const response = await axiosInstance.post<TranslationSummary>(
+      `/admin/lessons/${id}/translations/generate`,
+    );
     return response.data;
   },
 
@@ -316,14 +424,19 @@ export const lessonService = {
 
   async updateLesson(
     id: string,
-    data: Pick<AdminLesson, "title" | "source" | "status"> & { categoryIds?: string[] },
+    data: Pick<AdminLesson, "title" | "source" | "status"> & {
+      categoryIds?: string[];
+    },
   ): Promise<AdminLesson> {
-    const response = await axiosInstance.put<BackendLesson>(`/admin/lessons/${id}`, {
-      title: data.title,
-      source: data.source,
-      status: toBackendStatus(data.status),
-      categoryIds: data.categoryIds,
-    });
+    const response = await axiosInstance.put<BackendLesson>(
+      `/admin/lessons/${id}`,
+      {
+        title: data.title,
+        source: data.source,
+        status: toBackendStatus(data.status),
+        categoryIds: data.categoryIds,
+      },
+    );
 
     return mapLesson(response.data);
   },
@@ -332,22 +445,80 @@ export const lessonService = {
     await axiosInstance.delete(`/admin/lessons/${id}`);
   },
 
-  async updateLessonStatus(id: string, status: LessonStatus): Promise<AdminLesson> {
-    const response = await axiosInstance.patch<BackendLesson>(`/admin/lessons/${id}/status`, {
-      status: toBackendStatus(status),
-    });
+  async updateLessonStatus(
+    id: string,
+    status: LessonStatus,
+  ): Promise<AdminLesson> {
+    const response = await axiosInstance.patch<BackendLesson>(
+      `/admin/lessons/${id}/status`,
+      {
+        status: toBackendStatus(status),
+      },
+    );
 
     return mapLesson(response.data);
   },
 
-  async updateSegments(id: string, segments: Segment[], deletedSegmentIds: string[] = []): Promise<Segment[]> {
-    const response = await axiosInstance.put<BackendLesson>(`/admin/lessons/${id}/segments`, {
-      ...mapSegmentsPayload(segments),
-      deletedSegmentIds,
-    });
+  async updateSegments(
+    id: string,
+    segments: Segment[],
+    deletedSegmentIds: string[] = [],
+  ): Promise<Segment[]> {
+    const response = await axiosInstance.put<BackendLesson>(
+      `/admin/lessons/${id}/segments`,
+      {
+        ...mapSegmentsPayload(segments),
+        deletedSegmentIds,
+      },
+    );
 
     return (response.data.segments ?? []).map(mapSegment);
   },
+  async getLibrarySections(signal?: AbortSignal): Promise<LibrarySectionDTO[]> {
+    const response = await axiosInstance.get<ApiResponse<LibrarySectionDTO[]>>(
+      "/library",
+      {
+        signal,
+      },
+    );
 
+    return response.data.result ?? [];
+  },
+
+  async getCategoryLessons(
+    categorySlug: string,
+    params: CategoryLessonsParams = {},
+  ): Promise<PageResponse<LessonWithProgressDTO>> {
+    const response = await axiosInstance.get<
+      ApiResponse<PageResponse<LessonWithProgressDTO>>
+    >(`/library/categories/${encodeURIComponent(categorySlug)}/lessons`, {
+      params: {
+        page: params.page ?? 0,
+        size: params.size ?? 12,
+        program: params.program?.trim() || undefined,
+        source: params.source?.trim() || undefined,
+        sort: params.sort?.trim() || "latest",
+      },
+    });
+    return response.data.result;
+  },
+
+  async searchLibraryLessons(
+    params: SearchLessonsParams = {},
+  ): Promise<PageResponse<LessonWithProgressDTO>> {
+    const response = await axiosInstance.get<
+      ApiResponse<PageResponse<LessonWithProgressDTO>>
+    >("/library/search", {
+      params: {
+        q: params.q?.trim() || undefined,
+        category: params.category?.trim() || undefined,
+        program: params.program?.trim() || undefined,
+        source: params.source?.trim() || undefined,
+        sort: params.sort?.trim() || "latest",
+        page: params.page ?? 0,
+        size: params.size ?? 12,
+      },
+    });
+    return response.data.result;
+  },
 };
-

@@ -1,290 +1,946 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
-import LessonCard from "@/features/lesson/components/LessonCard";
-import FeaturedLesson from "@/features/lesson/components/FeaturedLesson";
-import { Search, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
-import Image from "next/image";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  useTransition,
+  Suspense,
+} from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Menu,
+  AlertCircle,
+  RotateCcw,
+  Flame,
+} from "lucide-react";
+
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useDebounce } from "use-debounce";
 import { useUI } from "@/hooks/useUI";
-import { Menu } from "lucide-react";
-import { lessonService, Lesson, Category } from "@/features/lesson/services/lessonService";
+import {
+  lessonService,
+  Lesson,
+  Category,
+  LibrarySectionDTO,
+  PageResponse,
+} from "@/features/lesson/services/lessonService";
+import { streakService } from "@/features/streak/services/streakService";
+import type { UserStreakResponse } from "@/features/streak/types/streak";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import UserMenu from "@/components/common/UserMenu";
 
-function LibraryContent() {
-    const { user, isAuthenticated, isLoading: isAuthLoading, logout } = useAuth();
-    const { openMobileMenu } = useUI();
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const pathname = usePathname();
+import {
+  LibraryHero,
+  StreakBanner,
+  ContinueLearningSection,
+  UploadedLessonsSection,
+  CuratedShelfSection,
+  ProcessingFab,
+  ProcessingModal,
+  LibrarySkeleton,
+  LibraryEmptyState,
+  type ContinueLearningItem,
+  type UploadedLessonItem,
+  type TopicLessonItem,
+  type StreakInfo,
+  type CategoryChipItem,
+  type ProcessingJobItem,
+  type TopicGradientTheme,
+} from "@/components/library";
 
-    const [lessons, setLessons] = useState<Lesson[]>([]);
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [activeCategory, setActiveCategory] = useState<string>(searchParams.get("category") || "");
-    const [activeTab, setActiveTab] = useState<"library" | "my-lessons">(
-        searchParams.get("tab") === "my-lessons" ? "my-lessons" : "library",
-    );
-    const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
-    const [debouncedSearch] = useDebounce(searchQuery, 500);
-    const [page, setPage] = useState(Number(searchParams.get("page")) || 0);
-    const [totalPages, setTotalPages] = useState(0);
-    const [loading, setLoading] = useState(true);
+const THEME_PALETTE: TopicGradientTheme[] = [
+  "emerald",
+  "indigo",
+  "coral",
+  "amber",
+  "blue",
+  "purple",
+];
 
-    // Reset page when filters change
-    useEffect(() => {
-        setPage(0);
-    }, [debouncedSearch, activeCategory, activeTab]);
+function getGradientTheme(nameOrSlug?: string | null, index = 0): TopicGradientTheme {
+  const lower = (nameOrSlug || "").toLowerCase();
+  if (lower.includes("work") || lower.includes("career") || lower.includes("công việc")) {
+    return "emerald";
+  }
+  if (lower.includes("tech") || lower.includes("công nghệ") || lower.includes("ai")) {
+    return "indigo";
+  }
+  if (
+    lower.includes("health") ||
+    lower.includes("lifestyle") ||
+    lower.includes("sức khỏe") ||
+    lower.includes("lối sống")
+  ) {
+    return "coral";
+  }
+  if (lower.includes("daily") || lower.includes("hàng ngày") || lower.includes("cuộc sống")) {
+    return "amber";
+  }
+  if (lower.includes("ted") || lower.includes("talk")) {
+    return "purple";
+  }
+  if (lower.includes("6 min") || lower.includes("bbc") || lower.includes("podcast")) {
+    return "emerald";
+  }
+  return THEME_PALETTE[index % THEME_PALETTE.length];
+}
 
-    // Sync state to URL
-    useEffect(() => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (debouncedSearch) params.set("q", debouncedSearch); else params.delete("q");
-        if (activeCategory && activeTab === "library") params.set("category", activeCategory); else params.delete("category");
-        if (activeTab === "my-lessons") params.set("tab", "my-lessons"); else params.delete("tab");
-        if (page > 0) params.set("page", page.toString()); else params.delete("page");
+function getSourceFromTitle(title?: string | null): string {
+  const lower = (title || "").toLowerCase();
+  if (lower.includes("bbc") || lower.includes("6 min") || lower.includes("minute")) return "BBC";
+  if (lower.includes("ted")) return "TED";
+  if (lower.includes("voa")) return "VOA";
+  return "ParroTalk";
+}
 
-        const newQueryString = params.toString();
-        const currentQueryString = searchParams.toString();
-
-        if (newQueryString !== currentQueryString) {
-            router.replace(`${pathname}${newQueryString ? `?${newQueryString}` : ""}`, { scroll: false });
-        }
-    }, [debouncedSearch, activeCategory, activeTab, page, pathname, router, searchParams]);
-
-    const fetchLessons = useCallback(async () => {
-        setLoading(true);
-        try {
-            const data = activeTab === "my-lessons"
-                ? await lessonService.getMyLessons(page, 9, debouncedSearch)
-                : await lessonService.getAllLessons(page, 9, debouncedSearch, activeCategory);
-            setLessons(data.content || []);
-            setTotalPages(data.totalPages || 0);
-        } catch (err) {
-            console.error("Error fetching lessons:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [page, debouncedSearch, activeCategory, activeTab]);
-
-    useEffect(() => {
-        if (!isAuthLoading && !isAuthenticated) {
-            router.push("/login");
-            return;
-        }
-    }, [isAuthenticated, isAuthLoading, router]);
-
-    useEffect(() => {
-        if (!isAuthLoading && user?.role !== "PRO_USER" && activeTab === "my-lessons") {
-            setActiveTab("library");
-        }
-    }, [activeTab, isAuthLoading, user?.role]);
-
-
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            fetchLessons();
-        }
-    }, [fetchLessons, isAuthenticated]);
-
-    if (isAuthLoading) {
-        return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
-                <Loader2 className="w-10 h-10 animate-spin text-green-500" />
-            </div>
-        );
+// Discriminated union describing exactly what each shelf needs to render.
+// Built once per `sections`/`isProOrAdmin` change via useMemo (see renderableSections
+// below) instead of being recomputed inline in JSX on every render.
+type RenderableSection =
+  | { kind: "IN_PROGRESS"; key: string; title: string; items: ContinueLearningItem[] }
+  | {
+      kind: "USER_UPLOADED";
+      key: string;
+      title: string;
+      seeAllHref: string;
+      items: UploadedLessonItem[];
     }
+  | {
+      kind: "SHELF";
+      key: string;
+      shelfId: string;
+      title: string;
+      theme: TopicGradientTheme;
+      seeAllHref?: string;
+      items: TopicLessonItem[];
+    };
 
-    const featuredJob = activeTab === "library" && page === 0 && lessons.length > 0 && !debouncedSearch && !activeCategory ? lessons[0] : null;
-    // const gridJobs = jobs.filter(job => job.id !== featuredJob?.id);
-    const gridJobs = lessons;
+// EARLY PREFETCH: Tối ưu ưu tiên tuyệt đối cho API library.
+// Bắt đầu gọi API ngay khi trình duyệt vừa parse xong file JS, không cần chờ React hydration hay useEffect.
+// Tránh được tình trạng kẹt xe (waterfall) do Next.js rsc prefetching.
+let earlyLibraryPromise: Promise<any> | null = null;
+let earlyFetchTime = 0;
+if (typeof window !== "undefined") {
+  const token = localStorage.getItem("token");
+  const urlParams = new URLSearchParams(window.location.search);
+  const isMyLessons = urlParams.get("tab") === "my-lessons";
+  if (token && !isMyLessons) {
+    if (process.env.NODE_ENV === "development") performance.mark("library-request-start");
+    earlyFetchTime = Date.now();
+    earlyLibraryPromise = lessonService.getLibrarySections().then(res => {
+      if (process.env.NODE_ENV === "development") {
+        performance.mark("library-response-received");
+        performance.measure("library-fetch-duration", "library-request-start", "library-response-received");
+      }
+      return res;
+    }).catch(e => {
+      console.error("Early prefetch error:", e);
+      return null;
+    });
+  }
+}
 
-    return (
-        <div className="bg-white flex flex-col flex-1 min-w-0">
-            {/* Top Header */}
-            <header className="px-4 md:px-8 py-4 md:py-5 flex items-center justify-between border-b border-gray-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={openMobileMenu}
-                        className="lg:hidden p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-95"
-                    >
-                        <Menu size={24} />
-                    </button>
- 
-                    <div className="hidden lg:flex gap-10 text-sm font-bold">
-                        <button
-                            onClick={() => setActiveTab("library")}
-                            className={`${activeTab === "library" ? "text-green-500 border-b-2 border-green-500" : "text-gray-400 hover:text-gray-800"} pb-1 shrink-0 transition-colors`}
-                        >
-                            Lesson Library
-                        </button>
-                        {user?.role === "PRO_USER" || user?.role === "ADMIN" && (
-                            <button
-                                onClick={() => {
-                                    setActiveTab("my-lessons");
-                                    setActiveCategory("");
-                                }}
-                                className={`${activeTab === "my-lessons" ? "text-green-500 border-b-2 border-green-500" : "text-gray-400 hover:text-gray-800"} pb-1 shrink-0 transition-colors`}
-                            >
-                                My Lessons
-                            </button>
-                        )}
-                        <Link href="/profile" className="text-gray-400 hover:text-gray-800 transition-colors cursor-pointer shrink-0">User Streak</Link>
-                    </div>
- 
-                    <div className="lg:hidden relative w-24 h-7 sm:w-28 sm:h-8 flex items-center">
-                        <Image src="/logo_long.png" alt="ParroTalk" width={75} height={30} className="object-contain" />
-                    </div>
-                </div>
- 
-                <div className="relative flex-1 md:flex-none">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search lessons..."
-                        className="bg-gray-50 border border-gray-100 rounded-full pl-10 pr-4 py-2 w-full md:w-64 lg:w-96 text-sm focus:outline-none focus:ring-2 focus:ring-green-100 focus:border-green-500 text-gray-800 transition-all"
-                    />
-                </div>
- 
-                <div className="flex items-center gap-3 sm:gap-6">
-                    <UserMenu />
-                </div>
-            </header>
+function LibraryContent() {
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { openMobileMenu } = useUI();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-            <main className="px-4 md:px-8 py-8 md:py-12 max-w-7xl w-full mx-auto flex flex-col gap-6 md:gap-10">
-                {user?.role === "PRO_USER" || user?.role === "ADMIN" && (
-                    <div className="flex lg:hidden rounded-2xl bg-gray-100 p-1">
-                        <button
-                            onClick={() => setActiveTab("library")}
-                            className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "library"
-                                ? "bg-white text-green-600 shadow-sm"
-                                : "text-gray-500"
-                                }`}
-                        >
-                            Lesson Library
-                        </button>
-                        <button
-                            onClick={() => {
-                                setActiveTab("my-lessons");
-                                setActiveCategory("");
-                            }}
-                            className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold transition-all ${activeTab === "my-lessons"
-                                ? "bg-white text-green-600 shadow-sm"
-                                : "text-gray-500"
-                                }`}
-                        >
-                            My Lessons
-                        </button>
-                    </div>
-                )}
+  const initialTab = searchParams.get("tab") === "my-lessons" ? "my-lessons" : "library";
+  const [activeTab, setActiveTab] = useState<"library" | "my-lessons">(initialTab);
+  // Defers the (potentially heavy) content swap so the tab button itself still
+  // responds instantly to the click; see handleTabChange below.
+  const [isTabPending, startTabTransition] = useTransition();
 
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="flex flex-col gap-3 max-w-xl">
-                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
-                            {activeTab === "my-lessons" ? "My Lessons" : "Lesson Library"}
-                        </h1>
-                        <p className="text-gray-500 text-base md:text-lg">
-                            {activeTab === "my-lessons"
-                                ? "Practice with the private lessons you created for yourself."
-                                : "Hone your dictation and pronunciation skills with our curated collection of pristine audio and video lessons."}
-                        </p>
-                    </div>
+  // Dynamic Data States
+  const [sections, setSections] = useState<LibrarySectionDTO[]>([]);
+  const [myLessons, setMyLessons] = useState<Lesson[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [streakData, setStreakData] = useState<UserStreakResponse | null>(null);
 
-                    {activeTab === "library" && (
-                        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-                            <button
-                                onClick={() => { setActiveCategory(""); setPage(0); }}
-                                className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === ""
-                                    ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
-                                    : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
-                                    }`}
-                            >
-                                All
-                            </button>
-                            {categories.map(cat => (
-                                <button
-                                    key={cat.id}
-                                    onClick={() => { setActiveCategory(cat.id); setPage(0); }}
-                                    className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${activeCategory === cat.id
-                                        ? "bg-gray-900 text-white shadow-lg shadow-gray-200"
-                                        : "bg-white border border-gray-100 text-gray-600 hover:bg-gray-50 hover:border-gray-200"
-                                        }`}
-                                >
-                                    {cat.name}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+  // UI States
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [hasFetchError, setHasFetchError] = useState<boolean>(false);
+  const [isProcessingModalOpen, setIsProcessingModalOpen] = useState<boolean>(false);
+  const [processingJobs, setProcessingJobs] = useState<ProcessingJobItem[]>([]);
 
-                {loading ? (
-                    <div className="w-full flex flex-col gap-8 py-10">
-                        <div className="w-full h-[400px] bg-gray-100 rounded-[2rem] animate-pulse"></div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className="bg-gray-50 h-[300px] rounded-[2rem] animate-pulse"></div>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <>
-                        {featuredJob && <FeaturedLesson job={featuredJob} />}
-                        {lessons.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                                {gridJobs.map(lesson => (
-                                    <LessonCard key={lesson.id} lesson={lesson} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-32 bg-gray-50 rounded-[2rem] border border-gray-100 flex flex-col items-center justify-center gap-4">
-                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm text-gray-400">
-                                    <Search size={24} />
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900">No lessons found</h3>
-                                <p className="text-gray-500 max-w-sm">Try tweaking your filters or searching for something else.</p>
-                            </div>
-                        )}
+  // Per-tab response cache (stale-while-revalidate) + a monotonically increasing
+  // request id so a slow/late response can never clobber a newer one — this is what
+  // lets tab switches skip the skeleton and survive rapid back-and-forth clicking.
+  const cacheRef = useRef<{ library?: LibrarySectionDTO[]; myLessons?: Lesson[] }>({});
+  const requestIdRef = useRef(0);
 
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-center gap-4 py-8">
-                                <button
-                                    onClick={() => setPage(p => Math.max(0, p - 1))}
-                                    disabled={page === 0}
-                                    className="p-3 bg-white border border-gray-100 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                                >
-                                    <ChevronLeft size={20} />
-                                </button>
-                                <span className="text-sm font-bold text-gray-600">Page {page + 1} of {totalPages}</span>
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                                    disabled={page === totalPages - 1}
-                                    className="p-3 bg-white border border-gray-100 rounded-full text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                                >
-                                    <ChevronRight size={20} />
-                                </button>
-                            </div>
-                        )}
-                    </>
-                )}
-            </main>
-        </div>
+  // Reset Progress Modal State
+  const [resetModal, setResetModal] = useState<{
+    isOpen: boolean;
+    lessonId: string;
+    lessonTitle: string;
+    isResetting: boolean;
+  }>({
+    isOpen: false,
+    lessonId: "",
+    lessonTitle: "",
+    isResetting: false,
+  });
+
+  const isProOrAdmin = Boolean(
+    user?.role === "PRO_USER" || user?.role === "ADMIN"
+  );
+
+  // Redirect if unauthenticated
+  useEffect(() => {
+    if (!isAuthLoading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [isAuthenticated, isAuthLoading, router]);
+
+  // Adjust active tab if user is not Pro/Admin
+  useEffect(() => {
+    if (!isAuthLoading && !isProOrAdmin && activeTab === "my-lessons") {
+      setActiveTab("library");
+    }
+  }, [activeTab, isAuthLoading, isProOrAdmin]);
+
+  // Main dynamic sections fetcher.
+  // `isBackground: true` is used for polling and post-mutation reconciliation: it
+  // never toggles the loading/error UI, it just quietly syncs state with the server.
+  const fetchLibraryData = useCallback(
+    async (opts: { isBackground?: boolean } = {}) => {
+      const { isBackground = false } = opts;
+      const requestId = ++requestIdRef.current;
+      const hasCachedData =
+        activeTab === "my-lessons"
+          ? cacheRef.current.myLessons !== undefined
+          : cacheRef.current.library !== undefined;
+
+      // Only show the full-page skeleton when there's truly nothing to show yet.
+      if (!isBackground && !hasCachedData) {
+        setIsLoading(true);
+      }
+      if (!isBackground) {
+        setHasFetchError(false);
+      }
+
+      try {
+        let tabPromise: Promise<any>;
+        if (activeTab === "my-lessons") {
+          tabPromise = lessonService.getMyLessons(0, 50);
+        } else {
+          // Reuse early promise if within 2 seconds. This allows React Strict Mode
+          // (which mounts twice rapidly) to share the same promise, preventing a
+          // duplicate network request.
+          if (earlyLibraryPromise && Date.now() - earlyFetchTime < 2000) {
+            tabPromise = earlyLibraryPromise;
+            if (process.env.NODE_ENV !== "development") earlyLibraryPromise = null; // consume in prod
+          } else {
+            if (process.env.NODE_ENV === "development") performance.mark("library-request-start");
+            tabPromise = lessonService.getLibrarySections().then(res => {
+              if (process.env.NODE_ENV === "development") {
+                performance.mark("library-response-received");
+                performance.measure("library-fetch-duration", "library-request-start", "library-response-received");
+              }
+              return res;
+            });
+          }
+        }
+
+        const tabData = await tabPromise;
+
+        // A newer request (tab switch, manual retry, or poll tick) has already
+        // superseded this one — discard the stale result.
+        if (requestId !== requestIdRef.current) return;
+
+        if (activeTab === "my-lessons") {
+          const myData = tabData as PageResponse<Lesson>;
+          const content = myData.content || [];
+          cacheRef.current.myLessons = content;
+          setMyLessons(content);
+          const activeUploadJobs: ProcessingJobItem[] = content
+            .filter((l) => l.status === "PROCESSING" || l.status === "PENDING" || l.status === "FAILED")
+            .map((l) => ({
+              id: l.id,
+              title: l.title || "Tệp âm thanh tải lên",
+              progressPercent: l.progress || (l.status === "PROCESSING" ? 65 : 10),
+              status: l.status,
+              startedAt: l.createdAt,
+              duration: l.duration,
+            }));
+          setProcessingJobs(activeUploadJobs);
+        } else {
+          const fetchedSections = (tabData as LibrarySectionDTO[]) || [];
+          cacheRef.current.library = fetchedSections;
+          setSections(fetchedSections);
+
+          // Extract processing items if USER_PROCESSING section returned
+          const processingSec = fetchedSections.find((s) => s.type === "USER_PROCESSING");
+          if (processingSec && processingSec.items.length > 0) {
+            const jobs: ProcessingJobItem[] = processingSec.items.map((item) => ({
+              id: item.id,
+              title: item.title || "Tệp âm thanh tải lên",
+              progressPercent: item.progress || 50,
+              status: "PROCESSING",
+              duration: item.duration ?? undefined,
+            }));
+            setProcessingJobs(jobs);
+          } else {
+            setProcessingJobs([]); // Clear if none found
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching library data:", err);
+        if (requestId === requestIdRef.current && !hasCachedData) {
+          setHasFetchError(true);
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [activeTab]
+  );
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    // Paint instantly from cache on tab switch (no skeleton flash), then revalidate.
+    if (activeTab === "my-lessons" && cacheRef.current.myLessons) {
+      setMyLessons(cacheRef.current.myLessons);
+    } else if (activeTab === "library" && cacheRef.current.library) {
+      setSections(cacheRef.current.library);
+    }
+    fetchLibraryData();
+  }, [fetchLibraryData, isAuthenticated, activeTab]);
+
+  // Secondary data (categories for the hero chips, streak for the banner) — fetched
+  // AFTER the primary library/my-lessons request above. Two things make this a real
+  // priority ordering rather than just "later in the file":
+  //  1. Effects run in declaration order within the same commit, so the effect above
+  //     has already called `fetchLibraryData()` — and therefore already dispatched
+  //     its network request — before this effect body even runs.
+  //  2. This effect further defers its own fetches to the next idle period via
+  //     `requestIdleCallback` (falling back to a short `setTimeout` on Safari, which
+  //     doesn't support it), so on a slow/throttled connection the browser finishes
+  //     giving priority to the sections request instead of opening 2 more
+  //     connections/streams at the same instant.
+  // The `timeout` option guarantees these still run within ~1.5s even if the main
+  // thread stays busy, so this never turns into an indefinite wait.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const runWhenIdle = (cb: () => void) => {
+      if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+        const id = (window as any).requestIdleCallback(cb, { timeout: 1500 });
+        return () => (window as any).cancelIdleCallback(id);
+      }
+      const t = setTimeout(cb, 200);
+      return () => clearTimeout(t);
+    };
+
+    return runWhenIdle(() => {
+      if (categories.length === 0) {
+        lessonService
+          .getCategories("", 0, 50)
+          .then((res) => {
+            if (res?.content) setCategories(res.content);
+          })
+          .catch(console.error);
+      }
+      if (!streakData) {
+        streakService
+          .getMyStreak()
+          .then((res) => {
+            if (res) setStreakData(res);
+          })
+          .catch(console.error);
+      }
+    });
+  }, [isAuthenticated, categories.length, streakData]);
+
+  // Performance measurement logging
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development" && sections.length > 0 && typeof performance !== "undefined") {
+      try {
+        performance.mark("library-content-rendered");
+        if (performance.getEntriesByName("library-request-start").length > 0) {
+          performance.measure("navigation-to-render", "library-request-start", "library-content-rendered");
+          const measures = performance.getEntriesByType("measure").filter(m => m.name.includes("library") || m.name.includes("navigation"));
+          if (measures.length > 0) {
+            console.log("⏱️ Performance Marks:", measures.map(m => ({ name: m.name, durationMs: Math.round(m.duration) })));
+          }
+        }
+        performance.clearMeasures();
+        performance.clearMarks();
+      } catch (e) {
+        // ignore performance API errors
+      }
+    }
+  }, [sections]);
+
+  // Periodic polling for active background processing jobs (every 10s if any job is
+  // active). Pauses automatically while the tab isn't visible, and catches up with a
+  // single immediate refresh when it becomes visible again — no point burning
+  // network/battery polling a tab nobody is looking at.
+  useEffect(() => {
+    const hasActiveJobs = processingJobs.some(
+      (j) => j.status === "PROCESSING" || j.status === "PENDING"
     );
+    if (!hasActiveJobs || !isAuthenticated) return;
+
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId) return;
+      intervalId = setInterval(() => {
+        fetchLibraryData({ isBackground: true });
+      }, 10000);
+    };
+    const stopPolling = () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopPolling();
+      } else {
+        fetchLibraryData({ isBackground: true });
+        startPolling();
+      }
+    };
+
+    if (document.visibilityState !== "hidden") startPolling();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [processingJobs, isAuthenticated, fetchLibraryData]);
+
+  // Retry failed upload job — optimistic-ish: kick off the retry, then quietly
+  // reconcile in the background instead of blocking on a full refetch.
+  const handleRetryJob = useCallback(
+    async (jobId: string) => {
+      try {
+        await lessonService.retryLesson(jobId);
+        fetchLibraryData({ isBackground: true });
+      } catch (err) {
+        console.error("Failed to retry job:", err);
+      }
+    },
+    [fetchLibraryData]
+  );
+
+  // Cancel/delete processing job or uploaded lesson — updates local state and the
+  // cache immediately so the UI feels instant, then reconciles with the server
+  // quietly in the background rather than blocking on (and skeleton-flashing from)
+  // a full refetch.
+  const handleDeleteJob = useCallback(
+    async (jobId: string) => {
+      try {
+        await lessonService.deleteLesson(jobId);
+        setProcessingJobs((prev) => prev.filter((j) => j.id !== jobId));
+        setMyLessons((prev) => prev.filter((l) => l.id !== jobId));
+        setSections((prev) =>
+          prev.map((s) => ({ ...s, items: s.items.filter((it) => it.id !== jobId) }))
+        );
+        if (cacheRef.current.myLessons) {
+          cacheRef.current.myLessons = cacheRef.current.myLessons.filter((l) => l.id !== jobId);
+        }
+        if (cacheRef.current.library) {
+          cacheRef.current.library = cacheRef.current.library.map((s) => ({
+            ...s,
+            items: s.items.filter((it) => it.id !== jobId),
+          }));
+        }
+        fetchLibraryData({ isBackground: true });
+      } catch (err) {
+        console.error("Failed to delete lesson/job:", err);
+      }
+    },
+    [fetchLibraryData]
+  );
+
+  const handleClearCompletedJobs = useCallback(() => {
+    setProcessingJobs((prev) =>
+      prev.filter((j) => j.status === "PROCESSING" || j.status === "PENDING")
+    );
+  }, []);
+
+  // Defers the tab content swap (React 18 transition) so the click itself stays
+  // snappy even while the new tab's content is still being prepared/painted.
+  const handleTabChange = useCallback((tab: "library" | "my-lessons") => {
+    startTabTransition(() => setActiveTab(tab));
+  }, []);
+
+  // Build category chips list from API categories
+  const categoryChips: CategoryChipItem[] = useMemo(() => {
+    const chipList: CategoryChipItem[] = [{ id: "", label: "Tất cả" }];
+    if (categories && categories.length > 0) {
+      categories.slice(0, 8).forEach((cat) => {
+        chipList.push({ id: cat.id, label: cat.name });
+      });
+    } else {
+      chipList.push(
+        { id: "work-career", label: "Work & Career" },
+        { id: "technology", label: "Technology" },
+        { id: "ted-talks", label: "TED Talks" },
+        { id: "6-minute-english", label: "6 Minute English" },
+        { id: "health-lifestyle", label: "Health & Lifestyle" }
+      );
+    }
+    return chipList;
+  }, [categories]);
+
+  // Streak banner data
+  const streakInfo: StreakInfo | null = useMemo(() => {
+    if (!streakData) return null;
+    return {
+      currentStreak: streakData.currentStreak,
+      longestStreak: streakData.longestStreak,
+      hasStudiedToday: streakData.hasStudiedToday,
+      weeklyProgress: streakData.weeklyProgress,
+    };
+  }, [streakData]);
+
+  // Handle lesson navigation or reset modal
+  const handleSelectLesson = useCallback(
+    (lessonId: string, progress: number, title?: string) => {
+      if (progress === 100) {
+        setResetModal({
+          isOpen: true,
+          lessonId,
+          lessonTitle: title || "Bài học này",
+          isResetting: false,
+        });
+      } else {
+        router.push(`/practice/${lessonId}`);
+      }
+    },
+    [router]
+  );
+
+  const handleConfirmResetLesson = useCallback(async () => {
+    if (!resetModal.lessonId) return;
+    const id = resetModal.lessonId;
+    setResetModal((prev) => ({ ...prev, isResetting: true }));
+    try {
+      await lessonService.resetProgress(id);
+    } catch (err) {
+      console.error("Failed to reset lesson progress:", err);
+    } finally {
+      setResetModal({
+        isOpen: false,
+        lessonId: "",
+        lessonTitle: "",
+        isResetting: false,
+      });
+      router.push(`/practice/${id}`);
+    }
+  }, [resetModal.lessonId, router]);
+
+  // Stable per-child-type callbacks — keeps prop references stable across renders
+  // so any memoized child components (ContinueLearningSection, CuratedShelfSection,
+  // etc.) can actually skip re-rendering.
+  const handleSelectContinueLesson = useCallback(
+    (item: ContinueLearningItem) => handleSelectLesson(item.id, item.progressPercent, item.title),
+    [handleSelectLesson]
+  );
+  const handleSelectShelfLesson = useCallback(
+    (item: TopicLessonItem) => handleSelectLesson(item.id, 0, item.title),
+    [handleSelectLesson]
+  );
+  const handlePracticeUploaded = useCallback(
+    (item: UploadedLessonItem) => handleSelectLesson(item.id, item.progress ?? 0, item.title),
+    [handleSelectLesson]
+  );
+  const handleDeleteUploaded = useCallback(
+    (item: UploadedLessonItem) => handleDeleteJob(item.id),
+    [handleDeleteJob]
+  );
+
+  const activeProcessingCount = processingJobs.filter(
+    (j) => j.status === "PROCESSING" || j.status === "PENDING"
+  ).length;
+
+  const uploadedLessonItems: UploadedLessonItem[] = useMemo(() => {
+    return myLessons.map((l) => ({
+      id: l.id,
+      title: l.title || "Bài học tải lên",
+      status:
+        l.status === "DONE"
+          ? "READY"
+          : l.status === "FAILED"
+          ? "FAILED"
+          : "PROCESSING",
+      durationMinutes: l.duration ? Math.ceil(l.duration / 60) : 5,
+      createdAt: l.createdAt,
+      thumbnailUrl: l.thumbnail,
+      progress: l.progress,
+    }));
+  }, [myLessons]);
+
+  // Translate the raw `sections` DTOs into render-ready shelf data exactly once per
+  // `sections`/`isProOrAdmin` change, instead of on every render (previously this ran
+  // inline in JSX, so e.g. opening the processing modal — an unrelated state change —
+  // re-built every array in every shelf on every re-render).
+  const renderableSections: RenderableSection[] = useMemo(() => {
+    const result: RenderableSection[] = [];
+
+    sections.forEach((section, idx) => {
+      if (!section.items || section.items.length === 0) return;
+
+      switch (section.type) {
+        case "IN_PROGRESS": {
+          result.push({
+            kind: "IN_PROGRESS",
+            key: section.id || `in-progress-${idx}`,
+            title: section.title || "Tiếp tục học",
+            items: section.items.map((item) => ({
+              id: item.id,
+              title: item.title || "Bài học đang học",
+              source: getSourceFromTitle(item.title),
+              durationMinutes: item.duration ? Math.ceil(item.duration / 60) : 6,
+              progressPercent: item.progress || 0,
+              thumbnailUrl: item.thumbnailUrl || undefined,
+            })),
+          });
+          break;
+        }
+
+        case "USER_UPLOADED": {
+          if (!isProOrAdmin) return;
+          result.push({
+            kind: "USER_UPLOADED",
+            key: section.id || `uploaded-${idx}`,
+            title: section.title || "Bài học tải lên của bạn",
+            seeAllHref: "?tab=my-lessons",
+            items: section.items.map((item) => ({
+              id: item.id,
+              title: item.title || "Bài học tải lên",
+              status: "READY",
+              durationMinutes: item.duration ? Math.ceil(item.duration / 60) : 5,
+              createdAt: new Date().toISOString(),
+              thumbnailUrl: item.thumbnailUrl || undefined,
+              progress: item.progress,
+            })),
+          });
+          break;
+        }
+
+        case "CATEGORY": {
+          const theme = getGradientTheme(section.categorySlug || section.title, idx);
+          const seeAllHref = section.categorySlug
+            ? `/library/categories/${section.categorySlug}`
+            : section.categoryId
+            ? `/library/categories/${section.categoryId}`
+            : undefined;
+
+          result.push({
+            kind: "SHELF",
+            key: section.id || `category-${idx}`,
+            shelfId: `shelf-${section.id}`,
+            title: section.title,
+            theme,
+            seeAllHref,
+            items: section.items.map((item, itemIdx) => ({
+              id: item.id,
+              title: item.title || `Bài học ${itemIdx + 1}`,
+              topicBadge: section.categoryName || "CATEGORY",
+              lessonNumber: `Lesson ${String(itemIdx + 1).padStart(2, "0")}`,
+              durationMinutes: item.duration ? Math.ceil(item.duration / 60) : 6,
+              gradientTheme: theme,
+              thumbnailUrl: item.thumbnailUrl || undefined,
+              categoryName: section.categoryName || undefined,
+            })),
+          });
+          break;
+        }
+
+        case "PROGRAM": {
+          const theme = getGradientTheme(section.program || section.title, idx);
+          result.push({
+            kind: "SHELF",
+            key: section.id || `program-${idx}`,
+            shelfId: `shelf-${section.id}`,
+            title: section.title,
+            theme,
+            seeAllHref: `/library/search?program=${encodeURIComponent(section.program || section.title)}`,
+            items: section.items.map((item, itemIdx) => ({
+              id: item.id,
+              title: item.title || `Bài học ${itemIdx + 1}`,
+              topicBadge: section.program || "PROGRAM",
+              lessonNumber: `Ep. ${String(itemIdx + 1).padStart(2, "0")}`,
+              durationMinutes: item.duration ? Math.ceil(item.duration / 60) : 6,
+              gradientTheme: theme,
+              thumbnailUrl: item.thumbnailUrl || undefined,
+              source: section.program || undefined,
+            })),
+          });
+          break;
+        }
+
+        default:
+          break;
+      }
+    });
+
+    return result;
+  }, [sections, isProOrAdmin]);
+
+  return (
+    <div className="bg-[#F8FAF9] flex flex-col flex-1 min-w-0 min-h-screen text-slate-900">
+      {/* Sticky Top Header Navigation */}
+      <header className="px-4 md:px-8 py-3.5 sm:py-4 flex items-center justify-between border-b border-emerald-100/70 bg-white/90 backdrop-blur-md sticky top-0 z-40 shadow-2xs">
+        <div className="flex items-center gap-3 sm:gap-8">
+          <button
+            type="button"
+            onClick={openMobileMenu}
+            aria-label="Mở menu điều hướng"
+            className="lg:hidden p-2 hover:bg-emerald-50 rounded-xl text-slate-600 transition-all active:scale-95 cursor-pointer"
+          >
+            <Menu size={22} />
+          </button>
+
+          {/* Desktop Tab Navigation */}
+          <nav className="hidden lg:flex items-center gap-8 text-sm font-bold">
+            <button
+              type="button"
+              onClick={() => handleTabChange("library")}
+              className={`pb-1 cursor-pointer transition-all border-b-2 ${
+                activeTab === "library"
+                  ? "text-emerald-700 border-emerald-600 font-extrabold"
+                  : "text-slate-500 hover:text-slate-900 border-transparent"
+              }`}
+            >
+              Thư viện bài học
+            </button>
+
+            {isProOrAdmin && (
+              <button
+                type="button"
+                onClick={() => handleTabChange("my-lessons")}
+                className={`pb-1 cursor-pointer transition-all border-b-2 ${
+                  activeTab === "my-lessons"
+                    ? "text-emerald-700 border-emerald-600 font-extrabold"
+                    : "text-slate-500 hover:text-slate-900 border-transparent"
+                }`}
+              >
+                Bài học của tôi
+              </button>
+            )}
+
+            <Link
+              href="/profile"
+              prefetch={false}
+              className="text-slate-500 hover:text-slate-900 transition-colors flex items-center gap-1.5"
+            >
+              <Flame className="w-4 h-4 text-orange-500" />
+              <span>Tiến độ học tập</span>
+            </Link>
+          </nav>
+        </div>
+
+        {/* Right Nav Actions */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <UserMenu />
+        </div>
+      </header>
+
+      {/* Hero Search Banner */}
+      <LibraryHero
+        title={activeTab === "my-lessons" ? "Bài học của bạn" : "Thư viện bài học"}
+        subtitle={
+          activeTab === "my-lessons"
+            ? "Luyện tập với các bài học riêng do bạn tải lên và hệ thống AI tự động phân tích."
+            : "Khám phá và luyện nghe tiếng Anh qua hàng trăm bài học thực tế từ BBC, TED, VOA."
+        }
+        categories={activeTab === "library" ? categoryChips : []}
+        onSearchSubmit={(val) => {
+          if (val.trim()) {
+            router.push(`/library/search?q=${encodeURIComponent(val.trim())}`);
+          }
+        }}
+        onSelectCategory={(catId) => {
+          if (catId) {
+            router.push(`/library/categories/${catId}`);
+          }
+        }}
+      />
+
+      {/* Main Content Area */}
+      <main
+        className={`flex-1 w-full mx-auto space-y-8 sm:space-y-10 py-6 sm:py-8 pb-24 transition-opacity duration-200 ${
+          isTabPending ? "opacity-60" : "opacity-100"
+        }`}
+      >
+        {/* Streak Banner */}
+        <StreakBanner streak={streakInfo} href="/profile" />
+
+        {/* Mobile Tab Switcher */}
+        {isProOrAdmin && (
+          <div className="max-w-6xl mx-auto px-4 md:px-8 lg:hidden">
+            <div className="flex rounded-2xl bg-emerald-50/80 p-1 border border-emerald-200/50">
+              <button
+                type="button"
+                onClick={() => handleTabChange("library")}
+                className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === "library"
+                    ? "bg-white text-emerald-800 shadow-xs border border-emerald-100"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Thư viện bài học
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTabChange("my-lessons")}
+                className={`flex-1 rounded-xl py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === "my-lessons"
+                    ? "bg-white text-emerald-800 shadow-xs border border-emerald-100"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Bài học của tôi
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content States */}
+        {isLoading ? (
+          <LibrarySkeleton />
+        ) : hasFetchError ? (
+          <div className="max-w-4xl mx-auto px-4 py-12 text-center">
+            <div className="bg-white rounded-3xl border border-rose-100 p-8 shadow-xs flex flex-col items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">
+                Không thể tải danh sách bài học
+              </h3>
+              <p className="text-sm text-slate-500 max-w-md">
+                Đã xảy ra sự cố trong quá trình kết nối với máy chủ. Vui lòng kiểm tra lại đường truyền và thử lại.
+              </p>
+              <button
+                type="button"
+                onClick={() => fetchLibraryData()}
+                className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-xs"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Thử tải lại</span>
+              </button>
+            </div>
+          </div>
+        ) : activeTab === "my-lessons" ? (
+          /* "My Lessons" Tab View */
+          <div className="space-y-8">
+            <UploadedLessonsSection
+              items={uploadedLessonItems}
+              title="Bài học của bạn"
+              uploadHref="/upload"
+              onPractice={handlePracticeUploaded}
+              onDelete={handleDeleteUploaded}
+            />
+          </div>
+        ) : renderableSections.length === 0 ? (
+          <LibraryEmptyState onResetFilters={() => fetchLibraryData()} />
+        ) : (
+          /* Dynamic Server-Configured Library Sections Layout */
+          <div className="space-y-10 sm:space-y-12">
+            {renderableSections.map((section) => {
+              switch (section.kind) {
+                case "IN_PROGRESS":
+                  return (
+                    <ContinueLearningSection
+                      key={section.key}
+                      items={section.items}
+                      title={section.title}
+                      onSelectLesson={handleSelectContinueLesson}
+                    />
+                  );
+
+                case "USER_UPLOADED":
+                  return (
+                    <UploadedLessonsSection
+                      key={section.key}
+                      items={section.items}
+                      title={section.title}
+                      uploadHref="/upload"
+                      seeAllHref={section.seeAllHref}
+                      onPractice={handlePracticeUploaded}
+                      onDelete={handleDeleteUploaded}
+                    />
+                  );
+
+                case "SHELF":
+                  return (
+                    <CuratedShelfSection
+                      key={section.key}
+                      id={section.shelfId}
+                      title={section.title}
+                      gradientTheme={section.theme}
+                      items={section.items}
+                      seeAllHref={section.seeAllHref}
+                      onSelectLesson={handleSelectShelfLesson}
+                    />
+                  );
+
+                default:
+                  return null;
+              }
+            })}
+          </div>
+        )}
+      </main>
+
+      {/* Floating Processing FAB Button (if active processing jobs exist) */}
+      <ProcessingFab
+        count={activeProcessingCount}
+        onClick={() => setIsProcessingModalOpen(true)}
+      />
+
+      {/* Background Processing Details Modal */}
+      <ProcessingModal
+        isOpen={isProcessingModalOpen}
+        onClose={() => setIsProcessingModalOpen(false)}
+        jobs={processingJobs}
+        onRetry={handleRetryJob}
+        onCancel={handleDeleteJob}
+        onClearCompleted={handleClearCompletedJobs}
+        onPractice={(jobId) => router.push(`/practice/${jobId}`)}
+      />
+
+      {/* Reset 100% Completed Lesson Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={resetModal.isOpen}
+        onClose={() =>
+          setResetModal({
+            isOpen: false,
+            lessonId: "",
+            lessonTitle: "",
+            isResetting: false,
+          })
+        }
+        onConfirm={handleConfirmResetLesson}
+        isLoading={resetModal.isResetting}
+        title="Luyện tập lại bài học này?"
+        message={`Bạn đã hoàn thành 100% bài học "${resetModal.lessonTitle}". Bạn có muốn bắt đầu lại từ đầu không? Tiến trình ghi nhớ hiện tại sẽ được đặt lại.`}
+        confirmText="Học lại từ đầu"
+        cancelText="Đóng"
+      />
+    </div>
+  );
 }
 
 export default function LibraryPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen bg-white flex items-center justify-center">
-                <Loader2 className="w-10 h-10 animate-spin text-green-500" />
-            </div>
-        }>
-            <LibraryContent />
-        </Suspense>
-    );
+  return (
+    <Suspense fallback={<LibrarySkeleton />}>
+      <LibraryContent />
+    </Suspense>
+  );
 }
-

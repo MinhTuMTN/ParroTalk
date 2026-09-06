@@ -107,6 +107,14 @@ public class Lesson extends BaseEntity {
     @Column
     private Integer duration;
 
+    /** Program name (e.g. 6 Minute English, TED Talks) */
+    @Column(name = "program")
+    private String program;
+
+    /** Content source / channel */
+    @Column(name = "source")
+    private String source;
+
     /** Categories of the lesson */
     @ManyToMany(fetch = FetchType.LAZY)
     @BatchSize(size = 15)

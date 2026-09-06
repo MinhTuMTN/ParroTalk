@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.parrotalk.backend.constant.CmsItemStatus;
 
 import java.util.List;
@@ -93,5 +94,6 @@ public class Category extends BaseEntity {
 
     /** Lessons belong to this category */
     @ManyToMany(mappedBy = "categories", fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Lesson> lessons;
 }

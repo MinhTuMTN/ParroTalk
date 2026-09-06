@@ -13,13 +13,14 @@ export function AudioPlaygroundMockup() {
       id="demo-widget"
       className="relative mx-auto w-full max-w-3xl scroll-mt-24 text-left"
     >
-      <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-r from-emerald-200/40 via-teal-100/30 to-amber-100/30 blur-2xl" />
+      {/* Soft Ambient Glow */}
+      <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-r from-emerald-200/40 via-teal-100/30 to-amber-100/30 blur-2xl opacity-70" />
 
-      <div className="glass-card flex flex-col gap-5 rounded-3xl p-5 sm:p-7">
+      <div className="soft-card flex flex-col gap-5 rounded-3xl p-5 sm:p-7 border border-emerald-100 bg-white/95 backdrop-blur-md">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 shadow-sm">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-xs">
               <Sparkles size={20} />
             </div>
             <div>
@@ -32,19 +33,18 @@ export function AudioPlaygroundMockup() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-xs font-extrabold text-emerald-700 shadow-sm">
-            <CheckCircle2 size={16} className="text-emerald-600" /> 94% Chính
-            xác
+          <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/90 px-3.5 py-1 text-xs font-extrabold text-emerald-800 shadow-xs">
+            <CheckCircle2 size={15} className="text-emerald-600" /> 94% Chính xác
           </div>
         </div>
 
         {/* Waveform & Play Action */}
-        <div className="flex items-center gap-4 rounded-2xl bg-slate-50/80 p-3 border border-slate-100">
+        <div className="flex items-center gap-4 rounded-2xl bg-slate-50/90 p-3 border border-slate-200/60">
           <button
             type="button"
             onClick={() => setIsPlaying(!isPlaying)}
             aria-label={isPlaying ? "Tạm dừng audio" : "Phát audio"}
-            className="btn-press flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-700"
+            className="btn-press flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-600/25 transition hover:bg-emerald-700 active:scale-95"
           >
             {isPlaying ? (
               <Volume2 size={20} />
@@ -64,7 +64,7 @@ export function AudioPlaygroundMockup() {
                       : "bg-slate-300 h-2"
                   }`}
                   style={{
-                    height: isPlaying ? `${Math.max(15, height)}%` : "8px",
+                    height: isPlaying ? `${Math.max(18, height)}%` : "8px",
                     animationDelay: `${(idx % 6) * 0.12}s`,
                   }}
                 />
@@ -81,7 +81,7 @@ export function AudioPlaygroundMockup() {
         </div>
 
         {/* Speed & Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200/70 bg-white/70 p-2 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50/60 p-2 text-xs">
           <div className="flex items-center gap-1">
             <span className="px-2 font-bold text-slate-500">Tốc độ:</span>
             {["0.5x", "1x", "1.5x", "2x"].map((val) => (
@@ -89,10 +89,10 @@ export function AudioPlaygroundMockup() {
                 key={val}
                 type="button"
                 onClick={() => setSpeed(val)}
-                className={`rounded-lg px-3 py-1.5 font-bold transition-all ${
+                className={`rounded-xl px-3 py-1.5 font-bold transition-all ${
                   speed === val
-                    ? "border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100"
+                    ? "border border-emerald-200 bg-white text-emerald-800 shadow-xs"
+                    : "text-slate-600 hover:bg-white/80"
                 }`}
               >
                 {val}
@@ -103,27 +103,27 @@ export function AudioPlaygroundMockup() {
           <button
             type="button"
             onClick={() => setIsLooping(!isLooping)}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-bold transition-colors ${
+            className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 font-bold transition-all ${
               isLooping
-                ? "border border-emerald-200 bg-emerald-100 text-emerald-800"
+                ? "border border-emerald-200 bg-emerald-100 text-emerald-800 shadow-xs"
                 : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
             }`}
           >
-            <Repeat size={15} /> Lặp vòng câu {isLooping ? "(Bật)" : "(Tắt)"}
+            <Repeat size={14} /> Lặp vòng câu {isLooping ? "(Bật)" : "(Tắt)"}
           </button>
         </div>
 
         {/* Interactive Typing Input with Heat Map */}
         <div className="relative mt-1">
-          <div className="absolute -top-3 left-4 z-10 flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-sm">
+          <div className="absolute -top-3 left-4 z-10 flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-3 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 shadow-xs">
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
             Typing Heat: Đang gõ đúng
           </div>
 
-          <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/40 bg-white p-5 pt-6 shadow-[0_0_20px_rgba(5,150,105,0.06)]">
+          <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/40 bg-white p-5 pt-6 shadow-[0_0_20px_rgba(5,150,105,0.04)]">
             <div className="relative z-10 flex flex-wrap items-center gap-x-1.5 text-base sm:text-lg font-medium leading-relaxed text-slate-800">
               <span>Vulnerability is not</span>
-              <span className="rounded-md border border-emerald-200 bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-800">
+              <span className="rounded-lg border border-emerald-200 bg-emerald-100 px-2 py-0.5 font-bold text-emerald-800">
                 wea
               </span>
               <span className="inline-block h-5 w-0.5 animate-pulse bg-emerald-600 align-middle" />
