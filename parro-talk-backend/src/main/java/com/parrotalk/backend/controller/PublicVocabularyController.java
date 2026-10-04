@@ -33,6 +33,7 @@ import java.util.UUID;
 public class PublicVocabularyController {
 
     private final PublicVocabularyService publicVocabularyService;
+    private final com.parrotalk.backend.service.UserVocabularyService userVocabularyService;
 
     /**
      * Get list of 15 IELTS vocabulary topics.
@@ -40,8 +41,23 @@ public class PublicVocabularyController {
      * @return List of topic summaries with word counts.
      */
     @GetMapping("/topics")
-    public ResponseEntity<List<VocabularyTopicSummaryDto>> getTopics() {
-        return ResponseEntity.ok(publicVocabularyService.getTopics());
+    public ResponseEntity<List<VocabularyTopicSummaryDto>> getTopics(@AuthenticationPrincipal User user) {
+        List<VocabularyTopicSummaryDto> topics = publicVocabularyService.getTopics();
+        if (user != null) {
+            java.util.Map<String, Long> learnedCounts = userVocabularyService.getLearnedWordCountByTopic(user.getId());
+            List<VocabularyTopicSummaryDto> enrichedTopics = new java.util.ArrayList<>();
+            for (VocabularyTopicSummaryDto t : topics) {
+                VocabularyTopicSummaryDto copy = new VocabularyTopicSummaryDto();
+                copy.setName(t.getName());
+                copy.setWordCount(t.getWordCount());
+                copy.setDescription(t.getDescription());
+                copy.setIcon(t.getIcon());
+                copy.setLearnedWordCount(learnedCounts.getOrDefault(t.getName(), 0L));
+                enrichedTopics.add(copy);
+            }
+            return ResponseEntity.ok(enrichedTopics);
+        }
+        return ResponseEntity.ok(topics);
     }
 
     /**
@@ -101,3 +117,4 @@ public class PublicVocabularyController {
         return ResponseEntity.ok().build();
     }
 }
+

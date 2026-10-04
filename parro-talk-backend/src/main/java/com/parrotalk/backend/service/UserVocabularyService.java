@@ -218,4 +218,15 @@ public class UserVocabularyService {
             throw new IllegalArgumentException("authenticated user is required");
         }
     }
+
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> getLearnedWordCountByTopic(UUID userId) {
+        List<Object[]> results = userVocabularyRepository.countLearnedWordsByTopicForUser(userId);
+        java.util.Map<String, Long> map = new java.util.HashMap<>();
+        for (Object[] row : results) {
+            map.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        return map;
+    }
 }
+
