@@ -13,7 +13,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface VocabularyRepository extends JpaRepository<Vocabulary, UUID>, JpaSpecificationExecutor<Vocabulary> {
+public interface VocabularyRepository extends JpaRepository<Vocabulary, UUID>, JpaSpecificationExecutor<Vocabulary>, VocabularyRepositoryCustom {
     
     Optional<Vocabulary> findByNormalizedWord(String normalizedWord);
     List<Vocabulary> findByNormalizedWordIn(List<String> normalizedWords);
@@ -25,23 +25,26 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, UUID>, J
     @Query("SELECT v FROM Vocabulary v WHERE v.id = :id")
     Optional<Vocabulary> findByIdWithGraph(@Param("id") UUID id);
 
-    @Query("SELECT DISTINCT v FROM Vocabulary v LEFT JOIN v.senses s LEFT JOIN s.topic t WHERE " +
-           "(:keyword IS NULL OR LOWER(v.normalizedWord) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
-           "(:topic IS NULL OR LOWER(t.name) = LOWER(:topic)) AND " +
-           "(:cefrLevel IS NULL OR s.cefrLevel = :cefrLevel) AND " +
-           "(:partOfSpeech IS NULL OR s.partOfSpeech = :partOfSpeech)")
-    org.springframework.data.domain.Page<Vocabulary> searchVocabularies(
-            @Param("keyword") String keyword,
-            @Param("topic") String topic,
-            @Param("cefrLevel") String cefrLevel,
-            @Param("partOfSpeech") String partOfSpeech,
+    /**
+     * Page of distinct vocabulary ids that have at least one live sense in the given topic.
+     * Ordered deterministically (word, then id) so pages never overlap or skip rows.
+     */
+    @Query(value = """
+            SELECT v.id FROM Vocabulary v
+            WHERE EXISTS (SELECT 1 FROM VocabularySense s WHERE s.vocabulary = v AND s.topic.id = :topicId)
+            ORDER BY v.normalizedWord ASC, v.id ASC
+            """,
+            countQuery = """
+            SELECT COUNT(v) FROM Vocabulary v
+            WHERE EXISTS (SELECT 1 FROM VocabularySense s WHERE s.vocabulary = v AND s.topic.id = :topicId)
+            """)
+    org.springframework.data.domain.Page<UUID> findIdsByTopicId(
+            @Param("topicId") UUID topicId,
             org.springframework.data.domain.Pageable pageable);
 
-    @Query(value = "SELECT DISTINCT v.* FROM vocabularies v " +
-                   "JOIN vocabulary_senses s ON s.vocabulary_id = v.id " +
-                   "LEFT JOIN vocabulary_topics t ON s.topic_id = t.id " +
-                   "WHERE (:topic IS NULL OR LOWER(t.name) = LOWER(:topic)) AND " +
-                   "(:cefrLevel IS NULL OR s.cefr_level = :cefrLevel) " +
-                   "ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
-    List<Vocabulary> findRandomVocabularies(@Param("topic") String topic, @Param("cefrLevel") String cefrLevel, @Param("limit") int limit);
+    /** Loads vocabularies with senses in one query; pronunciations are batch-loaded (@BatchSize). */
+    @EntityGraph(attributePaths = {"senses"})
+    @Query("SELECT v FROM Vocabulary v WHERE v.id IN :ids")
+    List<Vocabulary> findAllByIdWithSenses(@Param("ids") java.util.Collection<UUID> ids);
+
 }

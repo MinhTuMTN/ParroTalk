@@ -34,6 +34,7 @@ public class PublicVocabularyController {
 
     private final PublicVocabularyService publicVocabularyService;
     private final com.parrotalk.backend.service.UserVocabularyService userVocabularyService;
+    private final com.parrotalk.backend.service.VocabularyTopicService vocabularyTopicService;
 
     /**
      * Get list of 15 IELTS vocabulary topics.
@@ -116,6 +117,22 @@ public class PublicVocabularyController {
             @Valid @RequestBody VocabularyReportRequestDto request) {
         publicVocabularyService.submitReport(id, user, request);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/topics/{id}")
+    public ResponseEntity<VocabularyTopicSummaryDto> getTopicSummary(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(vocabularyTopicService.getTopicSummary(id, user));
+    }
+
+    @GetMapping("/topics/{id}/words")
+    public ResponseEntity<PageResponse<com.parrotalk.backend.dto.TopicWordDto>> getTopicWords(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(vocabularyTopicService.getTopicWords(id, page, size, user));
     }
 }
 

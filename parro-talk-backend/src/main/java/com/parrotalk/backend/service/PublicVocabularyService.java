@@ -14,6 +14,16 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
+import org.springframework.data.domain.Sort;
+import org.apache.commons.lang3.StringUtils;
+import com.parrotalk.backend.exception.ParroTalkException;
+import com.parrotalk.backend.constant.ErrorCode;
+import org.springframework.http.HttpStatus;
+import java.util.ArrayList;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
@@ -53,10 +63,45 @@ public class PublicVocabularyService {
     @Transactional(readOnly = true)
     public PageResponse<PublicVocabularySummaryDto> searchVocabularies(
             String keyword, String topic, String cefrLevel, String partOfSpeech, int page, int size) {
-        Page<Vocabulary> entries = vocabularyRepository.searchVocabularies(
-                keyword, topic, cefrLevel, partOfSpeech, PageRequest.of(page, size));
+        if (page < 0 || size < 1 || size > VocabularyTopicService.MAX_PAGE_SIZE) {
+            throw new ParroTalkException("Invalid page (>=0) or size (1-" + VocabularyTopicService.MAX_PAGE_SIZE + ")",
+                    ErrorCode.VALIDATION_ERROR.name(), HttpStatus.BAD_REQUEST);
+        }
+        Specification<Vocabulary> spec = buildSearchSpec(keyword, topic, cefrLevel, partOfSpeech);
+        Page<Vocabulary> entries = vocabularyRepository.findAll(spec,
+                PageRequest.of(page, size, Sort.by("normalizedWord").ascending().and(Sort.by("id").ascending())));
         Page<PublicVocabularySummaryDto> dtos = entries.map(this::mapToSummaryDto);
         return new PageResponse<>(dtos.getContent(), dtos.getNumber(), dtos.getSize(), dtos.getTotalElements(), dtos.getTotalPages());
+    }
+
+    private Specification<Vocabulary> buildSearchSpec(String keyword, String topic, String cefrLevel, String partOfSpeech) {
+        return (root, query, cb) -> {
+            query.distinct(true);
+            List<Predicate> predicates = new ArrayList<>();
+            if (StringUtils.isNotBlank(keyword)) {
+                String escaped = keyword.trim().toLowerCase()
+                        .replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+                predicates.add(cb.like(cb.lower(root.get("normalizedWord")), "%" + escaped + "%", '\\'));
+            }
+            boolean hasTopic = StringUtils.isNotBlank(topic);
+            boolean hasCefr = StringUtils.isNotBlank(cefrLevel);
+            boolean hasPos = StringUtils.isNotBlank(partOfSpeech);
+            if (hasTopic || hasCefr || hasPos) {
+                // Same sense must satisfy all sense-level filters.
+                Join<Vocabulary, VocabularySense> sense = root.join("senses");
+                if (hasTopic) {
+                    Join<VocabularySense, Topic> t = sense.join("topic");
+                    predicates.add(cb.equal(cb.lower(t.get("name")), topic.trim().toLowerCase()));
+                }
+                if (hasCefr) {
+                    predicates.add(cb.equal(sense.get("cefrLevel"), cefrLevel.trim()));
+                }
+                if (hasPos) {
+                    predicates.add(cb.equal(sense.get("partOfSpeech"), partOfSpeech.trim()));
+                }
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
     }
 
     @Transactional(readOnly = true)
@@ -205,7 +250,7 @@ public class PublicVocabularyService {
                 .build();
     }
 
-    private String getTopicIcon(String topicName) {
+    public String getTopicIcon(String topicName) {
         if (topicName == null) return "book";
         return switch (topicName.toLowerCase()) {
             case "giáo dục & học tập" -> "graduation-cap";

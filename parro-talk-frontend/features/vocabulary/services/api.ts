@@ -21,6 +21,11 @@ export const getVocabularyDetail = async (id: string): Promise<VocabularyDetailD
   return data;
 };
 
+export const getVocabularyByWord = async (word: string): Promise<{ code: number; result: any }> => {
+  const { data } = await axiosInstance.get(`/library/vocabulary/${word}`);
+  return data;
+};
+
 export const reportVocabulary = async (id: string, payload: VocabularyReportRequestDto): Promise<void> => {
   await axiosInstance.post(`/vocabulary/${id}/report`, payload);
 };
@@ -31,5 +36,15 @@ export const bookmarkVocabulary = async (id: string): Promise<void> => {
 
 export const getPracticeQuestions = async (params?: { topic?: string; cefrLevel?: string; count?: number }): Promise<PracticeQuestionDto[]> => {
   const { data } = await axiosInstance.get<PracticeQuestionDto[]>('/vocabulary/practice/questions', { params });
+  return data;
+};
+
+export const getTopicSummary = async (id: string): Promise<any> => {
+  const { data } = await axiosInstance.get(`/vocabulary/topics/${id}`);
+  return data;
+};
+
+export const getTopicWords = async (id: string, params?: { page?: number; size?: number }): Promise<any> => {
+  const { data } = await axiosInstance.get(`/vocabulary/topics/${id}/words`, { params });
   return data;
 };
