@@ -1,0 +1,154 @@
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml
+    min-response-size: 2048
+  error:
+    include-stacktrace: never
+    include-message: never
+
+spring:
+  application:
+    name: parro-talk-backend
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://100.114.196.98:5432/parrotalk}
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:123456}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: 20260912.01
+  jpa:
+    hibernate:
+      jdbc:
+        batch_size: 50
+      order_inserts: true
+      order_updates: true
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_batch_fetch_size: 50
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:100.114.196.98}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:admin}
+    password: ${RABBITMQ_PASSWORD:MinhTu@3005}
+    listener:
+      simple:
+        concurrency: 3
+        max-concurrency: 10
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 60000
+      repositories:
+        enabled: false
+    cache:
+      type: redis
+      redis:
+        time-to-live: 3600000 # 1 hour default cache TTL
+        cache-null-values: false
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_STARTTLS_ENABLE:false}
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:YOUR_GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET:YOUR_GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - email
+              - profile
+
+app:
+  upload:
+    dir: uploads
+  python-service:
+    url: ${PYTHON_SERVICE_URL:http://localhost:8000/upload}
+  cloudinary:
+    cloud_name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}
+    api_key: ${CLOUDINARY_API_KEY:your_api_key}
+    api_secret: ${CLOUDINARY_API_SECRET:your_api_secret}
+
+application:
+  frontend:
+    base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
+    allowed-origins:
+      - http://localhost:3000
+      - http://localhost:3001
+      - http://127.0.0.1:3000
+      - https://parrotalk.fun
+      - http://192.168.1.107:3000
+  email-verification:
+    token-expiration-minutes: ${EMAIL_VERIFICATION_TOKEN_EXPIRATION_MINUTES:30}
+    resend-cooldown-seconds: ${EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS:60}
+    metadata-retention-minutes: ${EMAIL_VERIFICATION_METADATA_RETENTION_MINUTES:1440}
+  password-reset:
+    token-expiration-minutes: ${PASSWORD_RESET_TOKEN_EXPIRATION_MINUTES:30}
+    max-requests-per-hour: ${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:5}
+  mail:
+    app-name: ${APP_MAIL_NAME:ParroTalk}
+    support-email: ${APP_SUPPORT_EMAIL:}
+  security:
+    public-endpoints: /api/auth/**, /api/lessons/featured, /api/lessons/sse/**, /api/health/**, /api/vocabulary/featured, /api/vocabulary/topics/**, /api/vocabulary, /api/library/**, /api/admin/vocabulary-sys/**
+    jwt:
+      secret-key: ${JWT_SECRET_KEY:YOUR_JWT_SECRET_KEY_REPLACE_THIS_IN_PRODUCTION}
+      expiration: 86400000 # 1 day
+      refresh-token:
+        expiration: 604800000 # 7 days
+  settings:
+    default-audio-thumbnail: https://res.cloudinary.com/dgrjyts1r/image/upload/v1778946072/default-audio-thumbnail.png
+  ai:
+    api-keys: ${GROQ_API_KEYS:}
+    base-url: https://api.groq.com/openai/v1
+    model:
+      - qwen/qwen3.8-27b
+
+email:
+  provider: ${EMAIL_PROVIDER:resend}
+  from: ${EMAIL_FROM:welcome@parrotalk.fun}
+  reply-to: ${EMAIL_REPLY_TO:support@parrotalk.fun}
+  app-name: ${APP_NAME:ParroTalk}
+  resend:
+    api-key: ${RESEND_API_KEY:YOUR_RESEND_API_KEY}
+    base-url: ${RESEND_BASE_URL:https://api.resend.com}
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    org.springframework.security: INFO
+    org.springframework.web.servlet.handler.HandlerMappingIntrospector: ERROR
+    # org.hibernate.SQL: DEBUG
+    # org.hibernate.orm.jdbc.bind: TRACE

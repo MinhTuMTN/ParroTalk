@@ -40,4 +40,28 @@ public interface UserVocabularyRepository extends JpaRepository<UserVocabulary, 
             GROUP BY t.name
             """)
     List<Object[]> countLearnedWordsByTopicForUser(@org.springframework.data.repository.query.Param("userId") java.util.UUID userId);
+
+    /** (normalizedWord, status) rows for the given user and words. Always scoped by userId. */
+    @Query("""
+            SELECT uv.normalizedWord, uv.status
+            FROM UserVocabulary uv
+            WHERE uv.user.id = :userId AND uv.normalizedWord IN :words AND uv.isDeleted = false
+            """)
+    List<Object[]> findStatusesByUserIdAndNormalizedWordIn(
+            @org.springframework.data.repository.query.Param("userId") UUID userId,
+            @org.springframework.data.repository.query.Param("words") java.util.Collection<String> words);
+
+    @Query("""
+            SELECT COUNT(DISTINCT uv.normalizedWord)
+            FROM VocabularySense vs
+            JOIN Vocabulary v ON v.id = vs.vocabulary.id AND v.isDeleted = false
+            JOIN UserVocabulary uv ON uv.normalizedWord = v.normalizedWord
+                AND uv.user.id = :userId
+                AND uv.status IN ('LEARNING', 'MASTERED')
+                AND uv.isDeleted = false
+            WHERE vs.topic.id = :topicId AND vs.isDeleted = false
+            """)
+    long countLearnedWordsForTopic(
+            @org.springframework.data.repository.query.Param("userId") UUID userId,
+            @org.springframework.data.repository.query.Param("topicId") UUID topicId);
 }

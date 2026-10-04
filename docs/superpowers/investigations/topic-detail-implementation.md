@@ -1,26 +1,22 @@
 # Topic Detail Implementation Summary
 
-## Changed Files
-### Backend
-- `VocabularyRepository.java`: Removed buggy native query `findRandomVocabularies` and made the interface extend `VocabularyRepositoryCustom`.
-- `VocabularyRepositoryCustom.java`: Created custom interface for vocabulary dynamic queries.
-- `VocabularyRepositoryImpl.java`: Implemented `findRandomVocabularies` using `EntityManager` to safely build dynamic queries without the NULL param bug.
-- `PublicVocabularyController.java`: Added two new endpoints `GET /api/vocabulary/topics/{id}` and `GET /api/vocabulary/topics/{id}/words`.
-- `PublicVocabularyService.java`: Made `getTopicIcon` public so it can be used by `VocabularyTopicService`.
+## 1. Backend Scope
+- Added `GET /api/vocabulary/topics/{uuid}` endpoint for topic summary.
+- Added `GET /api/vocabulary/topics/{uuid}/words` endpoint for paginated words in a topic.
+- Changed topic word count logic to `COUNT(DISTINCT vocabulary id)` in `TopicRepository` to match the words list.
+- Passed correct user from `@AuthenticationPrincipal` into services to provide per-word learning statuses (NEW/LEARNING/MASTERED).
+- Ensured `public-endpoints` in `application.yml` exposes `/api/vocabulary/topics/**` correctly for unauthenticated guests.
+- Verified Flyway index (`idx_vocabulary_senses_topic_id`) already exists for performance.
 
-### Frontend
-- `features/vocabulary/services/api.ts`: Added `getTopicSummary` and `getTopicWords` API fetchers.
-- `app/(main)/vocabulary/topics/[id]/page.tsx`: Rewrote the page to:
-  - Fetch topic summary and paginated words in parallel.
-  - Render explicit Not Found and Error states with retry logic.
-  - Display page-based pagination controls above the list.
-  - Safely extract word status from backend responses and remove all hardcoded mock data.
+## 2. Frontend Scope
+- Next.js page at `app/(main)/vocabulary/topics/[id]/page.tsx` handles parallel data-fetching for the topic summary and paginated word list.
+- Implemented page-based pagination with bounds checking, placing Prev/Next buttons gracefully.
+- Replaced mock words (`DEFAULT_TRAVEL_WORDS`) with real data, and explicit handling for loading skeletons and errors (e.g. 404 Not Found).
+- Safely handles unauthenticated sessions where word `status` might be null.
 
-## Endpoints
-- `GET /api/vocabulary/topics/{uuid}` -> returns topic summary (word count, name, description, learned count).
-- `GET /api/vocabulary/topics/{uuid}/words?page={page}&size={size}` -> returns a Page of `TopicWordDto` including learning statuses.
+## 3. Verification
+- `mvn clean test-compile` passes cleanly.
+- `npx tsc --noEmit` validates the frontend code (ignoring unrelated errors in `admin` sections).
+- The prior logic of `VocabularyRepository.searchVocabularies` was properly replaced with Criteria/Specification API in `PublicVocabularyService.java`, preventing the Postgres null binding issue entirely.
 
-## Verification Evidence
-- `mvn clean test-compile` passes without errors.
-- `npx tsc --noEmit` passes for touched frontend files.
-- The repository was restructured to fix the `NULL` binding bug robustly, rather than just bypassing it with hacks.
+Next step is code review.
