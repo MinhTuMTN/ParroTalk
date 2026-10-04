@@ -4,6 +4,7 @@ export interface VocabularyTopicDto {
   icon: string;
   description?: string;
   wordCount: number;
+  learnedWordCount?: number;
 }
 
 export interface VocabularySummaryDto {
@@ -18,6 +19,41 @@ export interface VocabularySummaryDto {
   audioUkUrl?: string;
 }
 
+export interface StructuredSenseDto {
+  id?: string;
+  orderNumber?: string;
+  title?: string;
+  partOfSpeech?: string;
+  countability?: string;
+  cefrLevel?: string;
+  topicTag?: string;
+  definitionEn: string;
+  definitionVn?: string;
+  usageContextNote?: string;
+  exampleEn?: string;
+  exampleVn?: string;
+  synonyms?: string[];
+  collocations?: string[];
+}
+
+export interface StructuredPhrasalVerbDto {
+  phrasalVerb: string;
+  register?: string;
+  definitionEn: string;
+  definitionVn?: string;
+  exampleEn?: string;
+  exampleVn?: string;
+}
+
+export interface StructuredIdiomDto {
+  idiom: string;
+  relatedSenseNote?: string;
+  definitionEn: string;
+  definitionVn?: string;
+  exampleEn?: string;
+  exampleVn?: string;
+}
+
 export interface VocabularyDetailDto extends VocabularySummaryDto {
   definitions: string[];
   examples: string[];
@@ -26,6 +62,9 @@ export interface VocabularyDetailDto extends VocabularySummaryDto {
   phrasalVerbs: string[];
   synonyms: string[];
   antonyms: string[];
+  senses?: StructuredSenseDto[];
+  structuredPhrasalVerbs?: StructuredPhrasalVerbDto[];
+  structuredIdioms?: StructuredIdiomDto[];
   isSaved?: boolean;
 }
 
@@ -37,7 +76,7 @@ export interface VocabularyReportRequestDto {
 
 export interface PracticeQuestionDto {
   id: string;
-  questionType: 'MULTIPLE_CHOICE' | 'FLASHCARD' | 'FILL_IN_BLANKS';
+  questionType: 'MULTIPLE_CHOICE' | 'FLASHCARD' | 'FILL_IN_BLANKS' | 'TYPE_WORD' | 'LISTEN_TYPE';
   prompt: string;
   options?: string[];
   correctAnswer: string;
@@ -46,4 +85,12 @@ export interface PracticeQuestionDto {
   audioUrl?: string;
   explanation?: string;
   wordId: string;
+  definition?: string;
+  synonymOrClue?: string;
+  firstLetter?: string;
+  exampleSentence?: string;
+  sentenceWithBlank?: string;
+  fullSentence?: string;
+  easySentence?: string;
+  clues?: string[];
 }
