@@ -69,6 +69,9 @@ public class LibraryControllerIntegrationTest {
     @MockitoBean
     private StringRedisTemplate redisTemplate;
 
+    @MockitoBean(name = "dbQueryExecutor")
+    private java.util.concurrent.Executor dbQueryExecutor;
+
     @Autowired
     private WebApplicationContext context;
 
@@ -121,6 +124,12 @@ public class LibraryControllerIntegrationTest {
             }
         }
         librarySectionRepository.deleteAll();
+
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Runnable r = invocation.getArgument(0);
+            r.run();
+            return null;
+        }).when(dbQueryExecutor).execute(org.mockito.ArgumentMatchers.any(Runnable.class));
 
         mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
 

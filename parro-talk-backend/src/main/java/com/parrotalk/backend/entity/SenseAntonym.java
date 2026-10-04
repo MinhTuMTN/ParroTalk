@@ -1,13 +1,11 @@
-package com.parrotalk.backend.entity.cms;
+package com.parrotalk.backend.entity;
 
-import com.parrotalk.backend.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -22,33 +20,31 @@ import org.hibernate.annotations.SQLRestriction;
 import java.util.UUID;
 
 @Entity
-@Table(name = "admin_vocabulary_examples", indexes = {
-        @Index(name = "idx_admin_vocab_ex_vocab_id", columnList = "vocabulary_id")
-})
+@Table(name = "sense_antonyms")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SQLDelete(sql = "UPDATE admin_vocabulary_examples SET is_deleted = true WHERE id = ?")
+@SQLDelete(sql = "UPDATE sense_antonyms SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class AdminVocabularyExample extends BaseEntity {
+public class SenseAntonym extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "vocabulary_id", nullable = false)
-    private AdminVocabulary vocabulary;
+    @JoinColumn(name = "sense_id", nullable = false)
+    private VocabularySense sense;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String sentence;
+    @Column(name = "antonym_word", nullable = false)
+    private String antonymWord;
 
-    @Column(columnDefinition = "TEXT")
-    private String translation;
+    @Column(name = "antonym_vn")
+    private String antonymVn;
 
-    @Column(name = "display_order", nullable = false)
-    @Builder.Default
-    private Integer displayOrder = 0;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "linked_vocabulary_id")
+    private Vocabulary linkedVocabulary;
 }

@@ -71,17 +71,17 @@ public class PublicVocabularyController {
     }
 
     /**
-     * Get detailed vocabulary item by ID.
+     * Get detailed vocabulary item by ID or normalized word.
      *
-     * @param id Vocabulary entry ID
+     * @param id Vocabulary entry ID or word slug
      * @param user Authenticated user (optional)
      * @return Detailed vocabulary info.
      */
     @GetMapping("/{id}")
     public ResponseEntity<PublicVocabularyDetailDto> getDetail(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(publicVocabularyService.getDetail(id, user));
+        return ResponseEntity.ok(publicVocabularyService.getDetailByIdOrWord(id, user));
     }
 
     /**

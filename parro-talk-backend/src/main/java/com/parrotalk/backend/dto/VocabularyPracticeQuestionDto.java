@@ -26,4 +26,12 @@ public class VocabularyPracticeQuestionDto {
     private String audioUrl;
     private String explanation;
     private java.util.UUID wordId;
+    private String definition;
+    private String synonymOrClue;
+    private String firstLetter;
+    private String exampleSentence;
+    private String sentenceWithBlank;
+    private String fullSentence;
+    private String easySentence;
+    private List<String> clues;
 }

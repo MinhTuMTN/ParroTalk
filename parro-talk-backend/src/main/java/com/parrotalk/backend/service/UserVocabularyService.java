@@ -36,6 +36,7 @@ public class UserVocabularyService {
 
     private final UserVocabularyRepository userVocabularyRepository;
     private final UserVocabularyOccurrenceRepository occurrenceRepository;
+    private final com.parrotalk.backend.repository.VocabularyRepository vocabularyRepository;
     private final DictionaryEntryRepository dictionaryEntryRepository;
     private final LessonRepository lessonRepository;
     private final TranscriptionSegmentRepository segmentRepository;
@@ -44,7 +45,13 @@ public class UserVocabularyService {
     @Transactional
     public UserVocabularyResponse save(User user, SaveVocabularyRequest request) {
         requireUser(user);
-        String normalizedWord = wordNormalizer.normalize(request.word());
+        
+        String word = request.word();
+        if (word == null && request.vocabularyId() != null) {
+            com.parrotalk.backend.entity.Vocabulary v = vocabularyRepository.findById(request.vocabularyId()).orElse(null);
+            if (v != null) { word = v.getWord(); }
+        }
+        String normalizedWord = wordNormalizer.normalize(word != null ? word : "");
         if (normalizedWord.isBlank()) {
             throw new IllegalArgumentException("word must not be blank");
         }

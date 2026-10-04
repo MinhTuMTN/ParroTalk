@@ -120,7 +120,9 @@ public class LibraryService {
         }
 
         List<LibrarySection> userSectionConfigs = allSections.stream()
-                .filter(s -> s.getType() == SectionType.IN_PROGRESS)
+                .filter(s -> s.getType() == SectionType.IN_PROGRESS || 
+                             s.getType() == SectionType.USER_PROCESSING || 
+                             s.getType() == SectionType.USER_UPLOADED)
                 .toList();
 
         if (userSectionConfigs.isEmpty()) {

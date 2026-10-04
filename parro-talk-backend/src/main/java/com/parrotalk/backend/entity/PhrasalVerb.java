@@ -1,13 +1,11 @@
-package com.parrotalk.backend.entity.cms;
+package com.parrotalk.backend.entity;
 
-import com.parrotalk.backend.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -22,17 +20,15 @@ import org.hibernate.annotations.SQLRestriction;
 import java.util.UUID;
 
 @Entity
-@Table(name = "admin_vocabulary_definitions", indexes = {
-        @Index(name = "idx_admin_vocab_def_vocab_id", columnList = "vocabulary_id")
-})
+@Table(name = "phrasal_verbs")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SQLDelete(sql = "UPDATE admin_vocabulary_definitions SET is_deleted = true WHERE id = ?")
+@SQLDelete(sql = "UPDATE phrasal_verbs SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class AdminVocabularyDefinition extends BaseEntity {
+public class PhrasalVerb extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -40,18 +36,20 @@ public class AdminVocabularyDefinition extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "vocabulary_id", nullable = false)
-    private AdminVocabulary vocabulary;
+    private Vocabulary vocabulary;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false)
+    private String phrase;
+
+    @Column(columnDefinition = "TEXT")
     private String definition;
 
-    @Column(name = "english_definition", columnDefinition = "TEXT")
-    private String englishDefinition;
+    @Column(name = "definition_vn", columnDefinition = "TEXT")
+    private String definitionVn;
 
-    @Column(name = "vietnamese_definition", columnDefinition = "TEXT")
-    private String vietnameseDefinition;
+    @Column(columnDefinition = "TEXT")
+    private String example;
 
-    @Column(name = "display_order", nullable = false)
-    @Builder.Default
-    private Integer displayOrder = 0;
+    @Column(name = "example_vn", columnDefinition = "TEXT")
+    private String exampleVn;
 }

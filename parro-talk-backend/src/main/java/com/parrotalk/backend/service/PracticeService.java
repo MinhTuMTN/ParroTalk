@@ -21,7 +21,7 @@ import com.parrotalk.backend.repository.PracticeQuestionRepository;
 import com.parrotalk.backend.repository.PracticeSessionRepository;
 import com.parrotalk.backend.repository.UserRepository;
 import com.parrotalk.backend.repository.UserVocabularyRepository;
-import com.parrotalk.backend.repository.cms.AdminVocabularyRepository;
+import com.parrotalk.backend.repository.VocabularyRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,7 +53,7 @@ public class PracticeService {
     private final PracticeQuestionRepository questionRepository;
     private final UserVocabularyRepository vocabularyRepository;
     private final UserRepository userRepository;
-    private final AdminVocabularyRepository adminVocabularyRepository;
+    private final VocabularyRepository coreVocabularyRepository;
     private final Sm2Algorithm sm2Algorithm;
     private final ObjectMapper objectMapper;
     
@@ -95,7 +95,7 @@ public class PracticeService {
         session = sessionRepository.save(session);
 
         // Generate and Save Questions
-        List<String> randomWordsPool = adminVocabularyRepository.findRandomWords(50);
+        List<String> randomWordsPool = coreVocabularyRepository.findRandomWords(50);
         if (randomWordsPool == null || randomWordsPool.isEmpty()) {
             randomWordsPool = List.of("apple", "banana", "cat", "dog", "elephant", "fish", "grape", "hat"); // Fallback
         }

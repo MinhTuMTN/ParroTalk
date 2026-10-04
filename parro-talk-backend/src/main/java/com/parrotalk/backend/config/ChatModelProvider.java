@@ -40,7 +40,7 @@ public class ChatModelProvider {
                 .model(modelName)
                 .temperature(0.1);
 
-        if ("qwen/qwen3.6-27b".equals(modelName)) {
+        if ("qwen/qwen3.8-27b".equals(modelName)) {
             options.reasoningEffort(ReasoningEffort.NONE.asString());
         }
 

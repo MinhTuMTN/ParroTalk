@@ -5,9 +5,10 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;
 
 public record SaveVocabularyRequest(
-        @NotBlank String word,
+        String word,
         String displayWord,
         UUID dictionaryEntryId,
+        UUID vocabularyId,
         UUID lessonId,
         UUID segmentId,
         Double startTime,

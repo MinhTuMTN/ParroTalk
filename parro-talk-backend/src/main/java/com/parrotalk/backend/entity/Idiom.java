@@ -1,13 +1,11 @@
-package com.parrotalk.backend.entity.cms;
+package com.parrotalk.backend.entity;
 
-import com.parrotalk.backend.entity.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -22,17 +20,15 @@ import org.hibernate.annotations.SQLRestriction;
 import java.util.UUID;
 
 @Entity
-@Table(name = "admin_vocabulary_relations", indexes = {
-        @Index(name = "idx_admin_vocab_rel_vocab_id", columnList = "vocabulary_id, relation_type")
-})
+@Table(name = "idioms")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@SQLDelete(sql = "UPDATE admin_vocabulary_relations SET is_deleted = true WHERE id = ?")
+@SQLDelete(sql = "UPDATE idioms SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-public class AdminVocabularyRelation extends BaseEntity {
+public class Idiom extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -40,16 +36,20 @@ public class AdminVocabularyRelation extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "vocabulary_id", nullable = false)
-    private AdminVocabulary vocabulary;
+    private Vocabulary vocabulary;
 
-    /** Type: SYNONYM, ANTONYM, COLLOCATION, IDIOM, PHRASAL_VERB, WORD_FORM */
-    @Column(name = "relation_type", nullable = false, length = 50)
-    private String relationType;
+    @Column(nullable = false)
+    private String phrase;
 
-    @Column(name = "related_word", nullable = false, length = 255)
-    private String relatedWord;
+    @Column(columnDefinition = "TEXT")
+    private String definition;
 
-    @Column(name = "display_order", nullable = false)
-    @Builder.Default
-    private Integer displayOrder = 0;
+    @Column(name = "definition_vn", columnDefinition = "TEXT")
+    private String definitionVn;
+
+    @Column(columnDefinition = "TEXT")
+    private String example;
+
+    @Column(name = "example_vn", columnDefinition = "TEXT")
+    private String exampleVn;
 }

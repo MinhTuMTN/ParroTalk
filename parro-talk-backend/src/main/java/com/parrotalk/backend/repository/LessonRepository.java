@@ -464,21 +464,55 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                     'IN_PROGRESS' AS section_key,
                     CAST(l.id AS VARCHAR) AS id,
                     l.title AS title,
+                    ulp.last_progress * 100.0 AS progress,
+                    l.thumbnail_url AS thumbnail_url,
+                    l.file_url AS file_url,
+                    l.duration AS duration,
+                    ROW_NUMBER() OVER (ORDER BY ulp.updated_at DESC) AS rank
+                FROM user_lesson_progress ulp
+                JOIN lessons l ON ulp.lesson_id = l.id
+                WHERE ulp.user_id = :userId
+                  AND ulp.last_progress > 0 
+                  AND ulp.last_progress < 1.0
+                  AND l.is_deleted = false
+            ),
+            user_processing AS (
+                SELECT 
+                    'USER_PROCESSING' AS section_key,
+                    CAST(l.id AS VARCHAR) AS id,
+                    l.title AS title,
                     COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
                     l.thumbnail_url AS thumbnail_url,
                     l.file_url AS file_url,
                     l.duration AS duration,
                     ROW_NUMBER() OVER (ORDER BY l.created_at DESC) AS rank
                 FROM lessons l
-                LEFT JOIN user_lesson_progress ulp
-                    ON ulp.lesson_id = l.id
-                    AND ulp.user_id = :userId
-                WHERE l.status = 'DONE'
-                  AND l.visibility_status = 'PUBLISHED'
+                LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = :userId
+                WHERE l.owner_id = :userId
+                  AND l.status IN ('PENDING', 'PROCESSING')
+                  AND l.is_deleted = false
+            ),
+            user_uploaded AS (
+                SELECT 
+                    'USER_UPLOADED' AS section_key,
+                    CAST(l.id AS VARCHAR) AS id,
+                    l.title AS title,
+                    COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
+                    l.thumbnail_url AS thumbnail_url,
+                    l.file_url AS file_url,
+                    l.duration AS duration,
+                    ROW_NUMBER() OVER (ORDER BY l.created_at DESC) AS rank
+                FROM lessons l
+                LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = :userId
+                WHERE l.owner_id = :userId
+                  AND l.status = 'DONE'
                   AND l.is_deleted = false
             )
-            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration
-            FROM in_progress_lessons WHERE rank <= :maxItems
+            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration FROM in_progress_lessons WHERE rank <= :maxItems
+            UNION ALL
+            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration FROM user_processing WHERE rank <= :maxItems
+            UNION ALL
+            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration FROM user_uploaded WHERE rank <= :maxItems
             """, nativeQuery = true)
     List<SectionLessonProjection> findBatchUserLessons(
             @Param("userId") UUID userId,

@@ -18,13 +18,13 @@ import java.util.function.Function;
 @Component
 public class JwtUtils {
 
-    @Value("${application.security.jwt.secret-key}")
+    @Value("${application.security.jwt.secret-key:YOUR_JWT_SECRET_KEY_REPLACE_THIS_IN_PRODUCTION}")
     private String secretKey;
 
-    @Value("${application.security.jwt.expiration}")
+    @Value("${application.security.jwt.expiration:86400000}")
     private long jwtExpiration;
 
-    @Value("${application.security.jwt.refresh-token.expiration}")
+    @Value("${application.security.jwt.refresh-token.expiration:604800000}")
     private long refreshExpiration;
 
     public String extractUsername(String token) {

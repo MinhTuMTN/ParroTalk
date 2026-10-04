@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 public class VocabularyTopicSummaryDto {
     private String name;
     private Long wordCount;
+    private Long learnedWordCount;
     private String description;
     private String icon;
 }

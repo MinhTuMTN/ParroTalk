@@ -2,6 +2,7 @@ package com.parrotalk.backend.security;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
@@ -88,6 +89,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OidcUserReques
         User user = userRepository.findByEmail(email)
                 .orElseGet(() -> userRepository.save(User.builder()
                         .email(email)
+                        .displayUsername(buildDefaultUsername(email))
                         .fullName(resolveFullName(fullName, email))
                         .avatarUrl(avatarUrl)
                         .role(Role.USER)
@@ -143,6 +145,11 @@ public class CustomOAuth2UserService implements OAuth2UserService<OidcUserReques
 
     private String resolveFullName(String fullName, String email) {
         return fullName == null || fullName.isBlank() ? email : fullName;
+    }
+
+    private String buildDefaultUsername(String email) {
+        String localPart = email.substring(0, email.indexOf("@")).replaceAll("\\s+", "").toLowerCase();
+        return localPart + "-" + UUID.randomUUID().toString().substring(0, 6);
     }
 
     private OAuth2AuthenticationException oauthException(String code, String description) {

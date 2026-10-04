@@ -1,17 +1,14 @@
 package com.parrotalk.backend.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.PublicVocabularyDetailDto;
 import com.parrotalk.backend.dto.PublicVocabularySummaryDto;
 import com.parrotalk.backend.dto.VocabularyReportRequestDto;
 import com.parrotalk.backend.dto.VocabularyTopicSummaryDto;
-import com.parrotalk.backend.entity.DictionaryEntry;
-import com.parrotalk.backend.entity.User;
-import com.parrotalk.backend.entity.VocabularyReport;
-import com.parrotalk.backend.repository.DictionaryEntryRepository;
+import com.parrotalk.backend.entity.*;
+import com.parrotalk.backend.repository.TopicRepository;
 import com.parrotalk.backend.repository.VocabularyReportRepository;
+import com.parrotalk.backend.repository.VocabularyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
@@ -26,26 +23,22 @@ import java.util.stream.Collectors;
 
 /**
  * Service for public vocabulary lookup, search, topics, detail, and reporting.
- * 
+ *
  * @author MinhTuMTN
  */
 @Service
 @RequiredArgsConstructor
 public class PublicVocabularyService {
 
-    private final DictionaryEntryRepository dictionaryEntryRepository;
+    private final VocabularyRepository vocabularyRepository;
+    private final TopicRepository topicRepository;
+    private final com.parrotalk.backend.repository.DictionaryEntryRepository dictionaryEntryRepository;
     private final VocabularyReportRepository vocabularyReportRepository;
-    private final ObjectMapper objectMapper;
 
-    /**
-     * Get list of 15 IELTS vocabulary topics with word count.
-     *
-     * @return List of topic summary DTOs.
-     */
     @Cacheable(value = "vocabularyTopics")
     @Transactional(readOnly = true)
     public List<VocabularyTopicSummaryDto> getTopics() {
-        List<Object[]> rawTopics = dictionaryEntryRepository.findTopicsWithCounts();
+        List<Object[]> rawTopics = topicRepository.findTopicsWithCounts();
         return rawTopics.stream()
                 .map(row -> VocabularyTopicSummaryDto.builder()
                         .name((String) row[0])
@@ -56,115 +49,159 @@ public class PublicVocabularyService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Search vocabulary with keyword, topic, CEFR, POS filters.
-     *
-     * @return Paginated vocabulary response.
-     */
     @Transactional(readOnly = true)
     public PageResponse<PublicVocabularySummaryDto> searchVocabularies(
             String keyword, String topic, String cefrLevel, String partOfSpeech, int page, int size) {
-        Page<DictionaryEntry> entries = dictionaryEntryRepository.searchVocabularies(
+        Page<Vocabulary> entries = vocabularyRepository.searchVocabularies(
                 keyword, topic, cefrLevel, partOfSpeech, PageRequest.of(page, size));
         Page<PublicVocabularySummaryDto> dtos = entries.map(this::mapToSummaryDto);
         return new PageResponse<>(dtos.getContent(), dtos.getNumber(), dtos.getSize(), dtos.getTotalElements(), dtos.getTotalPages());
     }
 
-    /**
-     * Get featured vocabulary list.
-     *
-     * @return List of 10 featured words.
-     */
     @Transactional(readOnly = true)
     public List<PublicVocabularySummaryDto> getFeatured() {
-        Page<DictionaryEntry> entries = dictionaryEntryRepository.findRandomEntries(null, "B2", PageRequest.of(0, 10));
-        return entries.getContent().stream().map(this::mapToSummaryDto).collect(Collectors.toList());
+        List<Vocabulary> entries = vocabularyRepository.findRandomVocabularies(null, "B2", 10);
+        return entries.stream().map(this::mapToSummaryDto).collect(Collectors.toList());
     }
 
-    /**
-     * Get detailed vocabulary item by ID.
-     *
-     * @param id Vocabulary entry ID
-     * @param user Authenticated user
-     * @return Detailed vocabulary DTO
-     */
     @Transactional(readOnly = true)
     public PublicVocabularyDetailDto getDetail(UUID id, User user) {
-        DictionaryEntry entry = dictionaryEntryRepository.findById(id)
+        Vocabulary entry = vocabularyRepository.findByIdWithGraph(id)
                 .orElseThrow(() -> new RuntimeException("Vocabulary entry not found with id: " + id));
         return mapToDetailDto(entry, false);
     }
 
-    /**
-     * Submit user report for vocabulary entry content issue.
-     *
-     * @param id Vocabulary entry ID
-     * @param user Authenticated reporter
-     * @param request Report data
-     */
+    @Transactional(readOnly = true)
+    public PublicVocabularyDetailDto getDetailByIdOrWord(String idOrWord, User user) {
+        Vocabulary entry;
+        try {
+            UUID id = UUID.fromString(idOrWord);
+            entry = vocabularyRepository.findByIdWithGraph(id).orElse(null);
+        } catch (IllegalArgumentException e) {
+            String normalized = idOrWord.toLowerCase().trim();
+            entry = vocabularyRepository.findByNormalizedWord(normalized).orElse(null);
+        }
+
+        if (entry == null) {
+            throw new RuntimeException("Vocabulary not found: " + idOrWord);
+        }
+        return mapToDetailDto(entry, false); // ignoring user saved status for now or check it
+    }
+
     @Transactional
     public void submitReport(UUID id, User user, VocabularyReportRequestDto request) {
-        DictionaryEntry entry = dictionaryEntryRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Vocabulary entry not found with id: " + id));
+        Vocabulary entry = vocabularyRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Vocabulary entry not found"));
 
         VocabularyReport report = VocabularyReport.builder()
-                .dictionaryEntry(entry)
-                .reporterId(user != null ? user.getId() : UUID.fromString("00000000-0000-0000-0000-000000000000"))
-                .reportType(request.getReportType() != null ? request.getReportType() : "OTHER")
-                .reason(request.getReason() != null ? request.getReason() : "Content issue")
+                .reporterId(user.getId())
+                .dictionaryEntry(dictionaryEntryRepository.findFirstByNormalizedWord(entry.getNormalizedWord()).orElse(null))
+                .reportType(request.getReportType())
+                .reason(request.getReason())
                 .description(request.getDescription())
-                .status("OPEN")
-                .priority("MEDIUM")
                 .build();
-
         vocabularyReportRepository.save(report);
     }
 
-    private PublicVocabularySummaryDto mapToSummaryDto(DictionaryEntry entry) {
+    private PublicVocabularySummaryDto mapToSummaryDto(Vocabulary entry) {
+        String pos = entry.getSenses().isEmpty() ? null : entry.getSenses().get(0).getPartOfSpeech();
+        String cefr = entry.getSenses().isEmpty() ? null : entry.getSenses().get(0).getCefrLevel();
+        String topic = entry.getSenses().isEmpty() || entry.getSenses().get(0).getTopic() == null ? null : entry.getSenses().get(0).getTopic().getName();
+        String phonetic = entry.getPronunciations().isEmpty() ? null : entry.getPronunciations().get(0).getIpa();
+        String audioUsUrl = null;
+        String audioUkUrl = null;
+        for (VocabularyPronunciation p : entry.getPronunciations()) {
+            if ("US".equalsIgnoreCase(p.getAccent())) audioUsUrl = p.getAudioUrl();
+            if ("UK".equalsIgnoreCase(p.getAccent())) audioUkUrl = p.getAudioUrl();
+        }
+
         return PublicVocabularySummaryDto.builder()
                 .id(entry.getId())
-                .word(entry.getDisplayWord())
-                .commonMeaningVi(entry.getCommonMeaningVi())
-                .partOfSpeech(entry.getPartOfSpeech())
-                .phonetic(entry.getPhonetic())
-                .cefrLevel(entry.getCefrLevel())
-                .topic(entry.getTopic())
-                .audioUsUrl(entry.getAudioUsUrl())
-                .audioUkUrl(entry.getAudioUkUrl())
+                .word(entry.getWord())
+                .commonMeaningVi(entry.getCommonMeaningVn())
+                .partOfSpeech(pos)
+                .phonetic(phonetic)
+                .cefrLevel(cefr)
+                .topic(topic)
+                .audioUsUrl(audioUsUrl)
+                .audioUkUrl(audioUkUrl)
                 .build();
     }
 
-    private PublicVocabularyDetailDto mapToDetailDto(DictionaryEntry entry, boolean isSaved) {
+    private PublicVocabularyDetailDto mapToDetailDto(Vocabulary entry, boolean isSaved) {
+        String pos = entry.getSenses().isEmpty() ? null : entry.getSenses().get(0).getPartOfSpeech();
+        String cefr = entry.getSenses().isEmpty() ? null : entry.getSenses().get(0).getCefrLevel();
+        String topic = entry.getSenses().isEmpty() || entry.getSenses().get(0).getTopic() == null ? null : entry.getSenses().get(0).getTopic().getName();
+        String phonetic = entry.getPronunciations().isEmpty() ? null : entry.getPronunciations().get(0).getIpa();
+        String audioUsUrl = null;
+        String audioUkUrl = null;
+        for (VocabularyPronunciation p : entry.getPronunciations()) {
+            if ("US".equalsIgnoreCase(p.getAccent())) audioUsUrl = p.getAudioUrl();
+            if ("UK".equalsIgnoreCase(p.getAccent())) audioUkUrl = p.getAudioUrl();
+        }
+
+        List<PublicVocabularyDetailDto.SenseItemDto> senses = entry.getSenses().stream()
+            .map(s -> PublicVocabularyDetailDto.SenseItemDto.builder()
+                .id(s.getId().toString())
+                .partOfSpeech(s.getPartOfSpeech())
+                .cefrLevel(s.getCefrLevel())
+                .topicTag(s.getTopic() != null ? s.getTopic().getName() : null)
+                .definitionEn(s.getDefinitionEn())
+                .definitionVn(s.getDefinitionVn())
+                .exampleEn(s.getExampleEn())
+                .exampleVn(s.getExampleVn())
+                .synonyms(s.getSynonyms().stream().map(SenseSynonym::getSynonymWord).collect(Collectors.toList()))
+                .collocations(s.getCollocations().stream().map(SenseCollocation::getCollocationWord).collect(Collectors.toList()))
+                .build()
+            ).collect(Collectors.toList());
+
+        List<PublicVocabularyDetailDto.PhrasalVerbItemDto> phrasalVerbs = entry.getPhrasalVerbs().stream()
+            .map(pv -> PublicVocabularyDetailDto.PhrasalVerbItemDto.builder()
+                .phrasalVerb(pv.getPhrase())
+                .definitionEn(pv.getDefinition())
+                .definitionVn(pv.getDefinitionVn())
+                .exampleEn(pv.getExample())
+                .exampleVn(pv.getExampleVn())
+                .build()
+            ).collect(Collectors.toList());
+
+        List<PublicVocabularyDetailDto.IdiomItemDto> idioms = entry.getIdioms().stream()
+            .map(i -> PublicVocabularyDetailDto.IdiomItemDto.builder()
+                .idiom(i.getPhrase())
+                .definitionEn(i.getDefinition())
+                .definitionVn(i.getDefinitionVn())
+                .exampleEn(i.getExample())
+                .exampleVn(i.getExampleVn())
+                .build()
+            ).collect(Collectors.toList());
+            
+        List<String> flatDefinitions = entry.getSenses().stream().map(VocabularySense::getDefinitionEn).collect(Collectors.toList());
+        List<String> flatExamples = entry.getSenses().stream().map(VocabularySense::getExampleEn).collect(Collectors.toList());
+
         return PublicVocabularyDetailDto.builder()
                 .id(entry.getId())
-                .word(entry.getDisplayWord())
-                .commonMeaningVi(entry.getCommonMeaningVi())
-                .partOfSpeech(entry.getPartOfSpeech())
-                .phonetic(entry.getPhonetic())
-                .cefrLevel(entry.getCefrLevel())
-                .topic(entry.getTopic())
-                .audioUsUrl(entry.getAudioUsUrl())
-                .audioUkUrl(entry.getAudioUkUrl())
-                .definitions(parseJsonList(entry.getDefinitionsJson()))
-                .examples(parseJsonList(entry.getExamplesJson()))
-                .synonyms(parseJsonList(entry.getSynonymsJson()))
-                .antonyms(parseJsonList(entry.getAntonymsJson()))
-                .idioms(parseJsonList(entry.getIdiomsJson()))
-                .collocations(parseJsonList(entry.getCollocationsJson()))
-                .phrasalVerbs(parseJsonList(entry.getPhrasalVerbsJson()))
+                .word(entry.getWord())
+                .commonMeaningVi(entry.getCommonMeaningVn())
+                .partOfSpeech(pos)
+                .phonetic(phonetic)
+                .cefrLevel(cefr)
+                .topic(topic)
+                .audioUsUrl(audioUsUrl)
+                .audioUkUrl(audioUkUrl)
+                
+                .definitions(flatDefinitions)
+                .examples(flatExamples)
+                .synonyms(Collections.emptyList())
+                .antonyms(Collections.emptyList())
+                .collocations(Collections.emptyList())
+                .idioms(Collections.emptyList())
+                .phrasalVerbs(Collections.emptyList())
+                
+                .senses(senses)
+                .structuredPhrasalVerbs(phrasalVerbs)
+                .structuredIdioms(idioms)
                 .isSaved(isSaved)
                 .build();
-    }
-
-    private List<String> parseJsonList(String json) {
-        if (json == null || json.isBlank() || json.equals("[]")) {
-            return Collections.emptyList();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
-        } catch (Exception e) {
-            return Collections.singletonList(json);
-        }
     }
 
     private String getTopicIcon(String topicName) {

@@ -23,6 +23,9 @@ public interface DictionaryEntryRepository extends JpaRepository<DictionaryEntry
     /** Find dictionary entry by normalized word. **/
     Optional<DictionaryEntry> findByNormalizedWordAndLanguage(String normalizedWord, String language);
 
+    /** Find first dictionary entry by normalized word. **/
+    Optional<DictionaryEntry> findFirstByNormalizedWord(String normalizedWord);
+
     /** Query list of unique topics with word count. **/
     @Query("SELECT d.topic, COUNT(d) FROM DictionaryEntry d WHERE d.topic IS NOT NULL AND d.topic <> '' GROUP BY d.topic ORDER BY COUNT(d) DESC")
     List<Object[]> findTopicsWithCounts();
