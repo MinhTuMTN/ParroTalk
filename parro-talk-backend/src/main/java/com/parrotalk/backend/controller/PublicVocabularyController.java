@@ -48,6 +48,7 @@ public class PublicVocabularyController {
             List<VocabularyTopicSummaryDto> enrichedTopics = new java.util.ArrayList<>();
             for (VocabularyTopicSummaryDto t : topics) {
                 VocabularyTopicSummaryDto copy = new VocabularyTopicSummaryDto();
+                copy.setId(t.getId());
                 copy.setName(t.getName());
                 copy.setWordCount(t.getWordCount());
                 copy.setDescription(t.getDescription());

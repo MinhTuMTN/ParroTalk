@@ -101,7 +101,7 @@ function hash(str: string): number {
 }
 
 function inferCategory(name: string): CategoryMeta {
-  const n = name.toLowerCase();
+  const n = (name || '').toLowerCase();
   return (
     CATEGORIES.find((c) => c.keywords.some((k) => n.includes(k))) ??
     CATEGORIES[CATEGORIES.length - 1]
@@ -122,7 +122,7 @@ export function enrichTopic(topic: VocabularyTopicDto, index: number): TopicWith
   let learned = topic.learnedWordCount;
   let progress = 0;
   
-  if (learned === undefined) {
+  if (learned == null) {
     progress = MOCK_PROGRESS_BY_INDEX[index];
     if (progress === undefined) {
       const bucket = h % 6;
@@ -130,7 +130,7 @@ export function enrichTopic(topic: VocabularyTopicDto, index: number): TopicWith
     }
     learned = Math.round((progress / 100) * topic.wordCount);
   } else {
-    progress = topic.wordCount > 0 ? Math.min(100, Math.round((learned / topic.wordCount) * 100)) : 0;
+    progress = topic.wordCount > 0 ? Math.max(0, Math.min(100, Math.round((learned / topic.wordCount) * 100))) : 0;
   }
   const status: TopicStatus =
     progress >= 100 ? "completed" : progress > 0 ? "in-progress" : "not-started";
@@ -143,9 +143,9 @@ export function enrichTopic(topic: VocabularyTopicDto, index: number): TopicWith
     level: CEFR_LEVELS[1 + (h % 4)],
     progress,
     learned,
-    remaining: topic.wordCount - learned,
+    remaining: Math.max(0, topic.wordCount - learned),
     status,
-    isCurrent: index === 0,
+    isCurrent: status === "in-progress" || index === 0,
   };
 }
 

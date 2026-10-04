@@ -15,11 +15,11 @@ public interface TopicRepository extends JpaRepository<Topic, UUID> {
     List<Topic> findByNameIn(java.util.Collection<String> names);
 
     @Query("""
-            SELECT t.name, COUNT(vs)
+            SELECT t.id, t.name, COUNT(vs)
             FROM Topic t
             LEFT JOIN VocabularySense vs ON vs.topic.id = t.id AND vs.isDeleted = false
             WHERE t.isDeleted = false
-            GROUP BY t.name
+            GROUP BY t.id, t.name
             ORDER BY t.name
             """)
     List<Object[]> findTopicsWithCounts();

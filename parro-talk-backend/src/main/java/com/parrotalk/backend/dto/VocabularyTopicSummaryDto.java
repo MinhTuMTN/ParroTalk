@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class VocabularyTopicSummaryDto {
+    private java.util.UUID id;
     private String name;
     private Long wordCount;
     private Long learnedWordCount;

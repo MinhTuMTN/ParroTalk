@@ -41,10 +41,11 @@ public class PublicVocabularyService {
         List<Object[]> rawTopics = topicRepository.findTopicsWithCounts();
         return rawTopics.stream()
                 .map(row -> VocabularyTopicSummaryDto.builder()
-                        .name((String) row[0])
-                        .wordCount(((Number) row[1]).longValue())
-                        .description("Danh mục từ vựng " + row[0] + " chuẩn IELTS")
-                        .icon(getTopicIcon((String) row[0]))
+                        .id((java.util.UUID) row[0])
+                        .name((String) row[1])
+                        .wordCount(((Number) row[2]).longValue())
+                        .description("Danh mục từ vựng " + row[1] + " chuẩn IELTS")
+                        .icon(getTopicIcon((String) row[1]))
                         .build())
                 .collect(Collectors.toList());
     }
