@@ -7,3 +7,6 @@ eclipse-java-google-style.xml
 docker-gui.bat
 .env
 parro-talk-vocab-pipeline/
+__pycache__/
+temp/
+graphify-out/

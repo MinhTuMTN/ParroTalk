@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import { FormFieldError, FormValidation } from "@/components/ui/FormValidation";
 import FloatingToast from "@/components/ui/FloatingToast";
 import axiosInstance from "@/lib/axios";
@@ -263,12 +264,15 @@ export default function ResetPasswordPage() {
                 "bg-orange-50 text-orange-600",
                 "Link already used",
                 "This password reset link has already been used.",
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-green-500 px-5 py-3 font-black text-white shadow-lg shadow-green-100 transition-all hover:bg-green-600"
-                >
-                  Back to Login
-                  <ArrowRight className="h-4 w-4" />
+                <Link href="/login" className="w-full">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    rightIcon={<ArrowRight className="h-4 w-4" />}
+                  >
+                    Back to Login
+                  </Button>
                 </Link>,
               )
             : null}
@@ -280,12 +284,15 @@ export default function ResetPasswordPage() {
                 "bg-green-50 text-green-600",
                 "Password changed",
                 "Your password has been reset successfully. You can now log in with your new password.",
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-2 rounded-2xl bg-green-500 px-5 py-3 font-black text-white shadow-lg shadow-green-100 transition-all hover:bg-green-600"
-                >
-                  Go to Login
-                  <ArrowRight className="h-4 w-4" />
+                <Link href="/login" className="w-full">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    rightIcon={<ArrowRight className="h-4 w-4" />}
+                  >
+                    Go to Login
+                  </Button>
                 </Link>,
               )
             : null}
@@ -439,20 +446,16 @@ export default function ResetPasswordPage() {
                   ) : null}
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  disabled={isLoading}
-                  className="w-full bg-green-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-green-100 hover:bg-green-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-lg disabled:opacity-70"
+                  variant="primary"
+                  size="xl"
+                  fullWidth
+                  isLoading={isLoading}
+                  rightIcon={<ArrowRight size={20} />}
                 >
-                  {isLoading ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <>
-                      Reset Password
-                      <ArrowRight size={20} />
-                    </>
-                  )}
-                </button>
+                  Reset Password
+                </Button>
               </form>
             </>
           ) : null}

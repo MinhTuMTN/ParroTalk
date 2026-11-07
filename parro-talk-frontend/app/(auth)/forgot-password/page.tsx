@@ -1,10 +1,11 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import { FormFieldError, FormValidation } from "@/components/ui/FormValidation";
 import FloatingToast from "@/components/ui/FloatingToast";
 import axiosInstance from "@/lib/axios";
 import axios from "axios";
-import { ArrowLeft, CheckCircle2, Loader2, Mail, Send } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Mail, Send } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -124,13 +125,16 @@ export default function ForgotPasswordPage() {
           </div>
 
           {isSuccess ? (
-            <div className="flex flex-col gap-4 items-center">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 rounded-2xl bg-green-500 px-6 py-4 font-black text-white shadow-xl shadow-green-100 transition-all hover:bg-green-600 active:scale-[0.98] text-lg"
-              >
-                <ArrowLeft size={20} />
-                Back to Login
+            <div className="flex flex-col gap-4 items-center w-full">
+              <Link href="/login" className="w-full">
+                <Button
+                  variant="primary"
+                  size="xl"
+                  fullWidth
+                  leftIcon={<ArrowLeft size={20} />}
+                >
+                  Back to Login
+                </Button>
               </Link>
             </div>
           ) : (
@@ -168,20 +172,16 @@ export default function ForgotPasswordPage() {
                 <FormFieldError id="forgot-email-error" message={formErrors.email} />
               </div>
 
-              <button
+              <Button
                 type="submit"
-                disabled={isLoading}
-                className="w-full bg-green-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-green-100 hover:bg-green-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-lg disabled:opacity-70"
+                variant="primary"
+                size="xl"
+                fullWidth
+                isLoading={isLoading}
+                rightIcon={<Send size={18} />}
               >
-                {isLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : (
-                  <>
-                    Send Reset Link
-                    <Send size={18} />
-                  </>
-                )}
-              </button>
+                Send Reset Link
+              </Button>
 
               <div className="text-center">
                 <Link

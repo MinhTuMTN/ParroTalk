@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, ChevronDown, Menu } from "lucide-react";
+import Button from "@/components/ui/Button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 type AdminHeaderProps = {
@@ -23,26 +24,30 @@ export default function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
   return (
     <header className="flex items-center justify-between gap-4">
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="icon"
         onClick={onMenuClick}
-        className="rounded-2xl border border-emerald-100 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-emerald-50 lg:hidden"
+        className="rounded-2xl border-emerald-100 bg-white p-2.5 text-slate-600 shadow-xs hover:bg-emerald-50 lg:hidden"
         aria-label="Open sidebar"
       >
         <Menu className="h-5 w-5" />
-      </button>
+      </Button>
 
       <div className="ml-auto flex items-center gap-3 sm:gap-5">
-        <button
+        <Button
           type="button"
-          className="relative rounded-full border border-emerald-100 bg-white p-2.5 text-slate-600 shadow-sm transition hover:bg-emerald-50"
+          variant="secondary"
+          size="icon"
+          className="relative rounded-full border-emerald-100 bg-white p-2.5 text-slate-600 shadow-xs hover:bg-emerald-50"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
           <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
             3
           </span>
-        </button>
+        </Button>
 
         <button
           type="button"

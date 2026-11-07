@@ -59,13 +59,16 @@ function EditSenseFormContent({
   onClose,
   onSave,
 }: {
-  sense: Record<string, unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sense: Record<string, any>;
   index: number;
   word: string;
   onClose: () => void;
-  onSave: (updatedSense: Record<string, unknown>) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSave: (updatedSense: Record<string, any>) => void;
 }) {
-  const [localSense, setLocalSense] = useState<Record<string, unknown>>(() => ({ ...sense }));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [localSense, setLocalSense] = useState<Record<string, any>>(() => ({ ...sense }));
   const [isTestingTts, setIsTestingTts] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [isPredictingCefr, setIsPredictingCefr] = useState(false);
@@ -161,14 +164,14 @@ function EditSenseFormContent({
   const handleArrayAdd = (field: string, val: string) => {
     const trimmed = val.trim();
     if (!trimmed) return;
-    const current = localSense[field] || [];
+    const current = (localSense[field] as string[]) || [];
     if (!current.includes(trimmed)) {
       setLocalSense({ ...localSense, [field]: [...current, trimmed] });
     }
   };
 
   const handleArrayRemove = (field: string, i: number) => {
-    const current = localSense[field] || [];
+    const current = (localSense[field] as string[]) || [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setLocalSense({ ...localSense, [field]: current.filter((_: any, idx: number) => idx !== i) });
   };
@@ -184,7 +187,7 @@ function EditSenseFormContent({
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                Edit Sense #{index + 1} <span className="text-slate-400 font-normal capitalize">({localSense.partOfSpeech || 'N/A'})</span>
+                Edit Sense #{index + 1} <span className="text-slate-400 font-normal capitalize">({String(localSense.partOfSpeech || 'N/A')})</span>
                 <span className="text-sm font-normal text-slate-400 ml-2">lemma: <span className="font-semibold text-slate-700">{word}</span></span>
               </h2>
               <p className="text-slate-500 text-sm">Update semantic definition, bilingual alignment, dual audio & associations</p>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import { useRef, useEffect, useState } from "react";
 
 interface DictationInputProps {
@@ -43,18 +44,15 @@ export default function DictationInput({ onSubmit, disabled = false }: Dictation
         className="w-full h-32 p-6 rounded-3xl border-2 border-gray-100 focus:border-green-400 focus:ring-0 resize-none text-lg transition-all outline-none bg-white shadow-sm placeholder:text-gray-300"
       />
       
-      <button
+      <Button
+        variant="primary"
+        size="lg"
         onClick={handleSubmit}
         disabled={disabled || !value.trim()}
-        className={`
-          self-end px-10 py-4 rounded-2xl font-bold text-white transition-all
-          ${disabled || !value.trim() 
-            ? "bg-gray-200 cursor-not-allowed" 
-            : "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-100 active:transform active:scale-95"}
-        `}
+        className="self-end px-10 py-4 font-bold"
       >
         Check Answer
-      </button>
+      </Button>
     </div>
   );
 }

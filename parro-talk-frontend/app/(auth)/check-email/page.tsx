@@ -2,7 +2,8 @@
 
 import axios from "axios";
 import axiosInstance from "@/lib/axios";
-import { ArrowLeft, Loader2, MailCheck, Send } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { ArrowLeft, MailCheck, Send } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -70,15 +71,17 @@ export default function CheckEmailPage() {
             </div>
           ) : null}
 
-          <button
+          <Button
             type="button"
+            variant="primary"
+            size="lg"
+            fullWidth
             onClick={handleResend}
-            disabled={isSending}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-green-500 py-4 font-black text-white shadow-lg shadow-green-100 transition-all hover:bg-green-600 disabled:opacity-70"
+            isLoading={isSending}
+            leftIcon={<Send className="h-5 w-5" />}
           >
-            {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             Resend verification email
-          </button>
+          </Button>
         </div>
 
         <div className="mt-6 flex justify-center">

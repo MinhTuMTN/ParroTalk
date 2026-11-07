@@ -1,10 +1,11 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import { FormFieldError, FormValidation } from "@/components/ui/FormValidation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import axiosInstance, { BACKEND_URL } from "@/lib/axios";
 import axios from "axios";
-import { ArrowRight, Loader2, Lock, Mail } from "lucide-react";
+import { ArrowRight, Lock, Mail } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -189,20 +190,16 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={isLoading}
-              className="w-full bg-green-500 text-white font-black py-5 rounded-2xl shadow-xl shadow-green-100 hover:bg-green-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-lg disabled:opacity-70"
+              variant="primary"
+              size="xl"
+              fullWidth
+              isLoading={isLoading}
+              rightIcon={<ArrowRight size={20} />}
             >
-              {isLoading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <>
-                  Login
-                  <ArrowRight size={20} />
-                </>
-              )}
-            </button>
+              Login
+            </Button>
           </form>
 
           <div className="relative">
@@ -215,18 +212,25 @@ export default function LoginPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <button
+            <Button
               type="button"
+              variant="social"
+              size="lg"
+              fullWidth
               onClick={handleGoogleLogin}
-              className="h-12 md:h-14 bg-white border-2 border-slate-100 rounded-2xl flex items-center justify-center gap-3 font-bold text-[#1E293B] hover:border-[#F1F5F9] hover:bg-[#F1F5F9] transition-all active:scale-95 text-sm md:text-base"
+              leftIcon={<Image src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" width={20} height={20} />}
             >
-              <Image src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" width={20} height={20} />
               Google
-            </button>
-            <button className="h-12 md:h-14 bg-white border-2 border-slate-100 rounded-2xl flex items-center justify-center gap-3 font-bold text-[#1E293B] hover:border-[#F1F5F9] hover:bg-[#F1F5F9] transition-all active:scale-95 text-sm md:text-base">
-              <Image src="https://www.svgrepo.com/show/452196/facebook-1.svg" alt="Facebook" width={20} height={20} />
+            </Button>
+            <Button
+              type="button"
+              variant="social"
+              size="lg"
+              fullWidth
+              leftIcon={<Image src="https://www.svgrepo.com/show/452196/facebook-1.svg" alt="Facebook" width={20} height={20} />}
+            >
               Facebook
-            </button>
+            </Button>
           </div>
 
           <p className="text-center text-sm font-bold text-gray-500">

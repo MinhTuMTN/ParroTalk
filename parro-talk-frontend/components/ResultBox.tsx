@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import { PracticeResult } from "@/types";
 import { CheckCircle2, XCircle, RotateCcw, ArrowRight } from "lucide-react";
 import confetti from "canvas-confetti";
@@ -61,21 +62,25 @@ export default function ResultBox({ result, onRetry, onNext }: ResultBoxProps) {
         </div>
 
         <div className="flex w-full gap-4 mt-4">
-          <button
+          <Button
+            variant="secondary"
+            size="lg"
             onClick={onRetry}
-            className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl border-2 border-gray-200 text-gray-600 font-bold hover:bg-gray-50 transition-all"
+            leftIcon={<RotateCcw size={20} />}
+            className="flex-1 py-4 font-bold border-2 border-gray-200 text-gray-600 hover:bg-gray-50"
           >
-            <RotateCcw size={20} />
             Try Again
-          </button>
+          </Button>
           
-          <button
+          <Button
+            variant="primary"
+            size="lg"
             onClick={onNext}
-            className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-500 text-white font-bold hover:bg-green-600 shadow-lg shadow-green-100 transition-all"
+            rightIcon={<ArrowRight size={20} />}
+            className="flex-1 py-4 font-bold"
           >
             {onNext ? "Continue" : "Next Sentence"}
-            <ArrowRight size={20} />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

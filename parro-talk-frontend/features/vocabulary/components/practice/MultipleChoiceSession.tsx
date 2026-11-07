@@ -176,7 +176,7 @@ export function MultipleChoiceSession({
 
       void recordPracticedWords(topic, [
         {
-          word: currentQ.word,
+          word: currentQ.word || "",
           isCorrect,
         },
       ]);
@@ -204,7 +204,7 @@ export function MultipleChoiceSession({
       void recordPracticedWords(
         topic,
         mcQuestions.map((q) => ({
-          word: q.word,
+          word: q.word || "",
           isCorrect: answers[q.id]?.isCorrect ?? true,
         }))
       );

@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "./Button";
 import { X } from "lucide-react";
 import { useEffect } from "react";
 
@@ -46,12 +47,15 @@ export default function ConfirmationModal({
       
       {/* Modal Card */}
       <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl border border-gray-100 p-8 flex flex-col items-center text-center animate-in fade-in zoom-in duration-300">
-        <button 
+        <Button 
+          variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-full transition-all"
+          className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 hover:bg-gray-50 !rounded-full"
+          aria-label="Close"
         >
           <X className="w-5 h-5" />
-        </button>
+        </Button>
 
         <div className="w-16 h-16 bg-orange-50 text-orange-500 rounded-full flex items-center justify-center mb-6">
           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -65,22 +69,24 @@ export default function ConfirmationModal({
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full">
-          <button
+          <Button
+            variant="secondary"
+            size="lg"
             onClick={onClose}
             disabled={isLoading}
-            className="flex-1 px-6 py-3.5 rounded-xl font-bold bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            className="flex-1 font-bold bg-gray-50 text-gray-500 hover:bg-gray-100 border-none shadow-none"
           >
             {cancelText}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="dark"
+            size="lg"
             onClick={onConfirm}
-            disabled={isLoading}
-            className="flex-1 px-6 py-3.5 rounded-xl font-black bg-gray-900 text-white hover:bg-gray-800 shadow-lg shadow-gray-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center"
+            isLoading={isLoading}
+            className="flex-1 font-black"
           >
-            {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : confirmText}
-          </button>
+            {confirmText}
+          </Button>
         </div>
       </div>
     </div>

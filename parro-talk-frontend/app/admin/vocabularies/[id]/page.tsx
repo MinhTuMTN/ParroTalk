@@ -73,7 +73,7 @@ export default function AdminVocabularyDetailPage() {
 
   const fetchVocabulary = async () => {
     try {
-      const data = await adminVocabularyApi.getVocabulary(id) as Record<string, unknown>;
+      const data = (await adminVocabularyApi.getVocabulary(id)) as unknown as Record<string, unknown>;
       setWord((data.word as string) || "");
       setCommonMeaningVn((data.commonMeaningVn as string) || "");
 
@@ -121,9 +121,11 @@ export default function AdminVocabularyDetailPage() {
       };
 
       if (isCreate) {
-        await adminVocabularyApi.createVocabulary(payload);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await adminVocabularyApi.createVocabulary(payload as any);
       } else {
-        await adminVocabularyApi.updateVocabulary(id, payload);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await adminVocabularyApi.updateVocabulary(id, payload as any);
       }
       
       setToast({ message: "Vocabulary saved successfully", variant: "success" });

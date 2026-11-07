@@ -325,7 +325,7 @@ export function FillBlankSession({ topic = "Business", questions, onComplete }: 
 
       void recordPracticedWords(topic, [
         {
-          word: currentQ.word,
+          word: currentQ.word || "",
           isCorrect,
         },
       ]);
@@ -345,7 +345,7 @@ export function FillBlankSession({ topic = "Business", questions, onComplete }: 
       void recordPracticedWords(
         topic,
         sessionQuestions.map((q) => ({
-          word: q.word,
+          word: q.word || "",
           isCorrect: checkedMap[q.id]?.isCorrect ?? true,
         }))
       );

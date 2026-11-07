@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
 import { LogOut, Shield, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -108,13 +109,16 @@ export function AuthAction({
             <Shield size={16} /> Trang Admin
           </Link>
         )}
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
+          fullWidth
           onClick={handleLogout}
-          className="flex items-center gap-2 rounded-xl bg-rose-50 px-4 py-2.5 text-left text-sm font-bold text-rose-600"
+          leftIcon={<LogOut size={16} />}
+          className="justify-start rounded-xl bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-100 hover:text-rose-700"
         >
-          <LogOut size={16} /> Đăng xuất
-        </button>
+          Đăng xuất
+        </Button>
       </div>
     );
   }
@@ -146,13 +150,16 @@ export function AuthAction({
               <Shield size={16} /> Trang Admin
             </Link>
           )}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
+            fullWidth
             onClick={handleLogout}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-bold text-rose-600 hover:bg-rose-50"
+            leftIcon={<LogOut size={16} />}
+            className="justify-start rounded-xl px-3 py-2.5 text-sm font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700"
           >
-            <LogOut size={16} /> Đăng xuất
-          </button>
+            Đăng xuất
+          </Button>
         </div>
       )}
     </div>
