@@ -19,16 +19,25 @@ const variantClassMap: Record<ButtonVariant, string> = {
   danger: "bg-rose-600 text-white hover:bg-rose-700",
 };
 
+const sizeClassMap: Record<string, string> = {
+  default: "px-5 py-2.5",
+  sm: "px-3 py-1.5 text-xs",
+  lg: "px-8 py-4 text-base",
+  icon: "p-2", // smaller padding for icon buttons
+};
+
 export default function Button({
   variant = "primary",
+  size = "default",
   leftIcon,
   className = "",
   children,
   ...props
 }: ButtonProps) {
+  const sizeClass = sizeClassMap[size] || sizeClassMap.default;
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${variantClassMap[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${variantClassMap[variant]} ${sizeClass} ${className}`}
       {...props}
     >
       {leftIcon}

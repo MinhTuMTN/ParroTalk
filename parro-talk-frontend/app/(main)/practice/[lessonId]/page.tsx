@@ -2,6 +2,7 @@
 
 import PracticeHeader from "@/features/practice/components/PracticeHeader";
 import TranscriptList from "@/features/practice/components/TranscriptList";
+import VocabularyDetailPopup from "@/components/vocabulary/VocabularyDetailPopup";
 import TranslationReview from "@/features/practice/components/TranslationReview";
 import VideoPlayer from "@/features/practice/components/VideoPlayer";
 import WordDictation from "@/features/practice/components/WordDictation";
@@ -25,6 +26,7 @@ export default function PracticePage() {
   const [segments, setSegments] = useState<Sentence[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [completedIndices, setCompletedIndices] = useState<Set<number>>(new Set());
+  const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<number, string>>({});
   const [segmentStats, setSegmentStats] = useState<Record<number, SegmentStat>>({});
   const [fileUrl, setFileUrl] = useState("");
@@ -366,6 +368,7 @@ export default function PracticePage() {
                 handleSelectSentence(idx);
                 if (activeTab === 'transcript') setActiveTab('practice');
               }}
+              onWordClick={setSelectedWord}
             />
           </div>
         </div>
@@ -378,6 +381,7 @@ export default function PracticePage() {
             sentence={activeSentence}
             translatedText={activeSegment.translation?.translatedText}
             onContinue={() => void handleAdvanceAfterReview()}
+            onWordClick={setSelectedWord}
           />
         ) : (
           <div className="relative bg-white border-t border-gray-100 z-10 shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] py-3 px-4 sm:py-4">
@@ -432,6 +436,12 @@ export default function PracticePage() {
           </div>
         )
       ) : null}
+      {selectedWord && (
+        <VocabularyDetailPopup 
+          word={selectedWord} 
+          onClose={() => setSelectedWord(null)} 
+        />
+      )}
     </div>
   );
 }

@@ -1,24 +1,46 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import { tokenizeText } from "@/lib/tokenizer";
 
 type TranslationReviewProps = {
   sentence: string;
   translatedText?: string | null;
   onContinue: () => void;
+  onWordClick?: (word: string) => void;
 };
 
 export default function TranslationReview({
   sentence,
   translatedText,
   onContinue,
+  onWordClick,
 }: TranslationReviewProps) {
+  const renderSentence = (text: string) => {
+    return tokenizeText(text).map((token, i) => {
+      if (token.isWord) {
+        return (
+          <span 
+            key={i} 
+            onClick={() => onWordClick?.(token.text)}
+            className="cursor-pointer hover:text-emerald-600 transition-colors border-b border-transparent hover:border-emerald-600 pb-0.5"
+          >
+            {token.text}
+          </span>
+        );
+      }
+      return <span key={i}>{token.text}</span>;
+    });
+  };
+
   return (
     <section className="w-full border-t border-gray-100 bg-white px-4 py-4 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] sm:px-6 sm:py-6">
       <div className="mx-auto flex max-w-4xl flex-col gap-4">
         <div>
           <p className="text-sm font-semibold text-gray-400">Completed sentence</p>
-          <p className="mt-1 text-base font-bold text-gray-900 sm:text-lg">{sentence}</p>
+          <p className="mt-1 text-base font-bold text-gray-900 sm:text-lg">
+            {renderSentence(sentence)}
+          </p>
         </div>
 
         <div className="rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3">

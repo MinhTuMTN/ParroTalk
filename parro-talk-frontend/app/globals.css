@@ -5,6 +5,77 @@
   --font-headline: var(--font-plus-jakarta-sans), sans-serif;
   --font-display: var(--font-plus-jakarta-sans), sans-serif;
   --font-body: var(--font-plus-jakarta-sans), sans-serif;
+
+  /* ── ParroTalk palette ─────────────────────────────── */
+  /* Brand: fresh emerald-sage */
+  --color-brand-50: #effaf4;
+  --color-brand-100: #d8f2e3;
+  --color-brand-200: #b3e3c9;
+  --color-brand-300: #82cea7;
+  --color-brand-400: #4fb382;
+  --color-brand-500: #2e9a68;
+  --color-brand-600: #1f7f54;
+  --color-brand-700: #1a6545;
+  --color-brand-800: #175139;
+  --color-brand-900: #12402e;
+
+  /* Ink: green-tinted neutrals so greys sit well next to brand */
+  --color-ink-50: #f5f8f6;
+  --color-ink-100: #ebf0ed;
+  --color-ink-200: #dbe3de;
+  --color-ink-300: #c1ccc6;
+  --color-ink-400: #8e9c95;
+  --color-ink-500: #66756e;
+  --color-ink-600: #4a5852;
+  --color-ink-700: #33403a;
+  --color-ink-800: #1f2a25;
+  --color-ink-900: #121c17;
+
+  /* Accents (used sparingly) */
+  --color-coral-50: #fff3ee;
+  --color-coral-100: #ffe3d8;
+  --color-coral-200: #ffc7b2;
+  --color-coral-500: #f0703f;
+  --color-coral-600: #d85a2b;
+  --color-coral-700: #b44620;
+
+  --color-honey-50: #fff8e8;
+  --color-honey-100: #fdecc4;
+  --color-honey-500: #e3a21a;
+  --color-honey-600: #b97f0c;
+
+  --color-ocean-50: #eef6fb;
+  --color-ocean-100: #d9ebf6;
+  --color-ocean-500: #3b8fc4;
+  --color-ocean-600: #2a73a3;
+
+  --color-plum-50: #f5f1fc;
+  --color-plum-100: #e9e0f8;
+  --color-plum-500: #8b63d1;
+  --color-plum-600: #7049b5;
+
+  --shadow-card: 0 1px 2px rgba(18, 28, 23, 0.04), 0 8px 24px -14px rgba(18, 28, 23, 0.12);
+  --shadow-card-hover: 0 2px 4px rgba(18, 28, 23, 0.04), 0 20px 40px -18px rgba(31, 127, 84, 0.35);
+  --shadow-brand: 0 10px 24px -10px rgba(31, 127, 84, 0.55);
+
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
 }
 
 @layer base {
@@ -134,4 +205,52 @@
   input {
     font-size: 16px;
   }
+}
+
+/* ── 3D Card Flip & Perspective Utilities ────────────────── */
+.perspective-1200 {
+  perspective: 1200px;
+}
+
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* ── Audio Equalizer Wave Animation ─────────────────────── */
+@keyframes waveBounce {
+  0%, 100% {
+    height: 4px;
+  }
+  50% {
+    height: 16px;
+  }
+}
+
+.wave-bar-1 {
+  animation: waveBounce 0.8s ease-in-out infinite 0.1s;
+}
+
+.wave-bar-2 {
+  animation: waveBounce 0.8s ease-in-out infinite 0.3s;
+}
+
+.wave-bar-3 {
+  animation: waveBounce 0.8s ease-in-out infinite 0.2s;
+}
+
+.wave-bar-4 {
+  animation: waveBounce 0.8s ease-in-out infinite 0.4s;
 }

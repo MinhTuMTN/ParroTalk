@@ -14,6 +14,8 @@ import {
 } from "@/features/vocabulary/components/topic-detail";
 import { FooterNote } from "@/features/vocabulary/components/shared";
 import * as api from "@/features/vocabulary/services/api";
+import { getLocalWordStatusesForTopic } from "@/features/vocabulary/services/vocabularyPracticeService";
+import { enrichTopic } from "@/features/vocabulary/lib/topicMeta";
 
 export default function TopicDetailPage() {
   const params = useParams();
@@ -38,23 +40,68 @@ export default function TopicDetailPage() {
   useEffect(() => fetchTopic(), [fetchTopic]);
 
   const [page, setPage] = useState(0);
-  const size = 30;
+  const size = 6;
+  
+  // Cache to store pages: { pageIndex: WordItemWithStatus[] }
+  const wordCache = React.useRef<Record<number, WordItemWithStatus[]>>({});
+  
   const [wordsData, setWordsData] = useState<any>(null);
   const [wordsLoading, setWordsLoading] = useState(true);
   const [wordsError, setWordsError] = useState<any>(null);
+  const [totalPages, setTotalPages] = useState<number>(1);
 
-  const fetchWords = useCallback(() => {
-    let active = true;
-    setWordsLoading(true);
-    setWordsError(null);
-    api.getTopicWords(topicId, { page, size })
-       .then(res => { if (active) setWordsData(res); })
-       .catch(err => { if (active) setWordsError(true); })
-       .finally(() => { if (active) setWordsLoading(false); });
-    return () => { active = false; };
-  }, [topicId, page, size]);
+  const fetchWords = useCallback((targetPage: number, isPrefetch = false) => {
+    if (wordCache.current[targetPage]) {
+      if (!isPrefetch) {
+        setWordsData({ content: wordCache.current[targetPage] });
+        setWordsLoading(false);
+        setWordsError(null);
+      }
+      return;
+    }
 
-  useEffect(() => fetchWords(), [fetchWords]);
+    if (!isPrefetch) {
+      setWordsLoading(true);
+      setWordsError(null);
+    }
+
+    api.getTopicWords(topicId, { page: targetPage, size })
+       .then(res => {
+         const parsedWords = (res.content || []).map((w: any) => ({
+           ...w,
+           status: w.status ? w.status.toLowerCase() : null
+         }));
+         wordCache.current[targetPage] = parsedWords;
+         
+         if (!isPrefetch) {
+           setTotalPages(res.totalPages || 1);
+           setWordsData({ content: parsedWords });
+         }
+       })
+       .catch(err => {
+         if (!isPrefetch) setWordsError(true);
+       })
+       .finally(() => {
+         if (!isPrefetch) setWordsLoading(false);
+       });
+  }, [topicId, size]);
+
+  // Fetch current page
+  useEffect(() => {
+    fetchWords(page, false);
+  }, [page, fetchWords]);
+
+  // Prefetch next 3 pages
+  useEffect(() => {
+    if (totalPages > 1) {
+      for (let i = 1; i <= 3; i++) {
+        const prefetchPage = page + i;
+        if (prefetchPage < totalPages) {
+          fetchWords(prefetchPage, true);
+        }
+      }
+    }
+  }, [page, totalPages, fetchWords]);
 
   if (topicLoading) {
     return (
@@ -91,68 +138,77 @@ export default function TopicDetailPage() {
     );
   }
 
-  const apiWords: WordItemWithStatus[] = (wordsData?.content || []).map((w: any) => ({
-    ...w,
-    status: w.status ? w.status.toLowerCase() : null
-  }));
+  const localStatuses = {
+    ...getLocalWordStatusesForTopic(topicId),
+    ...getLocalWordStatusesForTopic(topicData?.name || ""),
+  };
+  const rawWords: WordItemWithStatus[] = wordsData?.content || [];
+  const apiWords: WordItemWithStatus[] = rawWords.map((w) => {
+    const normalized = w.word?.trim().toLowerCase() || "";
+    const localStatus = localStatuses[normalized];
+    const mergedStatus =
+      w.status === "mastered" || localStatus === "mastered"
+        ? "mastered"
+        : w.status === "learning" || localStatus === "learning"
+        ? "learning"
+        : w.status || "new";
+    return {
+      ...w,
+      status: mergedStatus,
+    };
+  });
+
+  const localLearnedCount = Object.keys(localStatuses).length;
+  const learned = Math.max(
+    topicData?.learned ?? topicData?.learnedWordCount ?? 0,
+    localLearnedCount
+  );
+  const enrichedTopicData = enrichTopic(
+    {
+      ...topicData,
+      learnedWordCount: learned,
+    },
+    0
+  );
 
   const nextWordToLearn =
+    apiWords.find((w) => w.status === "new" || !w.status)?.word ||
     apiWords.find((w) => w.status === "learning")?.word ||
-    apiWords.find((w) => w.status === "new")?.word ||
-    apiWords[0]?.word || "Itinerary";
+    apiWords[0]?.word ||
+    "Itinerary";
 
   return (
     <div className="relative min-h-full bg-ink-50 text-ink-800">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-b from-brand-50 to-transparent" />
 
       <div className="relative mx-auto max-w-[1100px] space-y-8 px-4 py-8 sm:px-8 sm:py-10">
-        <TopicDetailHero topic={topicData} />
-        <TopicProgressCard topic={topicData} />
-        <RecommendedLearningCard topic={topicData} nextWord={nextWordToLearn} />
-        <DifferentWaysToLearn topic={topicData} />
-        <SmartReviewCard topic={topicData} />
+        <TopicDetailHero topic={enrichedTopicData} />
+        <TopicProgressCard topic={enrichedTopicData} />
+        <RecommendedLearningCard topic={enrichedTopicData} nextWord={nextWordToLearn} />
+        <DifferentWaysToLearn topic={enrichedTopicData} />
+        <SmartReviewCard topic={enrichedTopicData} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start pt-2">
           <div className="lg:col-span-2">
             {wordsError && (
                <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-lg flex justify-between items-center shadow-sm">
                  <span>Failed to load words.</span>
-                 <button onClick={() => fetchWords()} className="text-sm font-semibold underline">Retry</button>
+                 <button onClick={() => fetchWords(page, false)} className="text-sm font-semibold underline">Retry</button>
                </div>
             )}
-            <div className="flex justify-between items-center mb-4 bg-white p-3 rounded-xl shadow-sm border border-ink-100">
-              <div className="font-semibold text-ink-900 flex items-center">
-                Words <span className="text-ink-500 font-normal ml-2">({topicData?.wordCount || 0})</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setPage(p => Math.max(0, p - 1))} 
-                  disabled={page === 0 || wordsLoading} 
-                  className="px-3 py-1 rounded bg-ink-50 text-ink-700 disabled:opacity-40 hover:bg-ink-100 transition-colors text-sm font-medium border border-ink-200"
-                >
-                  Prev
-                </button>
-                <span className="text-sm text-ink-600 min-w-[5rem] text-center font-medium">
-                  {wordsData?.totalPages ? `Page ${page + 1} / ${wordsData.totalPages}` : '...'}
-                </span>
-                <button 
-                  onClick={() => setPage(p => p + 1)} 
-                  disabled={page >= (wordsData?.totalPages || 1) - 1 || wordsLoading} 
-                  className="px-3 py-1 rounded bg-ink-50 text-ink-700 disabled:opacity-40 hover:bg-ink-100 transition-colors text-sm font-medium border border-ink-200"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
             <TopicWordList
               words={apiWords}
-              totalWords={topicData?.wordCount || 0}
+              totalWords={enrichedTopicData?.wordCount || 0}
               loading={wordsLoading}
+              page={page}
+              totalPages={totalPages}
+              onPrevPage={() => setPage(p => Math.max(0, p - 1))}
+              onNextPage={() => setPage(p => p + 1)}
             />
           </div>
 
           <div className="lg:col-span-1">
-            <TopicSidebar topic={topicData} nextWord={nextWordToLearn} />
+            <TopicSidebar topic={enrichedTopicData} nextWord={nextWordToLearn} />
           </div>
         </div>
 

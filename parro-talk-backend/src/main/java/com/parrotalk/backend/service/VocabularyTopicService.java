@@ -45,6 +45,41 @@ public class VocabularyTopicService {
     private final PublicVocabularyService publicVocabularyService;
 
     @Transactional(readOnly = true)
+    public VocabularyTopicSummaryDto getTopicSummaryByIdOrName(String idOrName, User user) {
+        return getTopicSummary(resolveTopicId(idOrName), user);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<TopicWordDto> getTopicWordsByIdOrName(String idOrName, int page, int size, User user) {
+        return getTopicWords(resolveTopicId(idOrName), page, size, user);
+    }
+
+    private UUID resolveTopicId(String idOrName) {
+        if (idOrName == null || idOrName.isBlank()) {
+            throw new ParroTalkException("Topic not found", "TOPIC_NOT_FOUND", HttpStatus.NOT_FOUND);
+        }
+        String trimmed = idOrName.trim();
+        try {
+            return UUID.fromString(trimmed);
+        } catch (IllegalArgumentException ignored) {
+            return topicRepository.findByName(trimmed)
+                    .map(Topic::getId)
+                    .orElseGet(() -> {
+                        List<Topic> all = topicRepository.findAll();
+                        return all.stream()
+                                .filter(t -> t.getName() != null && t.getName().trim().equalsIgnoreCase(trimmed))
+                                .map(Topic::getId)
+                                .findFirst()
+                                .orElseGet(() -> all.stream()
+                                        .filter(t -> t.getName() != null && t.getName().toLowerCase().contains(trimmed.toLowerCase()))
+                                        .map(Topic::getId)
+                                        .findFirst()
+                                        .orElseThrow(() -> new ParroTalkException("Topic not found", "TOPIC_NOT_FOUND", HttpStatus.NOT_FOUND)));
+                    });
+        }
+    }
+
+    @Transactional(readOnly = true)
     public VocabularyTopicSummaryDto getTopicSummary(UUID topicId, User user) {
         Topic topic = requireTopic(topicId);
         long wordCount = topicRepository.countDistinctVocabulariesByTopicId(topicId);

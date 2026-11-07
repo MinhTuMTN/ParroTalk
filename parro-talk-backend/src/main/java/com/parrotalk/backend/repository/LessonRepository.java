@@ -104,7 +104,14 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        l.thumbnailUrl
+                    )
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -138,7 +145,14 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        l.thumbnailUrl
+                    )
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -201,7 +215,14 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 ulp.lastProgress * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        l.thumbnailUrl
+                    )
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -224,7 +245,14 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        l.thumbnailUrl
+                    )
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -248,7 +276,14 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        l.thumbnailUrl
+                    )
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -272,7 +307,12 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN (l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%')
+                         AND c.imageUrl IS NOT NULL AND c.imageUrl <> ''
+                    THEN c.imageUrl
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -299,7 +339,14 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        l.thumbnailUrl
+                    )
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -325,7 +372,12 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN (l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%')
+                         AND c.imageUrl IS NOT NULL AND c.imageUrl <> ''
+                    THEN c.imageUrl
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -364,7 +416,15 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.id,
                 l.title,
                 COALESCE(ulp.lastProgress, 0) * 100,
-                l.thumbnailUrl,
+                CASE
+                    WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE (:category IS NOT NULL AND :category <> '') AND (cat.slug = :category OR cat.name = :category) AND cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        (SELECT MIN(cat.imageUrl) FROM l.categories cat WHERE cat.imageUrl IS NOT NULL AND cat.imageUrl <> ''),
+                        l.thumbnailUrl
+                    )
+                    ELSE l.thumbnailUrl
+                END,
                 l.fileUrl,
                 l.duration
             )
@@ -406,12 +466,18 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                     CAST(l.id AS VARCHAR) AS id,
                     l.title AS title,
                     0.0 AS progress,
-                    l.thumbnail_url AS thumbnail_url,
+                    CASE
+                        WHEN (l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%')
+                             AND lc.image_url IS NOT NULL AND lc.image_url <> ''
+                        THEN lc.image_url
+                        ELSE l.thumbnail_url
+                    END AS thumbnail_url,
                     l.file_url AS file_url,
                     l.duration AS duration,
                     ROW_NUMBER() OVER (PARTITION BY c.category_id ORDER BY l.created_at DESC) AS rank
                 FROM lessons l
                 JOIN lesson_category_lesson c ON l.id = c.lesson_id
+                LEFT JOIN lesson_categories lc ON lc.id = c.category_id AND lc.is_deleted = false
                 WHERE c.category_id IN (:categoryIds)
                   AND l.visibility_status = 'PUBLISHED'
                   AND l.status = 'DONE'
@@ -436,7 +502,22 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                     CAST(l.id AS VARCHAR) AS id,
                     l.title AS title,
                     0.0 AS progress,
-                    l.thumbnail_url AS thumbnail_url,
+                    CASE
+                        WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
+                        THEN COALESCE(
+                            (SELECT lc.image_url
+                             FROM lesson_category_lesson lcl
+                             JOIN lesson_categories lc ON lc.id = lcl.category_id
+                             WHERE lcl.lesson_id = l.id
+                               AND lc.is_deleted = false
+                               AND lc.image_url IS NOT NULL
+                               AND lc.image_url <> ''
+                             ORDER BY lc.sort_order ASC, lc.name ASC
+                             LIMIT 1),
+                            l.thumbnail_url
+                        )
+                        ELSE l.thumbnail_url
+                    END AS thumbnail_url,
                     l.file_url AS file_url,
                     l.duration AS duration,
                     ROW_NUMBER() OVER (PARTITION BY l.program ORDER BY l.created_at DESC) AS rank
@@ -465,7 +546,22 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                     CAST(l.id AS VARCHAR) AS id,
                     l.title AS title,
                     ulp.last_progress * 100.0 AS progress,
-                    l.thumbnail_url AS thumbnail_url,
+                    CASE
+                        WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
+                        THEN COALESCE(
+                            (SELECT lc.image_url
+                             FROM lesson_category_lesson lcl
+                             JOIN lesson_categories lc ON lc.id = lcl.category_id
+                             WHERE lcl.lesson_id = l.id
+                               AND lc.is_deleted = false
+                               AND lc.image_url IS NOT NULL
+                               AND lc.image_url <> ''
+                             ORDER BY lc.sort_order ASC, lc.name ASC
+                             LIMIT 1),
+                            l.thumbnail_url
+                        )
+                        ELSE l.thumbnail_url
+                    END AS thumbnail_url,
                     l.file_url AS file_url,
                     l.duration AS duration,
                     ROW_NUMBER() OVER (ORDER BY ulp.updated_at DESC) AS rank
@@ -482,7 +578,22 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                     CAST(l.id AS VARCHAR) AS id,
                     l.title AS title,
                     COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
-                    l.thumbnail_url AS thumbnail_url,
+                    CASE
+                        WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
+                        THEN COALESCE(
+                            (SELECT lc.image_url
+                             FROM lesson_category_lesson lcl
+                             JOIN lesson_categories lc ON lc.id = lcl.category_id
+                             WHERE lcl.lesson_id = l.id
+                               AND lc.is_deleted = false
+                               AND lc.image_url IS NOT NULL
+                               AND lc.image_url <> ''
+                             ORDER BY lc.sort_order ASC, lc.name ASC
+                             LIMIT 1),
+                            l.thumbnail_url
+                        )
+                        ELSE l.thumbnail_url
+                    END AS thumbnail_url,
                     l.file_url AS file_url,
                     l.duration AS duration,
                     ROW_NUMBER() OVER (ORDER BY l.created_at DESC) AS rank
@@ -498,7 +609,22 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                     CAST(l.id AS VARCHAR) AS id,
                     l.title AS title,
                     COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
-                    l.thumbnail_url AS thumbnail_url,
+                    CASE
+                        WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
+                        THEN COALESCE(
+                            (SELECT lc.image_url
+                             FROM lesson_category_lesson lcl
+                             JOIN lesson_categories lc ON lc.id = lcl.category_id
+                             WHERE lcl.lesson_id = l.id
+                               AND lc.is_deleted = false
+                               AND lc.image_url IS NOT NULL
+                               AND lc.image_url <> ''
+                             ORDER BY lc.sort_order ASC, lc.name ASC
+                             LIMIT 1),
+                            l.thumbnail_url
+                        )
+                        ELSE l.thumbnail_url
+                    END AS thumbnail_url,
                     l.file_url AS file_url,
                     l.duration AS duration,
                     ROW_NUMBER() OVER (ORDER BY l.created_at DESC) AS rank
@@ -518,4 +644,3 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             @Param("userId") UUID userId,
             @Param("maxItems") int maxItems);
 }
-

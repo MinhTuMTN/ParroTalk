@@ -1,6 +1,7 @@
 "use client";
 
 import { getDictationMatching } from "@/lib/utils";
+import { tokenizeText } from "@/lib/tokenizer";
 import { useEffect, useRef } from "react";
 
 interface Segment {
@@ -15,6 +16,7 @@ interface TranscriptListProps {
   completedIndices: Set<number>;
   inputs: Record<number, string>;
   onSelectSentence: (index: number) => void;
+  onWordClick?: (word: string) => void;
 }
 
 export default function TranscriptList({
@@ -22,7 +24,8 @@ export default function TranscriptList({
   activeIndex,
   completedIndices,
   inputs,
-  onSelectSentence
+  onSelectSentence,
+  onWordClick
 }: TranscriptListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +50,27 @@ export default function TranscriptList({
         {match.displayString.replace(/\*/g, "•")}{" "}
       </span>
     ));
+  };
+
+  const renderCompletedText = (text: string) => {
+    const tokens = tokenizeText(text);
+    return tokens.map((token, i) => {
+      if (token.isWord) {
+        return (
+          <span 
+            key={i} 
+            onClick={(e) => {
+               e.stopPropagation();
+               onWordClick?.(token.text);
+            }}
+            className="cursor-pointer hover:text-emerald-600 transition-colors border-b border-transparent hover:border-emerald-600 pb-0.5"
+          >
+            {token.text}
+          </span>
+        );
+      }
+      return <span key={i}>{token.text}</span>;
+    });
   };
 
   return (
@@ -87,7 +111,7 @@ export default function TranscriptList({
                 </div>
                 <p className={`text-[15px] leading-relaxed transition-all ${status === "active" ? "font-bold text-gray-900" : "font-medium text-gray-500"}`}>
                   {isCompleted
-                    ? segment.text
+                    ? renderCompletedText(segment.text)
                     : (status === "active" || inputs[index])
                       ? renderInputText(inputs[index] || "", segment.text)
                       : maskText(segment.text)}

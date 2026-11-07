@@ -21,5 +21,7 @@ public interface CategoryMapper {
      */
     @Mapping(target = "id", source = "id")
     @Mapping(target = "name", source = "name")
+    @Mapping(target = "slug", source = "slug")
+    @Mapping(target = "imageUrl", source = "imageUrl")
     CategoryResponse toCategoryResponse(Category category);
 }

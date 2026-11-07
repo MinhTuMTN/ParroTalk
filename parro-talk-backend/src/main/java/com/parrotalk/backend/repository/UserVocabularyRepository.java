@@ -64,4 +64,18 @@ public interface UserVocabularyRepository extends JpaRepository<UserVocabulary, 
     long countLearnedWordsForTopic(
             @org.springframework.data.repository.query.Param("userId") UUID userId,
             @org.springframework.data.repository.query.Param("topicId") UUID topicId);
+
+    @Query("""
+            SELECT DISTINCT uv.normalizedWord
+            FROM VocabularySense vs
+            JOIN Vocabulary v ON v.id = vs.vocabulary.id AND v.isDeleted = false
+            JOIN UserVocabulary uv ON uv.normalizedWord = v.normalizedWord
+                AND uv.user.id = :userId
+                AND uv.status IN ('LEARNING', 'MASTERED')
+                AND uv.isDeleted = false
+            WHERE LOWER(vs.topic.name) = LOWER(:topicName) AND vs.isDeleted = false
+            """)
+    List<String> findLearnedNormalizedWordsByUserIdAndTopicName(
+            @org.springframework.data.repository.query.Param("userId") UUID userId,
+            @org.springframework.data.repository.query.Param("topicName") String topicName);
 }

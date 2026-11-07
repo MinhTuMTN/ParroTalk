@@ -579,7 +579,7 @@ function LibraryContent() {
           : "PROCESSING",
       durationMinutes: l.duration ? Math.ceil(l.duration / 60) : 5,
       createdAt: l.createdAt,
-      thumbnailUrl: l.thumbnail,
+      thumbnailUrl: l.thumbnailUrl || l.thumbnail,
       progress: l.progress,
     }));
   }, [myLessons]);

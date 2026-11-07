@@ -85,16 +85,23 @@ export const useBookmarkVocabulary = () => {
   return { bookmark };
 };
 
-export const useVocabularyPractice = (topic?: string) => {
+export const useVocabularyPractice = (topic?: string, enabled: boolean = true) => {
   const [questions, setQuestions] = useState<PracticeQuestionDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     api.getPracticeQuestions({ topic, count: 10 })
       .then(setQuestions)
       .catch((err) => console.error('Failed to fetch practice questions', err))
       .finally(() => setLoading(false));
-  }, [topic]);
+  }, [topic, enabled]);
 
   return { questions, loading };
 };
+
+export * from './useTopicModeProgress';

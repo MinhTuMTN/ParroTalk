@@ -1,32 +1,59 @@
 "use client";
 
-import { TopicGrid } from '@/features/vocabulary/components/TopicGrid';
-import { VocabularyCard } from '@/features/vocabulary/components/VocabularyCard';
-import { VocabularySearchBar } from '@/features/vocabulary/components/VocabularySearchBar';
-import { useBookmarkVocabulary, useVocabularySearch, useVocabularyTopics } from '@/features/vocabulary/hooks';
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useTopicsWithProgress, useVocabularyStats } from "@/features/vocabulary/hooks/useTopicsWithProgress";
+import {
+  DashboardHeader,
+  ContinueLearningHero,
+  TodayReviewCard,
+  ProgressOverview,
+  MyTopicsList,
+  RecommendedTopics,
+  NextStepActions,
+} from "@/features/vocabulary/components/dashboard";
+import { FooterNote } from "@/features/vocabulary/components/shared";
 
-export default function VocabularyPage() {
-  const { topics } = useVocabularyTopics();
-  const { search, results } = useVocabularySearch();
-  const { bookmark } = useBookmarkVocabulary();
-  
+export default function VocabularyDashboard() {
+  const { user } = useAuth();
+  const { topics, loading } = useTopicsWithProgress();
+  const stats = useVocabularyStats();
+
+  // Vietnamese names put the given name last.
+  const firstName = user?.fullName?.trim().split(/\s+/).pop();
+
+  const started = topics.filter((t) => t.status !== "not-started");
+  const currentTopic = topics.find((t) => t.isCurrent) ?? started[0];
+  const myTopics = started.slice(0, 3);
+  const recommended = topics.filter((t) => t.status === "not-started").slice(0, 3);
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-4xl font-extrabold mb-8 text-gray-900 dark:text-white">Vocabulary Center</h1>
-      <VocabularySearchBar onSearch={search} />
-      
-      {results.length > 0 ? (
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 dark:text-white">Search Results</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-             {results.map(r => <VocabularyCard key={r.id} vocab={r} onBookmark={bookmark} />)}
-          </div>
-        </div>
-      ) : null}
+    <div className="relative min-h-full bg-ink-50 text-ink-800">
+      {/* soft page-level glow */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-brand-50 to-transparent" />
 
-      <div>
-        <h2 className="text-2xl font-bold mb-6 dark:text-white">Topics & Categories</h2>
-        <TopicGrid topics={topics} />
+      <div className="relative mx-auto max-w-[1100px] space-y-8 px-4 py-8 sm:px-8 sm:py-10">
+        <DashboardHeader name={firstName} streak={stats.streak} />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <ContinueLearningHero topic={currentTopic} loading={loading} />
+          <TodayReviewCard count={stats.reviewCount} minutes={stats.reviewMinutes} />
+        </div>
+
+        <ProgressOverview
+          totalLearned={stats.totalLearned}
+          learning={stats.learning}
+          mastered={stats.mastered}
+          weeklyGain={stats.weeklyGain}
+          wordGoal={stats.wordGoal}
+        />
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <MyTopicsList topics={myTopics} loading={loading} />
+          <RecommendedTopics topics={recommended} loading={loading} />
+        </div>
+
+        <NextStepActions />
+        <FooterNote />
       </div>
     </div>
   );

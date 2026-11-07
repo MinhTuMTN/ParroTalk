@@ -1,5 +1,6 @@
 package com.parrotalk.backend.mapper;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -28,6 +29,7 @@ public interface LessonMapper {
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "tags", ignore = true)
     @Mapping(target = "translationSummary", ignore = true)
+    @Mapping(target = "thumbnailUrl", expression = "java(resolveThumbnailUrl(lesson))")
     LessonResponse toLessonResponse(Lesson lesson);
 
     /**
@@ -36,7 +38,39 @@ public interface LessonMapper {
      * @param lesson Lesson entity
      * @return Featured lesson DTO
      */
+    @Mapping(target = "thumbnailUrl", expression = "java(resolveThumbnailUrl(lesson))")
     FeaturedLessonDTO toFeaturedLessonDTO(Lesson lesson);
+
+    /**
+     * Resolve lesson thumbnail URL, falling back to its category thumbnail when missing or default.
+     *
+     * @param lesson Lesson entity
+     * @return Resolved thumbnail URL
+     */
+    default String resolveThumbnailUrl(Lesson lesson) {
+        if (lesson == null) {
+            return null;
+        }
+        String thumb = lesson.getThumbnailUrl();
+        boolean hasCustomThumb = thumb != null && !thumb.isBlank() && !thumb.contains("default-audio-thumbnail");
+        if (hasCustomThumb) {
+            return thumb;
+        }
+        if (lesson.getCategories() != null) {
+            String categoryImage = lesson.getCategories().stream()
+                    .filter(c -> c != null && c.getImageUrl() != null && !c.getImageUrl().isBlank())
+                    .sorted(Comparator.comparing(
+                            (Category c) -> c.getSortOrder() != null ? c.getSortOrder() : Integer.MAX_VALUE)
+                            .thenComparing(c -> c.getName() != null ? c.getName() : ""))
+                    .map(Category::getImageUrl)
+                    .findFirst()
+                    .orElse(null);
+            if (categoryImage != null) {
+                return categoryImage;
+            }
+        }
+        return thumb;
+    }
 
     /**
      * Map set of categories to list of category names.

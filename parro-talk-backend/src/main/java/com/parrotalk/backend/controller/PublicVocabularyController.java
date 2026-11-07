@@ -121,18 +121,17 @@ public class PublicVocabularyController {
 
     @GetMapping("/topics/{id}")
     public ResponseEntity<VocabularyTopicSummaryDto> getTopicSummary(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(vocabularyTopicService.getTopicSummary(id, user));
+        return ResponseEntity.ok(vocabularyTopicService.getTopicSummaryByIdOrName(id, user));
     }
 
     @GetMapping("/topics/{id}/words")
     public ResponseEntity<PageResponse<com.parrotalk.backend.dto.TopicWordDto>> getTopicWords(
-            @PathVariable UUID id,
+            @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "30") int size,
             @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(vocabularyTopicService.getTopicWords(id, page, size, user));
+        return ResponseEntity.ok(vocabularyTopicService.getTopicWordsByIdOrName(id, page, size, user));
     }
 }
-

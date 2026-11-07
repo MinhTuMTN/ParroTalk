@@ -16,4 +16,11 @@ import java.util.UUID;
 public class CategoryResponse {
     private UUID id;
     private String name;
+    private String slug;
+    private String imageUrl;
+
+    public CategoryResponse(UUID id, String name) {
+        this.id = id;
+        this.name = name;
+    }
 }

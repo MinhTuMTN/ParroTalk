@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vocabulary Detail - issue | ParroTalk</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#F0FDF4',
+              100: '#DCFCE7',
+              200: '#BBF7D0',
+              300: '#86EFAC',
+              400: '#4EAA78',
+              500: '#3B9E66',
+              600: '#2E8555',
+              700: '#047857',
+              800: '#065F46',
+            },
+            coral: {
+              50: '#FFF7ED',
+              100: '#FFE8E0',
+              500: '#FF7A59',
+              600: '#EA580C',
+            },
+            amber: {
+              50: '#FFFBEB',
+              100: '#FEF3C7',
+              500: '#F59E0B',
+              600: '#D97706',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    /* Custom scrollbar for pleasant modal browsing */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #F8FAF9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #D2E3D8;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #A7F3D0;
+    }
+  </style>
+</head>
+<body class="bg-[#111827]/40 min-h-screen flex items-center justify-center p-4 md:p-6 backdrop-blur-sm antialiased">
+
+  <!-- Background Dim Overlay & Dictation Context Simulator for realistic look -->
+  <div class="fixed inset-0 pointer-events-none -z-10 flex flex-col justify-between p-6 opacity-30 blur-[2px]">
+    <div class="max-w-4xl w-full mx-auto bg-white rounded-3xl p-8 shadow-sm">
+      <div class="h-6 w-48 bg-slate-200 rounded-full mb-4"></div>
+      <div class="h-10 w-3/4 bg-slate-100 rounded-xl mb-6"></div>
+      <div class="space-y-3">
+        <div class="h-4 w-full bg-slate-100 rounded-full"></div>
+        <div class="h-4 w-5/6 bg-slate-100 rounded-full"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vocabulary Detail Modal Card -->
+  <div class="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-emerald-100/80 overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+    
+    <!-- Top Decorative Header / Action Bar -->
+    <div class="px-6 pt-5 pb-4 bg-gradient-to-b from-[#F2F7F4] to-white border-b border-emerald-50 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100/70 text-brand-800 text-xs font-semibold rounded-full border border-emerald-200/60">
+          <i data-lucide="book-open" class="w-3.5 h-3.5 text-brand-600"></i>
+          Vocabulary Vault
+        </span>
+        <span class="inline-flex items-center gap-1 text-xs text-slate-500 font-medium">
+          <i data-lucide="headphones" class="w-3.5 h-3.5 text-brand-500"></i>
+          Dictation Quick Check
+        </span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <!-- Bookmark / Save button -->
+        <button id="bookmarkBtn" onclick="toggleBookmark()" class="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-all active:scale-95" title="Save to Vocabulary Vault">
+          <i id="bookmarkIcon" data-lucide="bookmark" class="w-5 h-5"></i>
+        </button>
+        <!-- Close button -->
+        <button onclick="window.history.length > 1 ? window.history.back() : null" class="w-9 h-9 flex items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all active:scale-95" title="Close">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Content Area -->
+    <div class="px-6 py-5 overflow-y-auto custom-scrollbar space-y-6">
+
+      <!-- Word Header & Audio Section -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+        <div>
+          <div class="flex items-baseline gap-3">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">issue</h1>
+            <span class="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-brand-700 border border-emerald-200/60 uppercase tracking-wide">
+              B2 Common
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+            <span>Root: Old French <em>issue</em> (exit, outcome)</span>
+            <span>•</span>
+            <span>Freq: Top 1000 Words</span>
+          </p>
+        </div>
+
+        <!-- Pronunciation Pills (UK & US) -->
+        <div class="flex flex-wrap sm:flex-col gap-2">
+          <!-- UK Audio Pill -->
+          <button onclick="playPronunciation('UK')" class="group flex items-center gap-2 px-3 py-1.5 bg-[#F2F7F4] hover:bg-emerald-100/70 active:scale-95 border border-emerald-200/50 rounded-xl transition-all">
+            <div class="w-6 h-6 rounded-full bg-brand-500 text-white flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+              <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="text-left">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block leading-none">UK</span>
+              <span class="text-xs font-semibold text-slate-700 font-mono tracking-tight">/ˈɪʃ.uː/</span>
+            </div>
+          </button>
+
+          <!-- US Audio Pill -->
+          <button onclick="playPronunciation('US')" class="group flex items-center gap-2 px-3 py-1.5 bg-[#F2F7F4] hover:bg-emerald-100/70 active:scale-95 border border-emerald-200/50 rounded-xl transition-all">
+            <div class="w-6 h-6 rounded-full bg-brand-400 text-white flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
+              <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+            </div>
+            <div class="text-left">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block leading-none">US</span>
+              <span class="text-xs font-semibold text-slate-700 font-mono tracking-tight">/ˈɪʃ.uː/</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Audio Feedback Alert (Appears when audio clicked) -->
+      <div id="audioToast" class="hidden text-xs py-1.5 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 items-center justify-between animate-fade-in">
+        <span class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-brand-500 animate-ping"></span>
+          <span id="audioToastText">Playing pronunciation...</span>
+        </span>
+        <span class="text-[10px] text-emerald-600 font-mono">0:01</span>
+      </div>
+
+      <!-- Senses Section (Definitions & Examples) -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-brand-500"></i>
+            Definitions & Contexts (2 Senses)
+          </h2>
+          <span class="text-xs text-brand-600 font-medium">Cambridge / Oxford English</span>
+        </div>
+
+        <!-- Sense 1: Noun -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-emerald-200 transition-colors">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="w-6 h-6 rounded-lg bg-emerald-100 text-brand-800 font-bold text-xs flex items-center justify-center">1</span>
+              <span class="px-2 py-0.5 rounded-md bg-emerald-50 text-brand-700 text-xs font-bold border border-emerald-200/70">
+                Noun
+              </span>
+              <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200/70">
+                B2
+              </span>
+              <span class="text-xs text-slate-400 font-medium">[Countable / Uncountable]</span>
+            </div>
+            <!-- Pronounce definition sentence -->
+            <button onclick="speakText('a subject or problem that people are thinking and talking about')" class="text-slate-400 hover:text-brand-600 transition-colors" title="Read meaning">
+              <i data-lucide="volume-1" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Meaning -->
+          <p class="mt-2.5 text-slate-800 text-sm font-semibold leading-relaxed">
+            A subject or problem that people are thinking and talking about.
+          </p>
+
+          <!-- Vietnamese Meaning gloss for bilingual support in ParroTalk -->
+          <p class="text-xs text-emerald-700 font-medium mt-1">
+            Vấn đề, đề tài tranh luận hoặc lo ngại quan trọng.
+          </p>
+
+          <!-- Example Box -->
+          <div class="mt-3 p-3 rounded-xl bg-[#F8FAF9] border border-emerald-100/80 flex items-start justify-between gap-2">
+            <div class="space-y-0.5">
+              <span class="text-[10px] font-bold text-brand-600 tracking-wider uppercase block">Example</span>
+              <p class="text-xs sm:text-sm text-slate-700 font-medium italic">
+                “We need to address these <span class="font-bold text-brand-700 underline decoration-emerald-300 decoration-2 underline-offset-2">environmental issues</span> before it’s too late.”
+              </p>
+            </div>
+            <button onclick="speakText('environmental issues')" class="p-1 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-emerald-50 transition-colors flex-shrink-0" title="Listen to example">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sense 2: Verb -->
+        <div class="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-emerald-200 transition-colors">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="w-6 h-6 rounded-lg bg-emerald-100 text-brand-800 font-bold text-xs flex items-center justify-center">2</span>
+              <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200/70">
+                Verb
+              </span>
+              <span class="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 text-xs font-bold border border-amber-200/70">
+                B2
+              </span>
+              <span class="text-xs text-slate-400 font-medium">[Transitive] (issuing, issued)</span>
+            </div>
+            <button onclick="speakText('to produce or provide something official')" class="text-slate-400 hover:text-brand-600 transition-colors" title="Read meaning">
+              <i data-lucide="volume-1" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <!-- Meaning -->
+          <p class="mt-2.5 text-slate-800 text-sm font-semibold leading-relaxed">
+            To produce or provide something official, such as a statement, permit, passport, or warning.
+          </p>
+
+          <!-- Vietnamese Meaning gloss -->
+          <p class="text-xs text-emerald-700 font-medium mt-1">
+            Phát hành, cấp (giấy phép, hộ chiếu, thông báo chính thức).
+          </p>
+
+          <!-- Example Box -->
+          <div class="mt-3 p-3 rounded-xl bg-[#F8FAF9] border border-emerald-100/80 flex items-start justify-between gap-2">
+            <div class="space-y-0.5">
+              <span class="text-[10px] font-bold text-brand-600 tracking-wider uppercase block">Example</span>
+              <p class="text-xs sm:text-sm text-slate-700 font-medium italic">
+                “The office will be <span class="font-bold text-brand-700 underline decoration-emerald-300 decoration-2 underline-offset-2">issuing permits</span> starting from next Monday.”
+              </p>
+            </div>
+            <button onclick="speakText('The office will be issuing permits')" class="p-1 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-emerald-50 transition-colors flex-shrink-0" title="Listen to example">
+              <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Synonyms Section -->
+      <div class="p-4 rounded-2xl bg-[#F2F7F4] border border-emerald-200/60">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5 text-brand-600"></i>
+            Synonyms & Near Synonyms
+          </span>
+          <span class="text-[11px] text-slate-500">Tap word to copy</span>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <!-- Synonym 1 -->
+          <button onclick="copyWord('matter')" class="group flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-semibold text-slate-700 hover:text-brand-700 transition-all shadow-2xs active:scale-95">
+            <span>matter</span>
+            <span class="text-[10px] text-slate-400 font-normal group-hover:text-emerald-500">n.</span>
+          </button>
+          <!-- Synonym 2 -->
+          <button onclick="copyWord('subject')" class="group flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-semibold text-slate-700 hover:text-brand-700 transition-all shadow-2xs active:scale-95">
+            <span>subject</span>
+            <span class="text-[10px] text-slate-400 font-normal group-hover:text-emerald-500">n.</span>
+          </button>
+          <!-- Synonym 3 -->
+          <button onclick="copyWord('topic')" class="group flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-semibold text-slate-700 hover:text-brand-700 transition-all shadow-2xs active:scale-95">
+            <span>topic</span>
+            <span class="text-[10px] text-slate-400 font-normal group-hover:text-emerald-500">n.</span>
+          </button>
+          <!-- Synonym 4 (Verb context) -->
+          <button onclick="copyWord('release')" class="group flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-semibold text-slate-700 hover:text-brand-700 transition-all shadow-2xs active:scale-95">
+            <span>release</span>
+            <span class="text-[10px] text-slate-400 font-normal group-hover:text-emerald-500">v.</span>
+          </button>
+          <!-- Synonym 5 (Verb context) -->
+          <button onclick="copyWord('distribute')" class="group flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-xl text-xs font-semibold text-slate-700 hover:text-brand-700 transition-all shadow-2xs active:scale-95">
+            <span>distribute</span>
+            <span class="text-[10px] text-slate-400 font-normal group-hover:text-emerald-500">v.</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Phrasal Verbs & Common Idioms -->
+      <div class="space-y-3 pb-2">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-coral-500"></i>
+          Phrasal Verbs & Common Idioms
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <!-- Idiom 1 -->
+          <div class="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-emerald-200 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">take issue with (sb/sth)</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-coral-50 text-coral-600 border border-coral-200/50">Idiom</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-normal">
+              To disagree strongly with someone or have an objection.
+            </p>
+            <p class="text-[11px] text-slate-400 italic mt-1.5">
+              “I take issue with some of the points in this report.”
+            </p>
+          </div>
+
+          <!-- Idiom 2 -->
+          <div class="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-emerald-200 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">at issue</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-coral-50 text-coral-600 border border-coral-200/50">Idiom</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-normal">
+              Most important in a discussion or debate; under consideration.
+            </p>
+            <p class="text-[11px] text-slate-400 italic mt-1.5">
+              “The point at issue is what is best for the children.”
+            </p>
+          </div>
+
+          <!-- Idiom 3 / Collocation -->
+          <div class="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-emerald-200 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">make an issue of (sth)</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-brand-700 border border-emerald-200/50">Phrase</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-normal">
+              To treat something as important when it really isn't.
+            </p>
+            <p class="text-[11px] text-slate-400 italic mt-1.5">
+              “Don't make an issue of it; it was just a small misunderstanding.”
+            </p>
+          </div>
+
+          <!-- Phrasal Verb -->
+          <div class="p-3 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:border-emerald-200 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">issue forth</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200/50">Phrasal V.</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-1 leading-normal">
+              Formal: to come out of or emerge from a place.
+            </p>
+            <p class="text-[11px] text-slate-400 italic mt-1.5">
+              “Strange sounds issued forth from the old room.”
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Modal Footer Actions (Practice & Dictation Integration) -->
+    <div class="px-6 py-4 bg-[#F8FAF9] border-t border-slate-200 flex items-center justify-between gap-3">
+      <button onclick="addToDictationQueue()" class="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors">
+        <i data-lucide="plus-circle" class="w-4 h-4 text-brand-500"></i>
+        <span>Add to Daily Review</span>
+      </button>
+
+      <div class="flex items-center gap-2">
+        <button onclick="startDictationExercise()" class="px-4 py-2.5 bg-brand-500 hover:bg-brand-600 active:scale-95 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/20 flex items-center gap-2 transition-all">
+          <i data-lucide="mic" class="w-4 h-4"></i>
+          <span>Practice Dictation with 'issue'</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Pronunciation simulation function
+    function playPronunciation(accent) {
+      const toast = document.getElementById('audioToast');
+      const text = document.getElementById('audioToastText');
+      text.textContent = `Playing ${accent} pronunciation: /ˈɪʃ.uː/`;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+
+      // Native SpeechSynthesis if available
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance('issue');
+        utterance.lang = accent === 'UK' ? 'en-GB' : 'en-US';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      }
+
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 2200);
+    }
+
+    function speakText(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function toggleBookmark() {
+      const icon = document.getElementById('bookmarkIcon');
+      const isSaved = icon.getAttribute('data-lucide') === 'bookmark-check';
+      if (isSaved) {
+        icon.setAttribute('data-lucide', 'bookmark');
+        icon.classList.remove('text-amber-500', 'fill-amber-500');
+        icon.classList.add('text-slate-400');
+      } else {
+        icon.setAttribute('data-lucide', 'bookmark-check');
+        icon.classList.add('text-amber-500', 'fill-amber-500');
+        icon.classList.remove('text-slate-400');
+      }
+      lucide.createIcons();
+    }
+
+    function copyWord(word) {
+      navigator.clipboard?.writeText(word);
+      const toast = document.getElementById('audioToast');
+      const text = document.getElementById('audioToastText');
+      text.textContent = `Copied synonym "${word}" to clipboard!`;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 1800);
+    }
+
+    function addToDictationQueue() {
+      const toast = document.getElementById('audioToast');
+      const text = document.getElementById('audioToastText');
+      text.textContent = `Added "issue" to your Spaced Repetition queue!`;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 2200);
+    }
+
+    function startDictationExercise() {
+      alert("Launching Interactive Dictation session for 'issue'...");
+    }
+  </script>
+</body>
+</html>

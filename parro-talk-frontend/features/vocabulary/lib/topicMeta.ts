@@ -13,6 +13,7 @@ import {
   Coffee,
 } from "lucide-react";
 import type { VocabularyTopicDto } from "../types";
+import { getLocalWordStatusesForTopic } from "../services/vocabularyPracticeService";
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 
@@ -119,7 +120,16 @@ export function enrichTopic(topic: VocabularyTopicDto, index: number): TopicWith
   const category = inferCategory(topic.name);
   const override = ICON_OVERRIDES.find((o) => topic.name.toLowerCase().includes(o.match));
 
-  let learned = topic.learnedWordCount;
+  const localCount =
+    typeof window !== "undefined" && topic.name
+      ? Object.keys(getLocalWordStatusesForTopic(topic.name)).length
+      : 0;
+  let learned =
+    topic.learnedWordCount != null
+      ? Math.max(topic.learnedWordCount, localCount)
+      : localCount > 0
+      ? localCount
+      : null;
   let progress = 0;
   
   if (learned == null) {

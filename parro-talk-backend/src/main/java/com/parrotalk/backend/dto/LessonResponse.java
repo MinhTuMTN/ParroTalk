@@ -35,6 +35,8 @@ public class LessonResponse {
     private int progress;
     /** Audio file url */
     private String fileUrl;
+    /** Lesson thumbnail url */
+    private String thumbnailUrl;
     /** Audio file type */
     private String mediaType;
     /** Audio source type */
