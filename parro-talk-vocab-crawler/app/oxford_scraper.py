@@ -60,7 +60,7 @@ def parse_oxford_html(html: str, fallback_word: str) -> OxfordEntryData | None:
                 )
 
     senses: list[CrawledSense] = []
-    sense_nodes = entry.select("ol.senses_multiple > li.sense, ol.sense_single > li.sense")
+    sense_nodes = entry.select("li.sense")
     for s_node in sense_nodes:
         if s_node.find_parent(class_="idm-g") or s_node.find_parent(class_="pv-g"):
             continue
@@ -76,7 +76,7 @@ def parse_oxford_html(html: str, fallback_word: str) -> OxfordEntryData | None:
             if sym_node:
                 cefr = _clean_text(sym_node).upper()
 
-        example_node = s_node.select_one("ul.examples li span.x")
+        example_node = s_node.select_one("ul.examples li span.x, ul.examples span.x, li span.x")
         example_en = _clean_text(example_node)
 
         synonyms: list[str] = []
@@ -115,12 +115,12 @@ def parse_oxford_html(html: str, fallback_word: str) -> OxfordEntryData | None:
         )
 
     idioms: list[CrawledIdiomOrPhrasalVerb] = []
-    for idm_group in entry.select("div.idm-g"):
+    for idm_group in entry.select("div.idm-g, span.idm-g"):
         phrase = _clean_text(idm_group.select_one("span.idm"))
         if not phrase:
             continue
         idm_def = _clean_text(idm_group.select_one("span.def"))
-        idm_ex = _clean_text(idm_group.select_one("ul.examples li span.x"))
+        idm_ex = _clean_text(idm_group.select_one("ul.examples li span.x, .x"))
         if idm_def:
             idioms.append(
                 CrawledIdiomOrPhrasalVerb(
@@ -132,12 +132,12 @@ def parse_oxford_html(html: str, fallback_word: str) -> OxfordEntryData | None:
             )
 
     phrasal_verbs: list[CrawledIdiomOrPhrasalVerb] = []
-    for pv_group in entry.select("div.pv-g"):
+    for pv_group in entry.select("div.pv-g, span.pv-g"):
         phrase = _clean_text(pv_group.select_one("span.pv, h4.pv"))
         if not phrase:
             continue
         pv_def = _clean_text(pv_group.select_one("span.def"))
-        pv_ex = _clean_text(pv_group.select_one("ul.examples li span.x"))
+        pv_ex = _clean_text(pv_group.select_one("ul.examples li span.x, .x"))
         if pv_def:
             phrasal_verbs.append(
                 CrawledIdiomOrPhrasalVerb(
