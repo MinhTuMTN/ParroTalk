@@ -254,3 +254,115 @@ def test_fastapi_health_endpoint():
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
 
+
+def test_crawl_service_enriches_word_forms_via_datamuse_and_preserves_oxford_senses():
+    from unittest.mock import patch
+    from app.crawler_service import CrawlService
+    from app.datamuse_client import DatamuseClient
+
+    client = DatamuseClient()
+    service = CrawlService(datamuse_client=client)
+
+    oxford_res = parse_oxford_html(SAMPLE_OXFORD_HTML, "resilient")
+    orig_senses_count = len(oxford_res.senses)
+    orig_syns = list(oxford_res.senses[0].synonyms)
+    orig_ants = list(oxford_res.senses[0].antonyms)
+
+    mock_word_forms = [
+        {"word": "resilience", "partOfSpeech": "noun"},
+        {"word": "resilient", "partOfSpeech": "adjective"},
+        {"word": "resiliently", "partOfSpeech": "adverb"},
+    ]
+
+    with patch.object(client, "fetch_word_forms", return_value=mock_word_forms):
+        enriched = service.enrich_oxford_data(oxford_res)
+
+        # Word forms should be enriched from Datamuse
+        assert len(enriched.word_forms) == 3
+        wf_dict = {wf.word: wf.part_of_speech for wf in enriched.word_forms}
+        assert wf_dict["resilience"] == "noun"
+        assert wf_dict["resiliently"] == "adverb"
+
+        # Senses must be 100% original Oxford data (no Gemini or Datamuse tampering)
+        assert len(enriched.senses) == orig_senses_count
+        assert enriched.senses[0].synonyms == orig_syns
+        assert enriched.senses[0].antonyms == orig_ants
+        assert enriched.senses[0].definition_vi == ""
+
+
+def test_datamuse_client_parsing_and_tag_filtering():
+    from unittest.mock import patch, MagicMock
+    from app.datamuse_client import DatamuseClient
+
+    client = DatamuseClient()
+    mock_resp_syn = MagicMock()
+    mock_resp_syn.status_code = 200
+    mock_resp_syn.json.return_value = [
+        {"word": "tough", "tags": ["adj"]},
+        {"word": "strong", "tags": ["adj"]},
+        {"word": "adaptable", "tags": ["adj"]},
+        {"word": "buoyant", "tags": ["adj"]},
+        {"word": "hardy", "tags": ["adj"]},
+    ]
+
+    mock_resp_ant = MagicMock()
+    mock_resp_ant.status_code = 200
+    mock_resp_ant.json.return_value = [
+        {"word": "fragile", "tags": ["adj"]},
+        {"word": "vulnerable", "tags": ["adj"]},
+        {"word": "delicate", "tags": ["adj"]},
+    ]
+
+    mock_resp_sp = MagicMock()
+    mock_resp_sp.status_code = 200
+    mock_resp_sp.json.return_value = [
+        {"word": "resilience", "tags": ["n"]},
+        {"word": "resilient", "tags": ["adj"]},
+        {"word": "resiliently", "tags": ["adv"]},
+    ]
+
+    with patch("httpx.Client.get") as mock_get:
+        mock_get.return_value = mock_resp_syn
+        syns = client.fetch_synonyms("resilient", part_of_speech="adjective")
+        assert len(syns) == 5
+        assert "tough" in syns
+
+        mock_get.return_value = mock_resp_ant
+        ants = client.fetch_antonyms("resilient", part_of_speech="adjective")
+        assert len(ants) == 3
+        assert "fragile" in ants
+
+        mock_get.return_value = mock_resp_sp
+        wfs = client.fetch_word_forms("resilient")
+        assert len(wfs) == 3
+        assert wfs[0] == {"word": "resilience", "partOfSpeech": "noun"}
+
+
+def test_merge_crawl_results_with_enriched_oxford_produces_required_json_format():
+    from app.models import WordForm
+
+    oxford_res = parse_oxford_html(SAMPLE_OXFORD_HTML, "resilient")
+    oxford_res.word_forms = [
+        WordForm(word="resilience", part_of_speech="noun"),
+        WordForm(word="resiliently", part_of_speech="adverb"),
+    ]
+    oxford_res.senses[0].definition_vi = "có khả năng hồi phục"
+    oxford_res.senses[0].example_vi = "anh ấy rất kiên cường"
+    oxford_res.idioms[0].definition_vi = "vực dậy nhanh chóng"
+    oxford_res.idioms[0].example_vi = "họ đã vực dậy"
+
+    result = merge_crawl_results("resilient", oxford_res, [], None)
+    message_dict = result.to_message_dict()
+    payload = message_dict["payload"]
+
+    assert payload["word"] == "resilient"
+    assert payload["wordForms"] == [
+        {"word": "resilience", "partOfSpeech": "noun"},
+        {"word": "resiliently", "partOfSpeech": "adverb"},
+    ]
+    assert payload["senses"][0]["definitionVi"] == "có khả năng hồi phục"
+    assert payload["senses"][0]["exampleVi"] == "anh ấy rất kiên cường"
+    assert payload["idioms"][0]["definitionVi"] == "vực dậy nhanh chóng"
+    assert payload["idioms"][0]["exampleVi"] == "họ đã vực dậy"
+
+

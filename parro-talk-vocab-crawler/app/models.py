@@ -19,11 +19,25 @@ class CrawledPronunciation:
 
 
 @dataclass
+class WordForm:
+    word: str
+    part_of_speech: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "word": self.word,
+            "partOfSpeech": self.part_of_speech,
+        }
+
+
+@dataclass
 class CrawledSense:
     part_of_speech: str = ""
     cefr_level: str = ""
     definition_en: str = ""
+    definition_vi: str = ""
     example_en: str = ""
+    example_vi: str = ""
     synonyms: list[str] = field(default_factory=list)
     antonyms: list[str] = field(default_factory=list)
     collocations: list[str] = field(default_factory=list)
@@ -35,7 +49,9 @@ class CrawledSense:
             "partOfSpeech": self.part_of_speech,
             "cefrLevel": self.cefr_level,
             "definitionEn": self.definition_en,
+            "definitionVi": self.definition_vi,
             "exampleEn": self.example_en,
+            "exampleVi": self.example_vi,
             "synonyms": self.synonyms,
             "antonyms": self.antonyms,
             "collocations": self.collocations,
@@ -48,14 +64,18 @@ class CrawledSense:
 class CrawledIdiomOrPhrasalVerb:
     phrase: str
     definition_en: str = ""
+    definition_vi: str = ""
     example_en: str = ""
+    example_vi: str = ""
     source: str = "OXFORD_CRAWLER"
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "phrase": self.phrase,
             "definitionEn": self.definition_en,
+            "definitionVi": self.definition_vi,
             "exampleEn": self.example_en,
+            "exampleVi": self.example_vi,
             "source": self.source,
         }
 
@@ -82,6 +102,7 @@ class MwSenseSynAntGroup:
 class OxfordEntryData:
     word: str
     pronunciations: list[CrawledPronunciation] = field(default_factory=list)
+    word_forms: list[Any] = field(default_factory=list)
     senses: list[CrawledSense] = field(default_factory=list)
     idioms: list[CrawledIdiomOrPhrasalVerb] = field(default_factory=list)
     phrasal_verbs: list[CrawledIdiomOrPhrasalVerb] = field(default_factory=list)
@@ -101,17 +122,28 @@ class MwDictionaryData:
 class MergedCrawlPayload:
     word: str
     pronunciations: list[CrawledPronunciation] = field(default_factory=list)
-    word_forms: list[str] = field(default_factory=list)
+    word_forms: list[Any] = field(default_factory=list)
     senses: list[CrawledSense] = field(default_factory=list)
     mw_sense_syn_ant_groups: list[MwSenseSynAntGroup] = field(default_factory=list)
     idioms: list[CrawledIdiomOrPhrasalVerb] = field(default_factory=list)
     phrasal_verbs: list[CrawledIdiomOrPhrasalVerb] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        serialized_word_forms = []
+        for wf in self.word_forms:
+            if isinstance(wf, dict):
+                serialized_word_forms.append(wf)
+            elif hasattr(wf, "to_dict"):
+                serialized_word_forms.append(wf.to_dict())
+            elif isinstance(wf, str):
+                serialized_word_forms.append({"word": wf, "partOfSpeech": ""})
+            else:
+                serialized_word_forms.append(wf)
+
         return {
             "word": self.word,
             "pronunciations": [p.to_dict() for p in self.pronunciations],
-            "wordForms": self.word_forms,
+            "wordForms": serialized_word_forms,
             "senses": [s.to_dict() for s in self.senses],
             "mwSenseSynAntGroups": [g.to_dict() for g in self.mw_sense_syn_ant_groups],
             "idioms": [i.to_dict() for i in self.idioms],

@@ -29,6 +29,9 @@ MW_DICTIONARY_API_KEY = (
     or ""
 ).strip()
 
+DATAMUSE_API_URL = os.getenv("DATAMUSE_API_URL", "https://api.datamuse.com/words").strip()
+DATAMUSE_TIMEOUT_SECONDS = float(os.getenv("DATAMUSE_TIMEOUT_SECONDS", "3.0"))
+
 HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "12.0"))
 PORT = int(os.getenv("PORT", "8002"))
 

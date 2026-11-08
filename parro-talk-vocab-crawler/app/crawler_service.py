@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+from app.datamuse_client import DatamuseClient
 from app.merriam_webster_client import fetch_merriam_webster_data
 from app.models import (
     CrawlJobResult,
@@ -7,8 +9,11 @@ from app.models import (
     MwDictionaryData,
     MwSenseSynAntGroup,
     OxfordEntryData,
+    WordForm,
 )
 from app.oxford_scraper import fetch_oxford_word
+
+logger = logging.getLogger(__name__)
 
 
 def merge_crawl_results(
@@ -43,7 +48,9 @@ def merge_crawl_results(
     pronunciations = list(oxford_data.pronunciations) if oxford_data and oxford_data.pronunciations else (
         list(mw_dict_data.pronunciations) if mw_dict_data else []
     )
-    word_forms = list(mw_dict_data.word_forms) if mw_dict_data else []
+    word_forms = list(oxford_data.word_forms) if oxford_data and oxford_data.word_forms else (
+        list(mw_dict_data.word_forms) if mw_dict_data else []
+    )
 
     if has_oxford and oxford_data:
         senses = list(oxford_data.senses)
@@ -85,8 +92,28 @@ def merge_crawl_results(
 
 
 class CrawlService:
+    def __init__(
+        self,
+        datamuse_client: DatamuseClient | None = None,
+    ) -> None:
+        self.datamuse_client = datamuse_client or DatamuseClient()
+
+    def enrich_oxford_data(self, oxford_data: OxfordEntryData) -> OxfordEntryData:
+        try:
+            datamuse_wf = self.datamuse_client.fetch_word_forms(oxford_data.word)
+            if datamuse_wf and not oxford_data.word_forms:
+                oxford_data.word_forms = [
+                    WordForm(word=item["word"], part_of_speech=item.get("partOfSpeech", ""))
+                    for item in datamuse_wf
+                    if item.get("word")
+                ]
+        except Exception as exc:
+            logger.warning("Datamuse word forms enrichment failed for '%s': %s", oxford_data.word, exc)
+        return oxford_data
+
     def crawl_word(self, word: str) -> CrawlJobResult:
         oxford_data = fetch_oxford_word(word)
+        if oxford_data:
+            oxford_data = self.enrich_oxford_data(oxford_data)
         mw_thesaurus_groups, mw_dict_data = fetch_merriam_webster_data(word)
         return merge_crawl_results(word, oxford_data, mw_thesaurus_groups, mw_dict_data)
-
