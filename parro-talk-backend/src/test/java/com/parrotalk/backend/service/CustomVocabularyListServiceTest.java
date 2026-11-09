@@ -11,8 +11,10 @@ import com.parrotalk.backend.constant.VocabularyCrawlStatus;
 import com.parrotalk.backend.constant.VocabularyListVisibility;
 import com.parrotalk.backend.dto.vocablist.AddVocabularyListItemRequest;
 import com.parrotalk.backend.dto.vocablist.CreateVocabularyListRequest;
+import com.parrotalk.backend.dto.vocablist.SubmitCustomListAnswerRequest;
 import com.parrotalk.backend.dto.vocablist.VocabularyListDetailDto;
 import com.parrotalk.backend.dto.vocablist.VocabularyListItemDto;
+import com.parrotalk.backend.entity.GrammarMultipleChoiceQuestion;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.entity.Vocabulary;
 import com.parrotalk.backend.entity.VocabularyList;
@@ -223,6 +225,38 @@ class CustomVocabularyListServiceTest {
         List<VocabularyListItemDto> dtos = service.addWordsToList(owner, listId, req);
         assertThat(dtos).hasSize(1);
         assertThat(dtos.get(0).normalizedWord()).isEqualTo("serendipity");
+    }
+
+    @Test
+    void recordAnswerProgress_withQuestionIdOnly_shouldFindItemAndRecordProgress() {
+        UUID listId = UUID.randomUUID();
+        User user = User.builder().id(UUID.randomUUID()).email("learner@test.com").build();
+        VocabularyList list = VocabularyList.builder().id(listId).build();
+
+        UUID questionId = UUID.randomUUID();
+        UUID senseId = UUID.randomUUID();
+        GrammarMultipleChoiceQuestion q = GrammarMultipleChoiceQuestion.builder()
+                .id(questionId)
+                .sense(VocabularySense.builder().id(senseId).build())
+                .build();
+
+        VocabularyListItem item = VocabularyListItem.builder()
+                .id(UUID.randomUUID())
+                .vocabularyList(list)
+                .build();
+        item.setSelectedSenseIds(List.of(senseId));
+
+        when(listRepository.findById(listId)).thenReturn(Optional.of(list));
+        when(mcqRepository.findById(questionId)).thenReturn(Optional.of(q));
+        when(itemRepository.findByVocabularyListIdOrderByDisplayOrderAscCreatedAtAsc(listId))
+                .thenReturn(List.of(item));
+        when(progressRepository.findByUserIdAndListItemId(user.getId(), item.getId()))
+                .thenReturn(Optional.empty());
+
+        SubmitCustomListAnswerRequest req = new SubmitCustomListAnswerRequest(null, questionId, true);
+        service.recordAnswerProgress(user, listId, req);
+
+        verify(progressRepository).save(any());
     }
 }
 

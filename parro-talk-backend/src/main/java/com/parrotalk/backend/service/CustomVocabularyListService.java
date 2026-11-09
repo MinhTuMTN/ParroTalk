@@ -340,8 +340,8 @@ public class CustomVocabularyListService {
             listRepository.save(list);
         }
 
-        if (request.emailOrUsername() != null && !request.emailOrUsername().isBlank()) {
-            String targetKey = request.emailOrUsername().trim();
+        String targetKey = request.resolveTarget();
+        if (targetKey != null && !targetKey.isBlank()) {
             User targetUser = userRepository.findByEmailIgnoreCase(targetKey)
                     .or(() -> userRepository.findByDisplayUsernameIgnoreCase(targetKey))
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy người dùng: " + targetKey));
@@ -522,20 +522,45 @@ public class CustomVocabularyListService {
         requireUser(user);
         VocabularyList list = listRepository.findById(listId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "List not found"));
-        if (request.listItemId() == null) {
-            return;
+        VocabularyListItem item = null;
+        if (request.listItemId() != null) {
+            item = itemRepository.findById(request.listItemId()).orElse(null);
         }
-        VocabularyListItem item = itemRepository.findById(request.listItemId()).orElse(null);
+        if (item == null && request.questionId() != null) {
+            GrammarMultipleChoiceQuestion q = mcqRepository.findById(request.questionId()).orElse(null);
+            if (q != null) {
+                List<VocabularyListItem> items = itemRepository.findByVocabularyListIdOrderByDisplayOrderAscCreatedAtAsc(listId);
+                for (VocabularyListItem it : items) {
+                    if (q.getSense() != null && it.getSelectedSenseIds() != null && it.getSelectedSenseIds().contains(q.getSense().getId())) {
+                        item = it;
+                        break;
+                    }
+                    if (q.getIdiom() != null && it.getSelectedIdiomIds() != null && it.getSelectedIdiomIds().contains(q.getIdiom().getId())) {
+                        item = it;
+                        break;
+                    }
+                    if (q.getPhrasalVerb() != null && it.getSelectedPhrasalVerbIds() != null && it.getSelectedPhrasalVerbIds().contains(q.getPhrasalVerb().getId())) {
+                        item = it;
+                        break;
+                    }
+                    if (q.getVocabulary() != null && it.getVocabulary() != null && q.getVocabulary().getId().equals(it.getVocabulary().getId())) {
+                        item = it;
+                        break;
+                    }
+                }
+            }
+        }
         if (item == null) {
             return;
         }
 
+        final VocabularyListItem targetItem = item;
         UserVocabularyListProgress progress = progressRepository
-                .findByUserIdAndListItemId(user.getId(), item.getId())
+                .findByUserIdAndListItemId(user.getId(), targetItem.getId())
                 .orElseGet(() -> UserVocabularyListProgress.builder()
                         .user(user)
                         .vocabularyList(list)
-                        .listItem(item)
+                        .listItem(targetItem)
                         .masteryLevel("NEW")
                         .correctCount(0)
                         .wrongCount(0)

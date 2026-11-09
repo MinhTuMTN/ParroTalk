@@ -178,13 +178,30 @@ export async function shareCustomVocabularyList(
   listId: string,
   payload: {
     recipientEmailOrUsername?: string;
+    emailOrUsername?: string;
     enableShareLink?: boolean;
   }
 ): Promise<VocabularyListDetailResponse> {
+  const body = {
+    emailOrUsername: payload.emailOrUsername || payload.recipientEmailOrUsername,
+    recipientEmailOrUsername: payload.recipientEmailOrUsername || payload.emailOrUsername,
+    enableShareLink: payload.enableShareLink,
+  };
   const res = await axiosInstance.post<
     ApiResponse<VocabularyListDetailResponse>
-  >(`/vocabulary/lists/${listId}/share`, payload);
+  >(`/vocabulary/lists/${listId}/share`, body);
   return res.data.result;
+}
+
+export async function submitCustomListAnswer(
+  listId: string,
+  payload: {
+    listItemId?: string;
+    questionId?: string;
+    isCorrect: boolean;
+  }
+): Promise<void> {
+  await axiosInstance.post(`/vocabulary/lists/${listId}/practice/answer`, payload);
 }
 
 export async function cloneCustomVocabularyList(
