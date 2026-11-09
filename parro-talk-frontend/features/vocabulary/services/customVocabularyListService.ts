@@ -203,20 +203,38 @@ export async function fetchUserNotifications(): Promise<{
   notifications: UserNotificationDto[];
   unreadCount: number;
 }> {
-  const [listRes, countRes] = await Promise.all([
-    axiosInstance.get<ApiResponse<UserNotificationDto[]>>("/notifications"),
-    axiosInstance.get<ApiResponse<number>>("/notifications/unread-count"),
-  ]);
-  return {
-    notifications: listRes.data?.result ?? [],
-    unreadCount: countRes.data?.result ?? 0,
-  };
+  try {
+    const listRes = await axiosInstance.get<ApiResponse<any>>("/notifications");
+    const result = listRes.data?.result;
+    if (result && typeof result === "object" && !Array.isArray(result) && "items" in result) {
+      return {
+        notifications: result.items ?? [],
+        unreadCount: typeof result.unreadCount === "number" ? result.unreadCount : 0,
+      };
+    }
+    let unreadCount = 0;
+    try {
+      const countRes = await axiosInstance.get<ApiResponse<number>>("/notifications/unread-count");
+      unreadCount = typeof countRes.data?.result === "number" ? countRes.data.result : 0;
+    } catch {
+      // ignore
+    }
+    return {
+      notifications: Array.isArray(result) ? result : [],
+      unreadCount,
+    };
+  } catch {
+    return {
+      notifications: [],
+      unreadCount: 0,
+    };
+  }
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  await axiosInstance.patch(`/notifications/${id}/read`);
+  await axiosInstance.post(`/notifications/${id}/read`);
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  await axiosInstance.patch("/notifications/read-all");
+  await axiosInstance.post("/notifications/read-all");
 }
