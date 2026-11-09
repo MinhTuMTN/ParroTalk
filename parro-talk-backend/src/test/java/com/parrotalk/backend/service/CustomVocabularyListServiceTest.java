@@ -197,5 +197,32 @@ class CustomVocabularyListServiceTest {
         assertThat(results).isNotEmpty();
         assertThat(results.get(0).normalizedWord()).isEqualTo("resilient");
     }
+
+    @Test
+    void addWordsToList_withSingleRawWord_shouldSucceed() {
+        UUID listId = UUID.randomUUID();
+        User owner = User.builder().id(UUID.randomUUID()).email("owner@test.com").fullName("Owner").build();
+        VocabularyList list = VocabularyList.builder().id(listId).owner(owner).title("List").build();
+
+        when(listRepository.findById(listId)).thenReturn(Optional.of(list));
+        when(itemRepository.findByVocabularyListIdAndNormalizedWord(listId, "serendipity")).thenReturn(Optional.empty());
+        when(itemRepository.save(any(VocabularyListItem.class))).thenAnswer(inv -> {
+            VocabularyListItem it = inv.getArgument(0);
+            it.setId(UUID.randomUUID());
+            return it;
+        });
+
+        AddVocabularyListItemRequest req = new AddVocabularyListItemRequest(
+                null,
+                "serendipity",
+                null,
+                "DB_EXISTING",
+                "My note"
+        );
+
+        List<VocabularyListItemDto> dtos = service.addWordsToList(owner, listId, req);
+        assertThat(dtos).hasSize(1);
+        assertThat(dtos.get(0).normalizedWord()).isEqualTo("serendipity");
+    }
 }
 

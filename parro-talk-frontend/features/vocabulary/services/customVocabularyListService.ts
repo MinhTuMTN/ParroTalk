@@ -98,11 +98,24 @@ export async function addWordToCustomList(
     selectedPhrasalVerbIds?: string[];
   }
 ): Promise<VocabularyListItemResponse> {
-  const res = await axiosInstance.post<ApiResponse<VocabularyListItemResponse>>(
-    `/vocabulary/lists/${listId}/items`,
-    payload
-  );
-  return res.data.result;
+  const body = {
+    words: payload.rawWord ? [payload.rawWord] : [],
+    rawWord: payload.rawWord,
+    vocabularyId: payload.vocabularyId,
+    sourceOption: payload.crawlIfMissing ? "EXTERNAL_CRAWL" : "DB_EXISTING",
+  };
+  const res = await axiosInstance.post<
+    ApiResponse<VocabularyListItemResponse | VocabularyListItemResponse[]>
+  >(`/vocabulary/lists/${listId}/items`, body);
+  const raw = res.data.result;
+  const item = Array.isArray(raw) ? raw[0] : raw;
+  return {
+    ...item,
+    word: item.word || item.normalizedWord || item.rawWord || item.rawInputWord || "",
+    rawInputWord: item.rawInputWord || item.rawWord || item.normalizedWord || item.word || "",
+    rawWord: item.rawWord || item.rawInputWord || item.word || "",
+    normalizedWord: item.normalizedWord || item.word?.toLowerCase() || "",
+  };
 }
 
 export async function updateCustomListItemSelection(

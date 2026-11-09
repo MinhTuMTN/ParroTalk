@@ -220,7 +220,16 @@ public class CustomVocabularyListService {
 
         List<VocabularyListItemDto> addedDtos = new ArrayList<>();
 
-        for (String rawInput : request.words()) {
+        List<String> wordsToAdd = request.resolveWords();
+        if (wordsToAdd.isEmpty() && request.vocabularyId() != null) {
+            vocabularyRepository.findById(request.vocabularyId())
+                    .ifPresent(v -> wordsToAdd.add(v.getWord()));
+        }
+        if (wordsToAdd.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Danh sách từ không được để trống");
+        }
+
+        for (String rawInput : wordsToAdd) {
             if (rawInput == null || rawInput.isBlank()) {
                 continue;
             }

@@ -91,9 +91,10 @@ export default function CustomVocabularyListDetailPage() {
     }
   };
 
-  const handleAddFromDb = async (vocabId: string) => {
+  const handleAddFromDb = async (vocabId: string, wordStr?: string) => {
     await addWordToCustomList(listId, {
       vocabularyId: vocabId,
+      rawWord: wordStr,
       crawlIfMissing: false,
     });
     setQuery("");
@@ -297,7 +298,11 @@ export default function CustomVocabularyListDetailPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        res.vocabularyId && handleAddFromDb(res.vocabularyId)
+                        res.vocabularyId &&
+                        handleAddFromDb(
+                          res.vocabularyId,
+                          res.word || res.normalizedWord || res.rawWord
+                        )
                       }
                       className="inline-flex items-center gap-1 rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
                     >
