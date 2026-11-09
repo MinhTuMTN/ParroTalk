@@ -86,6 +86,7 @@ public class CustomVocabularyListService {
                 .owner(user)
                 .title(request.title().trim())
                 .description(request.description() != null ? request.description().trim() : null)
+                .targetCefr(request.targetCefr() != null ? request.targetCefr().trim() : null)
                 .visibility(visibility)
                 .status(VocabularyListStatus.DRAFT)
                 .shareToken(generateShareToken())
@@ -151,8 +152,48 @@ public class CustomVocabularyListService {
             }
         }
 
+        Set<UUID> allSenseIds = new java.util.HashSet<>();
+        Set<UUID> allIdiomIds = new java.util.HashSet<>();
+        Set<UUID> allPvIds = new java.util.HashSet<>();
+        for (VocabularyListItem it : items) {
+            if (it.getVocabulary() != null) {
+                for (VocabularySense s : it.getVocabulary().getSenses()) {
+                    if (s.getId() != null) allSenseIds.add(s.getId());
+                }
+                for (Idiom idm : it.getVocabulary().getIdioms()) {
+                    if (idm.getId() != null) allIdiomIds.add(idm.getId());
+                }
+                for (PhrasalVerb pv : it.getVocabulary().getPhrasalVerbs()) {
+                    if (pv.getId() != null) allPvIds.add(pv.getId());
+                }
+            }
+        }
+
+        Map<UUID, Long> mcqCounts = new HashMap<>();
+        if (!allSenseIds.isEmpty()) {
+            for (Object[] row : mcqRepository.countGroupedBySenseIdIn(allSenseIds)) {
+                if (row[0] != null && row[1] != null) {
+                    mcqCounts.put((UUID) row[0], ((Number) row[1]).longValue());
+                }
+            }
+        }
+        if (!allIdiomIds.isEmpty()) {
+            for (Object[] row : mcqRepository.countGroupedByIdiomIdIn(allIdiomIds)) {
+                if (row[0] != null && row[1] != null) {
+                    mcqCounts.put((UUID) row[0], ((Number) row[1]).longValue());
+                }
+            }
+        }
+        if (!allPvIds.isEmpty()) {
+            for (Object[] row : mcqRepository.countGroupedByPhrasalVerbIdIn(allPvIds)) {
+                if (row[0] != null && row[1] != null) {
+                    mcqCounts.put((UUID) row[0], ((Number) row[1]).longValue());
+                }
+            }
+        }
+
         List<VocabularyListItemDto> itemDtos = items.stream()
-                .map(item -> toItemDto(item, progressByItemId.get(item.getId())))
+                .map(item -> toItemDto(item, progressByItemId.get(item.getId()), mcqCounts))
                 .toList();
 
         List<VocabularyListDetailDto.SharedUserDto> sharedUserDtos = shares.stream()
@@ -171,6 +212,7 @@ public class CustomVocabularyListService {
                 list.getId(),
                 list.getTitle(),
                 list.getDescription(),
+                list.getTargetCefr(),
                 list.getVisibility().name(),
                 list.getStatus().name(),
                 isOwner || list.getVisibility() == VocabularyListVisibility.SHARED_LINK ? list.getShareToken() : null,
@@ -628,6 +670,7 @@ public class CustomVocabularyListService {
                 list.getId(),
                 list.getTitle(),
                 list.getDescription(),
+                list.getTargetCefr(),
                 list.getVisibility().name(),
                 list.getStatus().name(),
                 isOwner ? list.getShareToken() : null,
@@ -640,6 +683,10 @@ public class CustomVocabularyListService {
     }
 
     private VocabularyListItemDto toItemDto(VocabularyListItem item, UserVocabularyListProgress progress) {
+        return toItemDto(item, progress, Collections.emptyMap());
+    }
+
+    private VocabularyListItemDto toItemDto(VocabularyListItem item, UserVocabularyListProgress progress, Map<UUID, Long> mcqCounts) {
         Vocabulary vocab = item.getVocabulary();
         List<VocabularyListItemDto.SenseOptionDto> senses = new ArrayList<>();
         List<VocabularyListItemDto.PhraseOptionDto> idioms = new ArrayList<>();
@@ -647,7 +694,7 @@ public class CustomVocabularyListService {
 
         if (vocab != null) {
             for (VocabularySense s : vocab.getSenses()) {
-                long qCount = s.getId() != null ? mcqRepository.countBySenseId(s.getId()) : 0L;
+                long qCount = s.getId() != null ? mcqCounts.getOrDefault(s.getId(), mcqCounts.isEmpty() ? mcqRepository.countBySenseId(s.getId()) : 0L) : 0L;
                 senses.add(new VocabularyListItemDto.SenseOptionDto(
                         s.getId(),
                         s.getPartOfSpeech(),
@@ -665,7 +712,7 @@ public class CustomVocabularyListService {
                 ));
             }
             for (Idiom idm : vocab.getIdioms()) {
-                long qCount = idm.getId() != null ? mcqRepository.countByIdiomId(idm.getId()) : 0L;
+                long qCount = idm.getId() != null ? mcqCounts.getOrDefault(idm.getId(), mcqCounts.isEmpty() ? mcqRepository.countByIdiomId(idm.getId()) : 0L) : 0L;
                 idioms.add(new VocabularyListItemDto.PhraseOptionDto(
                         idm.getId(),
                         idm.getPhrase(),
@@ -678,7 +725,7 @@ public class CustomVocabularyListService {
                 ));
             }
             for (PhrasalVerb pv : vocab.getPhrasalVerbs()) {
-                long qCount = pv.getId() != null ? mcqRepository.countByPhrasalVerbId(pv.getId()) : 0L;
+                long qCount = pv.getId() != null ? mcqCounts.getOrDefault(pv.getId(), mcqCounts.isEmpty() ? mcqRepository.countByPhrasalVerbId(pv.getId()) : 0L) : 0L;
                 pvs.add(new VocabularyListItemDto.PhraseOptionDto(
                         pv.getId(),
                         pv.getPhrase(),

@@ -15,6 +15,9 @@ public class RabbitMQConfig {
     public static final String VERIFY_EMAIL_QUEUE = "verify-email-queue";
     public static final String VERIFY_EMAIL_RETRY_QUEUE = "verify-email-retry-queue";
     public static final String VERIFY_EMAIL_DLQ = "verify-email-dlq";
+    public static final String VOCAB_CRAWL_QUEUE = "vocab-crawl-queue";
+    public static final String VOCAB_CRAWL_RESULT_QUEUE = "vocab-crawl-result-queue";
+    public static final String VOCAB_CRAWL_DLQ = "vocab-crawl-dlq";
 
     @Bean
     public Queue processingQueue() {
@@ -81,6 +84,34 @@ public class RabbitMQConfig {
     @Bean
     public Binding bindingVerifyEmailDlq(Queue verifyEmailDlq, DirectExchange exchange) {
         return BindingBuilder.bind(verifyEmailDlq).to(exchange).with(VERIFY_EMAIL_DLQ);
+    }
+
+    @Bean
+    public Queue vocabCrawlQueue() {
+        return QueueBuilder.durable(VOCAB_CRAWL_QUEUE)
+                .withArgument("x-dead-letter-exchange", "")
+                .withArgument("x-dead-letter-routing-key", VOCAB_CRAWL_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Queue vocabCrawlResultQueue() {
+        return QueueBuilder.durable(VOCAB_CRAWL_RESULT_QUEUE).build();
+    }
+
+    @Bean
+    public Queue vocabCrawlDlq() {
+        return QueueBuilder.durable(VOCAB_CRAWL_DLQ).build();
+    }
+
+    @Bean
+    public Binding bindingVocabCrawlQueue(Queue vocabCrawlQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(vocabCrawlQueue).to(exchange).with(VOCAB_CRAWL_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingVocabCrawlResultQueue(Queue vocabCrawlResultQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(vocabCrawlResultQueue).to(exchange).with(VOCAB_CRAWL_RESULT_QUEUE);
     }
 
     @Bean

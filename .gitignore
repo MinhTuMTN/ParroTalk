@@ -10,3 +10,9 @@ parro-talk-vocab-pipeline/
 __pycache__/
 temp/
 graphify-out/
+docs
+node_modules/
+.next/
+*.log
+test.py
+.superpowers/
