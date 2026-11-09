@@ -76,7 +76,15 @@ export async function searchWordInDatabase(
   >("/vocabulary/lists/search-words", {
     params: { q: query.trim() },
   });
-  return res.data?.result ?? [];
+  const items = res.data?.result ?? [];
+  return items.map((it) => ({
+    ...it,
+    vocabularyId: it.vocabularyId ?? it.id,
+    word: it.word || it.normalizedWord || it.rawWord || it.rawInputWord || "",
+    rawInputWord: it.rawInputWord || it.rawWord || it.normalizedWord || it.word || "",
+    rawWord: it.rawWord || it.rawInputWord || it.word || "",
+    normalizedWord: it.normalizedWord || it.word?.toLowerCase() || "",
+  }));
 }
 
 export async function addWordToCustomList(

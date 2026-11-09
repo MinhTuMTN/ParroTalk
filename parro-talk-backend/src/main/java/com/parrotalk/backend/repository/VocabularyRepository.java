@@ -17,6 +17,7 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, UUID>, J
     
     Optional<Vocabulary> findByNormalizedWord(String normalizedWord);
     List<Vocabulary> findByNormalizedWordIn(List<String> normalizedWords);
+    org.springframework.data.domain.Page<Vocabulary> findByNormalizedWordStartingWith(String prefix, org.springframework.data.domain.Pageable pageable);
 
     @Query(value = "SELECT word FROM vocabularies ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
     List<String> findRandomWords(@Param("limit") int limit);
