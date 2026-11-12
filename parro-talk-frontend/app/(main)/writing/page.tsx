@@ -80,7 +80,7 @@ export default function WritingAssistantPage() {
       targetLevel: detail.targetLevel,
       coreIdeaSummaryVn: detail.coreIdeaSummaryVn,
       hasUserDraft: Boolean(detail.userDraft && detail.userDraft.trim().length > 0),
-      createdAt: detail.createdAt,
+      createdAt: detail.createdAt || new Date().toISOString(),
     };
     setSessions((prev) => {
       const filtered = prev.filter((s) => s.id !== summary.id);
