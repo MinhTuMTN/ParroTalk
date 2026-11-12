@@ -38,6 +38,7 @@ public class ChatModelProvider {
                 .apiKey(apiKey)
                 .baseUrl(properties.getBaseUrl())
                 .model(modelName)
+                .maxTokens(4096)
                 .temperature(0.1);
 
         if ("qwen/qwen3.8-27b".equals(modelName)) {

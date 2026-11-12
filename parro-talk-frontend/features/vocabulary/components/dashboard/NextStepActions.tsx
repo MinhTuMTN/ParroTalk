@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, Layers, Plus, RefreshCw } from "lucide-react";
+import { ArrowRight, Layers, PenTool, Plus, RefreshCw } from "lucide-react";
 import { SectionHeader } from "../shared";
 
 const ACTIONS: { href: string; icon: LucideIcon; chip: string; title: string; desc: string }[] = [
   { href: "/vocabulary/topics", icon: Plus, chip: "bg-brand-100 text-brand-600", title: "Learn New Words", desc: "Find a topic that speaks to you." },
+  { href: "/writing", icon: PenTool, chip: "bg-plum-100 text-plum-600", title: "Writing Assistant", desc: "Turn your ideas into natural English." },
   { href: "/vocabulary/review", icon: RefreshCw, chip: "bg-honey-100 text-honey-600", title: "Review Words", desc: "Make what you've learned stick." },
   { href: "/vocabulary/saved", icon: Layers, chip: "bg-ocean-100 text-ocean-600", title: "My Words", desc: "Your growing word collection." },
 ];
@@ -13,7 +14,7 @@ export function NextStepActions() {
   return (
     <section className="animate-fade-up [animation-delay:360ms]">
       <SectionHeader title="Make it your next step" />
-      <div className="grid grid-cols-1 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200/70 bg-white shadow-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <div className="grid grid-cols-1 divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-200/70 bg-white shadow-card sm:grid-cols-2 lg:grid-cols-4 sm:divide-x sm:divide-y-0">
         {ACTIONS.map((a) => (
           <Link
             key={a.title}

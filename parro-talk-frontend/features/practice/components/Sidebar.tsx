@@ -1,4 +1,4 @@
-import { Mic, Play, Book, FileText, Star, LogOut, PanelLeftClose, PanelLeftOpen, CloudUpload, Shield } from "lucide-react";
+import { Mic, Play, Book, FileText, Star, LogOut, PanelLeftClose, PanelLeftOpen, CloudUpload, Shield, PenTool } from "lucide-react";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -20,6 +20,7 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
   const menuItems = [
     { icon: Play, label: "Library", path: "/library", active: pathname === "/library", hidden: false },
     { icon: Book, label: "Vocabulary", path: "/vocabulary", active: pathname.startsWith("/vocabulary"), hidden: false },
+    { icon: PenTool, label: "Writing", path: "/writing", active: pathname.startsWith("/writing"), hidden: false },
     { icon: Brain, label: "Practice", path: "/practice", active: pathname.startsWith("/practice"), hidden: false },
     { icon: FileText, label: "Notes", path: "#", hidden: true },
     { icon: Mic, label: "Transcript", path: "#", hidden: true },

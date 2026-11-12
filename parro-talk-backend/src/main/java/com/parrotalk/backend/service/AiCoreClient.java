@@ -59,7 +59,8 @@ public class AiCoreClient {
                     
             return validator.apply(response);
         } catch (Exception e) {
-            log.warn("AI call or validation failed (model: {}). Retrying... Error: {}", node.modelName(), e.getMessage());
+            chatModelProvider.next();
+            log.warn("AI call or validation failed (model: {}). Rotating key and retrying... Error: {}", node.modelName(), e.getMessage());
             throw e;
         }
     }
@@ -97,7 +98,8 @@ public class AiCoreClient {
                     
             return validator.apply(response);
         } catch (Exception e) {
-            log.warn("AI call or validation failed (model: {}). Retrying... Error: {}", node.modelName(), e.getMessage());
+            chatModelProvider.next();
+            log.warn("AI call or validation failed (model: {}). Rotating key and retrying... Error: {}", node.modelName(), e.getMessage());
             throw e;
         }
     }

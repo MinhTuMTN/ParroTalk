@@ -21,23 +21,25 @@ spring:
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+      data-source-properties:
+        reWriteBatchedInserts: true
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: true
-    baseline-version: 20260912.01
+    baseline-version: "20260912.01"
   jpa:
+    open-in-view: false
     hibernate:
-      jdbc:
-        batch_size: 50
-      order_inserts: true
-      order_updates: true
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
         default_batch_fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        jdbc:
+          batch_size: 50
 
   servlet:
     multipart:

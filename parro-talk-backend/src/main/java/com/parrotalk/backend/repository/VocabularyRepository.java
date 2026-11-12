@@ -18,6 +18,10 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, UUID>, J
     Optional<Vocabulary> findByNormalizedWord(String normalizedWord);
     List<Vocabulary> findByNormalizedWordIn(List<String> normalizedWords);
 
+    @EntityGraph(attributePaths = {"senses"})
+    @Query("SELECT v FROM Vocabulary v WHERE v.normalizedWord IN :normalizedWords")
+    List<Vocabulary> findByNormalizedWordInWithSenses(@Param("normalizedWords") java.util.Collection<String> normalizedWords);
+
     @Query(value = "SELECT word FROM vocabularies ORDER BY RANDOM() LIMIT :limit", nativeQuery = true)
     List<String> findRandomWords(@Param("limit") int limit);
 
