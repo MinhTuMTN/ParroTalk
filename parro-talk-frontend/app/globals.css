@@ -254,3 +254,13 @@
 .wave-bar-4 {
   animation: waveBounce 0.8s ease-in-out infinite 0.4s;
 }
+
+/* ── Native <dialog> modal scroll containment ─────────────── */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+}

@@ -10,6 +10,7 @@ public interface AdminCategoryMapper {
 
     @Mapping(target = "id", source = "id")
     @Mapping(target = "name", source = "name")
+    @Mapping(target = "nameVi", source = "nameVi")
     @Mapping(target = "slug", source = "slug")
     @Mapping(target = "description", source = "description")
     @Mapping(target = "icon", source = "icon")
@@ -23,5 +24,6 @@ public interface AdminCategoryMapper {
     @Mapping(target = "createdBy", source = "createdBy")
     @Mapping(target = "updatedBy", source = "updatedBy")
     @Mapping(target = "lessonsCount", ignore = true) // Set manually in service
+    @Mapping(target = "children", ignore = true)
     AdminCategoryDto toDto(Category category);
 }

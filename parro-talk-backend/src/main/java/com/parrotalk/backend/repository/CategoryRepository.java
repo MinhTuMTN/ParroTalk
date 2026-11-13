@@ -33,6 +33,23 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     @Query("SELECT COUNT(l) FROM Category c JOIN c.lessons l WHERE c.id = :categoryId")
     long countLessonsByCategoryId(@Param("categoryId") UUID categoryId);
 
+    interface CategoryLessonCountProjection {
+        UUID getCategoryId();
+        long getLessonsCount();
+    }
+
+    @Query("SELECT c.id AS categoryId, COUNT(l) AS lessonsCount FROM Category c LEFT JOIN c.lessons l GROUP BY c.id")
+    List<CategoryLessonCountProjection> countLessonsAllCategories();
+
+    long countByParentCategoryId(UUID parentId);
+
+    List<Category> findByParentCategoryIdOrderBySortOrderAsc(UUID parentId);
+
+    List<Category> findByParentCategoryIdIsNullOrderBySortOrderAsc();
+
+    @Query("SELECT c FROM Category c WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(COALESCE(c.nameVi, '')) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(c.slug) LIKE LOWER(CONCAT('%', :query, '%'))")
+    Page<Category> searchByKeyword(@Param("query") String query, Pageable pageable);
+
     Optional<Category> findByNameIgnoreCase(String name);
 
     Page<Category> findByNameContainingIgnoreCase(String name, Pageable pageable);

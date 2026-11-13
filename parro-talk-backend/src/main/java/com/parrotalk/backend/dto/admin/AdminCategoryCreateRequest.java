@@ -16,6 +16,8 @@ public class AdminCategoryCreateRequest {
     @NotBlank(message = "Name is required")
     private String name;
 
+    private String nameVi;
+
     private String slug; // If empty, auto-generate in service
 
     private String description;

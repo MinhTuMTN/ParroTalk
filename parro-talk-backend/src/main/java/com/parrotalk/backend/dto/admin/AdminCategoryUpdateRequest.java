@@ -16,8 +16,9 @@ public class AdminCategoryUpdateRequest {
     @NotBlank(message = "Name is required")
     private String name;
 
-    @NotBlank(message = "Slug is required")
-    private String slug;
+    private String nameVi;
+
+    private String slug; // If empty, auto-generate in service
 
     private String description;
 

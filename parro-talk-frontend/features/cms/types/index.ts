@@ -3,6 +3,7 @@ export type CmsItemStatus = 'ACTIVE' | 'INACTIVE';
 export interface AdminCategoryDto {
     id: string;
     name: string;
+    nameVi: string | null;
     slug: string;
     description: string | null;
     icon: string | null;
@@ -21,6 +22,7 @@ export interface AdminCategoryDto {
 
 export interface AdminCategoryCreateRequest {
     name: string;
+    nameVi?: string;
     slug?: string;
     description?: string;
     icon?: string;
@@ -32,7 +34,12 @@ export interface AdminCategoryCreateRequest {
 }
 
 export interface AdminCategoryUpdateRequest extends AdminCategoryCreateRequest {
-    slug: string;
+    slug?: string;
+}
+
+export interface AdminCategoryReorderRequest {
+    parentCategoryId: string | null;
+    orderedIds: string[];
 }
 
 export interface AdminTagDto {

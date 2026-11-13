@@ -4,6 +4,8 @@ import com.parrotalk.backend.dto.ApiResponse;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.admin.AdminCategoryCreateRequest;
 import com.parrotalk.backend.dto.admin.AdminCategoryDto;
+import com.parrotalk.backend.dto.admin.AdminCategoryReorderRequest;
+import com.parrotalk.backend.dto.admin.AdminCategoryStatusUpdateRequest;
 import com.parrotalk.backend.dto.admin.AdminCategoryUpdateRequest;
 import com.parrotalk.backend.service.cms.AdminCategoryService;
 import jakarta.validation.Valid;
@@ -67,6 +69,26 @@ public class AdminCategoryController {
         AdminCategoryDto dto = categoryService.updateCategory(id, request);
         return ResponseEntity.ok(ApiResponse.<AdminCategoryDto>builder()
                 .result(dto)
+                .build());
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<AdminCategoryDto>> updateCategoryStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody AdminCategoryStatusUpdateRequest request
+    ) {
+        AdminCategoryDto dto = categoryService.updateCategoryStatus(id, request.getStatus());
+        return ResponseEntity.ok(ApiResponse.<AdminCategoryDto>builder()
+                .result(dto)
+                .build());
+    }
+
+    @PutMapping("/reorder")
+    public ResponseEntity<ApiResponse<Void>> reorderCategories(
+            @Valid @RequestBody AdminCategoryReorderRequest request
+    ) {
+        categoryService.reorderCategories(request);
+        return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .build());
     }
 
