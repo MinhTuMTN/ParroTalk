@@ -129,4 +129,102 @@ class ChatModelProviderTest {
         assertEquals("model-a", second.modelName());
         assertEquals("gsk_...2222", second.maskedApiKey());
     }
+
+    @Test
+    @DisplayName("resolveProvider should return provider-specific config with inherited defaults and fallback to top-level for defaultProvider")
+    void resolveProvider_ResolvesConfiguredAndLegacyProperties() {
+        OpenAIProperties props = new OpenAIProperties();
+        props.setDefaultProvider("groq");
+        props.setTimeoutSeconds(45);
+        props.setSdkMaxRetries(1);
+
+        OpenAIProperties.ProviderProperties groq = new OpenAIProperties.ProviderProperties();
+        groq.setBaseUrl("https://api.groq.com/openai/v1");
+        groq.setApiKeys(List.of("gsk_1111"));
+        groq.setModel(List.of("qwen/qwen3.8-27b"));
+
+        OpenAIProperties.ProviderProperties gemini = new OpenAIProperties.ProviderProperties();
+        gemini.setBaseUrl("https://generativelanguage.googleapis.com/v1beta/openai");
+        gemini.setApiKeys(List.of("AIza_1111", "AIza_2222"));
+        gemini.setModel(List.of("gemini-3.5-flash-lite"));
+
+        props.getProviders().put("groq", groq);
+        props.getProviders().put("gemini", gemini);
+
+        OpenAIProperties resolvedGemini = props.resolveProvider("gemini");
+        assertEquals("https://generativelanguage.googleapis.com/v1beta/openai", resolvedGemini.getBaseUrl());
+        assertEquals(List.of("AIza_1111", "AIza_2222"), resolvedGemini.getApiKeys());
+        assertEquals(List.of("gemini-3.5-flash-lite"), resolvedGemini.getModel());
+        assertEquals(45, resolvedGemini.getTimeoutSeconds());
+        assertEquals(1, resolvedGemini.getSdkMaxRetries());
+
+        OpenAIProperties missing = props.resolveProvider("unknown");
+        assertTrue(missing.getApiKeys().isEmpty());
+        assertTrue(missing.getModel().isEmpty());
+    }
+
+    @Test
+    @DisplayName("ChatModelProviderRegistry should isolate groq and gemini pools and expose default provider")
+    void registry_BuildsIndependentProviderPools() {
+        OpenAIProperties props = new OpenAIProperties();
+        props.setDefaultProvider("groq");
+
+        OpenAIProperties.ProviderProperties groq = new OpenAIProperties.ProviderProperties();
+        groq.setBaseUrl("https://api.groq.com/openai/v1");
+        groq.setApiKeys(List.of("gsk_key_1111"));
+        groq.setModel(List.of("qwen/qwen3.8-27b"));
+
+        OpenAIProperties.ProviderProperties gemini = new OpenAIProperties.ProviderProperties();
+        gemini.setBaseUrl("https://generativelanguage.googleapis.com/v1beta/openai");
+        gemini.setApiKeys(List.of("AIza_key_1111", "AIza_key_2222"));
+        gemini.setModel(List.of("gemini-3.5-flash-lite"));
+
+        props.getProviders().put("groq", groq);
+        props.getProviders().put("gemini", gemini);
+
+        ChatModelProvider defaultProvider = new ChatModelProvider(props);
+        ChatModelProviderRegistry registry = new ChatModelProviderRegistry(props, defaultProvider);
+
+        assertSame(defaultProvider, registry.getDefaultProvider());
+        assertSame(defaultProvider, registry.getProvider("groq").orElseThrow());
+        assertEquals("qwen/qwen3.8-27b", defaultProvider.current().modelName());
+
+        ChatModelProvider geminiProvider = registry.getProvider("GEMINI").orElseThrow();
+        assertEquals(2, geminiProvider.size());
+        assertEquals("gemini-3.5-flash-lite", geminiProvider.current().modelName());
+        assertEquals("AIza...1111", geminiProvider.current().maskedApiKey());
+
+        geminiProvider.markFailed(geminiProvider.current(), new RuntimeException("429 rate limit exceeded"));
+        assertEquals(1, geminiProvider.healthyCount());
+        assertEquals(1, defaultProvider.healthyCount());
+    }
+
+    @Test
+    @DisplayName("resolveProvider should support per-provider timeout/retry overrides and legacy top-level fallback")
+    void resolveProvider_SupportsOverridesAndLegacyTopLevelFallback() {
+        OpenAIProperties props = new OpenAIProperties();
+        props.setDefaultProvider("groq");
+        props.setTimeoutSeconds(30);
+        props.setSdkMaxRetries(0);
+        props.setBaseUrl("https://api.groq.com/openai/v1");
+        props.setApiKeys(List.of("gsk_legacy_1"));
+        props.setModel(List.of("qwen/qwen3.8-27b"));
+
+        OpenAIProperties resolvedLegacy = props.resolveProvider("groq");
+        assertEquals("https://api.groq.com/openai/v1", resolvedLegacy.getBaseUrl());
+        assertEquals(List.of("gsk_legacy_1"), resolvedLegacy.getApiKeys());
+        assertEquals(List.of("qwen/qwen3.8-27b"), resolvedLegacy.getModel());
+
+        OpenAIProperties.ProviderProperties gemini = new OpenAIProperties.ProviderProperties();
+        gemini.setBaseUrl("https://generativelanguage.googleapis.com/v1beta/openai");
+        gemini.setApiKeys(List.of("AIza_1"));
+        gemini.setModel(List.of("gemini-3.5-flash-lite"));
+        gemini.setTimeoutSeconds(15);
+        gemini.setSdkMaxRetries(2);
+        props.getProviders().put("gemini", gemini);
+
+        OpenAIProperties resolvedGemini = props.resolveProvider("gemini");
+        assertEquals(15, resolvedGemini.getTimeoutSeconds());
+        assertEquals(2, resolvedGemini.getSdkMaxRetries());
+    }
 }

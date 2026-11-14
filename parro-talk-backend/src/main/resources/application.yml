@@ -142,12 +142,20 @@ application:
   settings:
     default-audio-thumbnail: https://res.cloudinary.com/dgrjyts1r/image/upload/v1778946072/default-audio-thumbnail.png
   ai:
-    api-keys: ${GROQ_API_KEYS:}
-    base-url: https://api.groq.com/openai/v1
+    default-provider: groq
     timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
     sdk-max-retries: ${AI_SDK_MAX_RETRIES:0}
-    model:
-      - qwen/qwen3.8-27b
+    providers:
+      groq:
+        api-keys: ${GROQ_API_KEYS:}
+        base-url: https://api.groq.com/openai/v1
+        model:
+          - qwen/qwen3.8-27b
+      gemini:
+        api-keys: ${GEMINI_API_KEYS:}
+        base-url: https://generativelanguage.googleapis.com/v1beta/openai
+        model:
+          - gemini-3.5-flash-lite
 
 email:
   provider: ${EMAIL_PROVIDER:resend}

@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.core.ParameterizedTypeReference;
 
 import com.parrotalk.backend.config.ChatModelProvider;
+import com.parrotalk.backend.config.ChatModelProviderRegistry;
 import com.parrotalk.backend.dto.ChatModelNode;
 
 @ExtendWith(MockitoExtension.class)
@@ -216,5 +218,142 @@ class AiCoreClientTest {
         );
 
         assertEquals("Network timeout", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("callAndValidate with provider chain should use primary gemini provider when healthy")
+    void testCallAndValidate_WithProviderChain_UsesGeminiFirst() {
+        ChatModelProvider geminiProvider = mock(ChatModelProvider.class);
+        ChatModelProvider groqProvider = mock(ChatModelProvider.class);
+        ChatClient geminiClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+
+        when(geminiProvider.size()).thenReturn(1);
+        when(geminiProvider.current()).thenReturn(new ChatModelNode(geminiClient, "gemini-3.5-flash-lite", "AIza...1111"));
+        when(geminiClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenReturn(new ResponseEntity<>(null, "gemini-ok"));
+
+        ChatModelProviderRegistry registry = new ChatModelProviderRegistry(
+                Map.of("groq", groqProvider, "gemini", geminiProvider), "groq");
+        AiCoreClient multiClient = new AiCoreClient(groqProvider, registry);
+
+        String result = multiClient.callAndValidate(
+                List.of("gemini", "groq"), "sys", "usr", String.class, Function.identity());
+
+        assertEquals("gemini-ok", result);
+        verifyNoInteractions(groqProvider);
+    }
+
+    @Test
+    @DisplayName("callAndValidate with provider chain should fall back to groq when gemini exhausts all attempts")
+    void testCallAndValidate_WithProviderChain_FallsBackToGroqOnGeminiFailure() {
+        ChatModelProvider geminiProvider = mock(ChatModelProvider.class);
+        ChatModelProvider groqProvider = mock(ChatModelProvider.class);
+        ChatClient geminiClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ChatClient groqClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+
+        ChatModelNode geminiNode = new ChatModelNode(geminiClient, "gemini-3.5-flash-lite", "AIza...1111");
+        ChatModelNode groqNode = new ChatModelNode(groqClient, "qwen/qwen3.8-27b", "gsk_...1111");
+
+        when(geminiProvider.size()).thenReturn(2);
+        when(geminiProvider.current()).thenReturn(geminiNode);
+        when(geminiClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenThrow(new RuntimeException("429 Too Many Requests"));
+
+        when(groqProvider.size()).thenReturn(1);
+        when(groqProvider.current()).thenReturn(groqNode);
+        when(groqClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenReturn(new ResponseEntity<>(null, "groq-fallback-ok"));
+
+        ChatModelProviderRegistry registry = new ChatModelProviderRegistry(
+                Map.of("groq", groqProvider, "gemini", geminiProvider), "groq");
+        AiCoreClient multiClient = new AiCoreClient(groqProvider, registry);
+
+        String result = multiClient.callAndValidate(
+                List.of("gemini", "groq"), "sys", "usr", String.class, Function.identity());
+
+        assertEquals("groq-fallback-ok", result);
+        verify(geminiProvider, times(1)).markFailed(eq(geminiNode), any(RuntimeException.class));
+        verify(groqProvider, times(1)).current();
+    }
+
+    @Test
+    @DisplayName("callAndValidate with provider chain should rethrow last exception when all providers fail")
+    void testCallAndValidate_WithProviderChain_RethrowsWhenAllProvidersFail() {
+        ChatModelProvider geminiProvider = mock(ChatModelProvider.class);
+        ChatModelProvider groqProvider = mock(ChatModelProvider.class);
+        ChatClient geminiClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ChatClient groqClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+
+        when(geminiProvider.size()).thenReturn(1);
+        when(geminiProvider.healthyCount()).thenReturn(0);
+        when(geminiProvider.current()).thenReturn(new ChatModelNode(geminiClient, "gemini-3.5-flash-lite", "AIza...1111"));
+        when(geminiClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenThrow(new RuntimeException("Gemini 429"));
+
+        when(groqProvider.size()).thenReturn(1);
+        when(groqProvider.current()).thenReturn(new ChatModelNode(groqClient, "qwen/qwen3.8-27b", "gsk_...1111"));
+        when(groqClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenThrow(new RuntimeException("Groq 503"));
+
+        ChatModelProviderRegistry registry = new ChatModelProviderRegistry(
+                Map.of("groq", groqProvider, "gemini", geminiProvider), "groq");
+        AiCoreClient multiClient = new AiCoreClient(groqProvider, registry);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> multiClient.callAndValidate(
+                List.of("gemini", "groq"), "sys", "usr", String.class, Function.identity()));
+        assertEquals("Groq 503", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("callAndValidate with ParameterizedTypeReference and provider chain should fall back cleanly")
+    void testCallAndValidate_WithParameterizedTypeReference_ProviderChain() {
+        ChatModelProvider geminiProvider = mock(ChatModelProvider.class);
+        ChatModelProvider groqProvider = mock(ChatModelProvider.class);
+        ChatClient geminiClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ChatClient groqClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ParameterizedTypeReference<List<String>> typeRef = new ParameterizedTypeReference<>() {};
+
+        when(geminiProvider.size()).thenReturn(1);
+        when(geminiProvider.healthyCount()).thenReturn(0);
+        when(geminiProvider.current()).thenReturn(new ChatModelNode(geminiClient, "gemini-3.5-flash-lite", "AIza...1111"));
+        when(geminiClient.prompt().system("sys").user("usr").call().responseEntity(typeRef))
+                .thenThrow(new RuntimeException("Gemini unavailable"));
+
+        when(groqProvider.size()).thenReturn(1);
+        when(groqProvider.current()).thenReturn(new ChatModelNode(groqClient, "qwen/qwen3.8-27b", "gsk_...1111"));
+        when(groqClient.prompt().system("sys").user("usr").call().responseEntity(typeRef))
+                .thenReturn(new ResponseEntity<>(null, List.of("ok")));
+
+        ChatModelProviderRegistry registry = new ChatModelProviderRegistry(
+                Map.of("groq", groqProvider, "gemini", geminiProvider), "groq");
+        AiCoreClient multiClient = new AiCoreClient(groqProvider, registry);
+
+        Integer size = multiClient.callAndValidate(
+                List.of("gemini", "groq"), "sys", "usr", typeRef, List::size);
+        assertEquals(1, size);
+    }
+
+    @Test
+    @DisplayName("callAndValidate with provider chain should skip unconfigured gemini provider and use groq")
+    void testCallAndValidate_WithProviderChain_SkipsUnconfiguredProvider() {
+        ChatModelProvider emptyGeminiProvider = mock(ChatModelProvider.class);
+        ChatModelProvider groqProvider = mock(ChatModelProvider.class);
+        ChatClient groqClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+
+        when(emptyGeminiProvider.size()).thenReturn(0);
+        when(groqProvider.size()).thenReturn(1);
+        when(groqProvider.current()).thenReturn(new ChatModelNode(groqClient, "qwen/qwen3.8-27b", "gsk_...1111"));
+        when(groqClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenReturn(new ResponseEntity<>(null, "groq-ok"));
+
+        ChatModelProviderRegistry registry = new ChatModelProviderRegistry(
+                Map.of("groq", groqProvider, "gemini", emptyGeminiProvider), "groq");
+        AiCoreClient multiClient = new AiCoreClient(groqProvider, registry);
+
+        String result = multiClient.callAndValidate(
+                List.of("gemini", "groq"), "sys", "usr", String.class, Function.identity());
+
+        assertEquals("groq-ok", result);
+        verify(emptyGeminiProvider, never()).current();
     }
 }

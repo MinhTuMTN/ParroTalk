@@ -35,7 +35,7 @@ public class ChatModelProvider {
 
     @Autowired
     public ChatModelProvider(OpenAIProperties properties) {
-        this(buildNodes(properties), Clock.systemUTC());
+        this(buildNodes(properties.resolveProvider(properties.getDefaultProvider())), Clock.systemUTC());
     }
 
     ChatModelProvider(List<ChatModelNode> nodes, Clock clock) {
@@ -185,6 +185,8 @@ public class ChatModelProvider {
                 if (lower.contains("organization has been restricted")
                         || lower.contains("invalid_api_key")
                         || lower.contains("invalid api key")
+                        || lower.contains("api_key_invalid")
+                        || lower.contains("permission_denied")
                         || lower.contains("incorrect api key")
                         || lower.contains("account deactivated")
                         || lower.contains("api key expired")

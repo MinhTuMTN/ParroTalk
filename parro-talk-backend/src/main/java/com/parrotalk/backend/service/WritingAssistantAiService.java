@@ -489,6 +489,7 @@ public class WritingAssistantAiService {
                 suggestedList);
 
         return aiCoreClient.callAndValidate(
+                List.of("gemini", "groq"),
                 DRAFT_REVIEW_SYSTEM_PROMPT,
                 userPrompt,
                 AiDraftReviewPayload.class,

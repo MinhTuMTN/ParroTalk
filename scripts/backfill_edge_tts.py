@@ -95,7 +95,7 @@ def fetch_pronunciations_needing_tts(
           AND (
               p.audio_url IS NULL
               OR BTRIM(p.audio_url) = ''
-              OR LOWER(p.audio_url) LIKE '%dictionary.cambridge.org%'
+              OR STRPOS(LOWER(p.audio_url), 'dictionary.cambridge.org') > 0
           )
         ORDER BY v.normalized_word ASC, p.accent ASC
     """

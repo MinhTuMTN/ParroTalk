@@ -199,11 +199,11 @@ public class WritingAssistantAiServiceTest {
 
         ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
-        when(aiCoreClient.callAndValidate(systemCaptor.capture(), userCaptor.capture(),
+        when(aiCoreClient.callAndValidate(eq(List.of("gemini", "groq")), systemCaptor.capture(), userCaptor.capture(),
                 eq(WritingAssistantAiService.AiDraftReviewPayload.class), any()))
                 .thenAnswer(inv -> {
                     Function<WritingAssistantAiService.AiDraftReviewPayload, WritingAssistantAiService.AiDraftReviewPayload> validator =
-                            inv.getArgument(3);
+                            inv.getArgument(4);
                     return validator.apply(mockReview);
                 });
 
@@ -242,11 +242,11 @@ public class WritingAssistantAiServiceTest {
     @DisplayName("reviewDraft rejects missing, duplicate, or out-of-range assessment criteria")
     @SuppressWarnings("unchecked")
     void testReviewDraft_RejectsMalformedCriteria() {
-        when(aiCoreClient.callAndValidate(anyString(), anyString(),
+        when(aiCoreClient.callAndValidate(eq(List.of("gemini", "groq")), anyString(), anyString(),
                 eq(WritingAssistantAiService.AiDraftReviewPayload.class), any()))
                 .thenAnswer(inv -> {
                     Function<WritingAssistantAiService.AiDraftReviewPayload, WritingAssistantAiService.AiDraftReviewPayload> validator =
-                            inv.getArgument(3);
+                            inv.getArgument(4);
                     // 1. Missing criterion
                     WritingAssistantAiService.AiDraftReviewPayload missing =
                             WritingAssistantAiService.AiDraftReviewPayload.builder()
