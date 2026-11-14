@@ -64,6 +64,7 @@ public class WritingAssistantControllerTest {
 
     @BeforeEach
     void setUp() {
+        controller.setLocalFallbackEnabled(true);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

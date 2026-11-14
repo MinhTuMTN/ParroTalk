@@ -451,6 +451,7 @@ class WritingTtsServiceTest {
 
         ExecutorService singleThread = Executors.newSingleThreadExecutor();
         TtsPrewarmService prewarm = new TtsPrewarmService(ttsMock, true, 7, singleThread);
+        prewarm.setPrewarmMode("local");
         try {
             assertDoesNotThrow(() -> prewarm.prewarmSession(session));
         } finally {
@@ -550,6 +551,29 @@ class WritingTtsServiceTest {
             assertEquals("resilient", items.get(0).get("text"));
             assertEquals("UK", items.get(0).get("accent"));
             assertEquals(WritingTtsService.VOICE_UK, items.get(0).get("voice"));
+        } finally {
+            prewarm.shutdown();
+        }
+    }
+
+    @Test
+    @DisplayName("TtsPrewarmService does not fall back to local synthesis when prewarmMode=rabbitmq and RabbitTemplate is null")
+    void testTtsPrewarmService_RabbitMqWithoutTemplateDoesNotRunLocal() {
+        WritingTtsService ttsMock = mock(WritingTtsService.class);
+        TtsPrewarmService prewarm = new TtsPrewarmService(ttsMock, true, 10);
+        try {
+            WritingSessionResponseDto session = WritingSessionResponseDto.builder()
+                    .vocabulary(List.of(
+                            WritingLexicalItemDto.builder()
+                                    .text("resilient")
+                                    .audioUsUrl("/api/writing/tts?text=resilient&accent=US")
+                                    .build()
+                    ))
+                    .build();
+
+            prewarm.prewarmSession(session);
+            verify(ttsMock, never()).synthesize(anyString(), anyString());
+            verify(ttsMock, never()).synthesize(anyString(), anyString(), anyString());
         } finally {
             prewarm.shutdown();
         }

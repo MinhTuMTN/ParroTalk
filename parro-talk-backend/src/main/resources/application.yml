@@ -107,7 +107,7 @@ app:
     python-command: ${TTS_PYTHON_CMD:python}
     timeout-seconds: ${TTS_TIMEOUT_SECONDS:8}
     max-concurrent-processes: ${TTS_MAX_CONCURRENT_PROCESSES:4}
-    local-fallback-enabled: ${TTS_LOCAL_FALLBACK_ENABLED:true}
+    local-fallback-enabled: ${TTS_LOCAL_FALLBACK_ENABLED:false}
     prewarm:
       enabled: ${TTS_PREWARM_ENABLED:true}
       max-clips: ${TTS_PREWARM_MAX_CLIPS:40}

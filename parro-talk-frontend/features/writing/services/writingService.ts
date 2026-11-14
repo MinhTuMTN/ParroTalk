@@ -85,12 +85,11 @@ export function resolveWritingAudioUrl(
     }
 
     if (
-      baseBackendUrl.startsWith("/") &&
-      baseApiUrl.startsWith("/") &&
+      baseApiUrl &&
       /^\/api(?=\/|$)/.test(trimmed)
     ) {
-      const proxyPath = trimmed.replace(/^\/api(?=\/|$)/, baseApiUrl);
-      return appendVoiceIfWritingTts(proxyPath, accent, voice);
+      const apiPath = trimmed.replace(/^\/api(?=\/|$)/, baseApiUrl);
+      return appendVoiceIfWritingTts(apiPath, accent, voice);
     }
 
     return appendVoiceIfWritingTts(`${baseBackendUrl}${trimmed}`, accent, voice);

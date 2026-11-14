@@ -8,7 +8,7 @@ import {
   type WritingAccent,
 } from "../services/writingService";
 
-const CANPLAY_FALLBACK_TIMEOUT_MS = 700;
+const CANPLAY_FALLBACK_TIMEOUT_MS = 2500;
 const MAX_PRELOAD_CACHE_SIZE = 30;
 const preloadedAudioCache = new Map<string, HTMLAudioElement>();
 

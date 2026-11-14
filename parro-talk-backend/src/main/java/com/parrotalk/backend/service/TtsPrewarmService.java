@@ -124,8 +124,13 @@ public class TtsPrewarmService {
             if (clips.isEmpty()) {
                 return;
             }
-            if ("rabbitmq".equalsIgnoreCase(prewarmMode) && rabbitTemplate != null) {
-                publishBatchToRabbitMq(clips);
+            if ("rabbitmq".equalsIgnoreCase(prewarmMode)) {
+                if (rabbitTemplate != null) {
+                    publishBatchToRabbitMq(clips);
+                } else {
+                    log.debug("TTS prewarm mode is rabbitmq but RabbitTemplate is unavailable; skipping {} clips",
+                            clips.size());
+                }
                 return;
             }
             if (executor == null) {

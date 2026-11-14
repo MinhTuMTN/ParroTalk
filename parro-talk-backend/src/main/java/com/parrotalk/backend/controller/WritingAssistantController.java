@@ -60,14 +60,14 @@ public class WritingAssistantController {
     private final WritingAssistantService writingService;
     private final WritingTtsService writingTtsService;
     private TtsPrewarmService ttsPrewarmService;
-    private boolean localFallbackEnabled = true;
+    private boolean localFallbackEnabled = false;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setTtsPrewarmService(TtsPrewarmService ttsPrewarmService) {
         this.ttsPrewarmService = ttsPrewarmService;
     }
 
-    @org.springframework.beans.factory.annotation.Value("${app.tts.local-fallback-enabled:true}")
+    @org.springframework.beans.factory.annotation.Value("${app.tts.local-fallback-enabled:false}")
     void setLocalFallbackEnabled(boolean localFallbackEnabled) {
         this.localFallbackEnabled = localFallbackEnabled;
     }
