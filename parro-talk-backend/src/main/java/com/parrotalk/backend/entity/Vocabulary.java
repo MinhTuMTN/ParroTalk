@@ -19,8 +19,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,6 +58,11 @@ public class Vocabulary extends BaseEntity {
 
     @Column(name = "common_meaning_vn", length = 500)
     private String commonMeaningVn;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "word_forms", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private List<String> wordForms = new ArrayList<>();
 
     @OneToMany(mappedBy = "vocabulary", cascade = CascadeType.ALL, orphanRemoval = true)
     @org.hibernate.annotations.BatchSize(size = 50)

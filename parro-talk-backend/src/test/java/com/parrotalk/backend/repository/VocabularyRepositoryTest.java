@@ -215,4 +215,38 @@ public class VocabularyRepositoryTest {
         assertThat(loadedImpair.getPronunciations()).hasSize(1);
         assertThat(loadedImpair.getPronunciations().get(0).getIpa()).isEqualTo("/ɪmˈper/");
     }
+
+    @Test
+    void testFindFirstByWordForm_ReturnsMatchingLiveVocabulary() {
+        Vocabulary story = new Vocabulary();
+        story.setWord("story");
+        story.setNormalizedWord("story");
+        story.setCommonMeaningVn("câu chuyện");
+        story.setWordForms(List.of("stories", "story's"));
+        vocabularyRepository.save(story);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        Optional<Vocabulary> found = vocabularyRepository.findFirstByWordForm("stories");
+        assertThat(found).isPresent();
+        assertThat(found.get().getNormalizedWord()).isEqualTo("story");
+    }
+
+    @Test
+    void testFindFirstByWordForm_IgnoresSoftDeletedRows() {
+        Vocabulary deletedStory = new Vocabulary();
+        deletedStory.setWord("story");
+        deletedStory.setNormalizedWord("story");
+        deletedStory.setCommonMeaningVn("câu chuyện");
+        deletedStory.setWordForms(List.of("stories"));
+        deletedStory.setDeleted(true);
+        vocabularyRepository.save(deletedStory);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        Optional<Vocabulary> found = vocabularyRepository.findFirstByWordForm("stories");
+        assertThat(found).isEmpty();
+    }
 }

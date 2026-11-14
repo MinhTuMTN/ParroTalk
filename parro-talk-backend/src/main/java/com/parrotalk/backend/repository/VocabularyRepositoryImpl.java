@@ -3,9 +3,11 @@ package com.parrotalk.backend.repository;
 import com.parrotalk.backend.entity.Vocabulary;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.hibernate.Session;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class VocabularyRepositoryImpl implements VocabularyRepositoryCustom {
@@ -97,5 +99,45 @@ public class VocabularyRepositoryImpl implements VocabularyRepositoryCustom {
         query.setParameter("limit", limit);
 
         return query.getResultList();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Optional<Vocabulary> findFirstByWordForm(String normalizedForm) {
+        if (normalizedForm == null || normalizedForm.isBlank()) {
+            return Optional.empty();
+        }
+        if (isH2Database()) {
+            String escaped = normalizedForm.replace("\\", "\\\\").replace("\"", "\\\"");
+            String pattern = "%\"" + escaped + "\"%";
+            List<Vocabulary> candidates = em.createNativeQuery(
+                            "SELECT * FROM vocabularies " +
+                            "WHERE is_deleted = false " +
+                            "  AND CAST(word_forms AS VARCHAR) LIKE :pattern " +
+                            "ORDER BY normalized_word ASC",
+                            Vocabulary.class)
+                    .setParameter("pattern", pattern)
+                    .getResultList();
+            return candidates.stream()
+                    .filter(v -> v.getWordForms() != null && v.getWordForms().contains(normalizedForm))
+                    .findFirst();
+        }
+
+        List<Vocabulary> results = em.createNativeQuery(
+                        "SELECT * FROM vocabularies " +
+                        "WHERE is_deleted = false " +
+                        "  AND word_forms @> jsonb_build_array(:normalizedForm) " +
+                        "ORDER BY normalized_word ASC " +
+                        "LIMIT 1",
+                        Vocabulary.class)
+                .setParameter("normalizedForm", normalizedForm)
+                .getResultList();
+        return results.stream().findFirst();
+    }
+
+    private boolean isH2Database() {
+        String dbName = em.unwrap(Session.class)
+                .doReturningWork(conn -> conn.getMetaData().getDatabaseProductName());
+        return dbName != null && dbName.toLowerCase().contains("h2");
     }
 }
