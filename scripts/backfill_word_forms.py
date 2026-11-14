@@ -46,18 +46,36 @@ def compute_word_forms(
 
 
 def connect_db():
-    """Connect to PostgreSQL using DATABASE_URL or PG* environment variables."""
+    """Connect to PostgreSQL using DB_URL/DATABASE_URL or PG*/DB_* environment variables."""
     try:
         from dotenv import load_dotenv
 
-        load_dotenv()
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for env_path in (
+            os.path.join(root_dir, "parro-talk-audio-service", ".env"),
+            os.path.join(root_dir, ".env"),
+        ):
+            if os.path.isfile(env_path):
+                load_dotenv(env_path, override=False)
     except ImportError:
         pass
 
     import psycopg2
+    from urllib.parse import urlparse
 
-    database_url = os.getenv("DATABASE_URL")
+    database_url = os.getenv("DB_URL") or os.getenv("DATABASE_URL")
     if database_url:
+        if database_url.startswith("jdbc:"):
+            database_url = database_url[len("jdbc:") :]
+        parsed = urlparse(database_url)
+        if parsed.scheme.startswith("postgres"):
+            return psycopg2.connect(
+                host=parsed.hostname or os.getenv("PGHOST", "localhost"),
+                port=parsed.port or int(os.getenv("PGPORT", "5432")),
+                dbname=(parsed.path or "/parrotalk").lstrip("/"),
+                user=parsed.username or os.getenv("DB_USERNAME", os.getenv("PGUSER", "admin")),
+                password=parsed.password or os.getenv("DB_PASSWORD", os.getenv("PGPASSWORD", "123456")),
+            )
         return psycopg2.connect(database_url)
 
     conn_kwargs: dict[str, Any] = {}
@@ -66,10 +84,12 @@ def connect_db():
         ("PGPORT", "port"),
         ("PGDATABASE", "dbname"),
         ("PGUSER", "user"),
+        ("DB_USERNAME", "user"),
         ("PGPASSWORD", "password"),
+        ("DB_PASSWORD", "password"),
     ):
         val = os.getenv(env_key)
-        if val:
+        if val and kw_key not in conn_kwargs:
             conn_kwargs[kw_key] = val
 
     return psycopg2.connect(**conn_kwargs)

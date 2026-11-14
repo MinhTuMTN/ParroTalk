@@ -59,20 +59,26 @@ def _load_env_files() -> None:
 
 
 def _build_db_conn() -> psycopg2.extensions.connection:
-    database_url = os.getenv("DATABASE_URL")
+    database_url = os.getenv("DB_URL") or os.getenv("DATABASE_URL")
     if database_url:
         if database_url.startswith("jdbc:"):
             database_url = database_url[len("jdbc:") :]
         parsed = urlparse(database_url)
         if parsed.scheme.startswith("postgres"):
-            return psycopg2.connect(database_url)
+            return psycopg2.connect(
+                host=parsed.hostname or os.getenv("PGHOST", "localhost"),
+                port=parsed.port or int(os.getenv("PGPORT", "5432")),
+                dbname=(parsed.path or "/parrotalk").lstrip("/"),
+                user=parsed.username or os.getenv("DB_USERNAME", os.getenv("PGUSER", "admin")),
+                password=parsed.password or os.getenv("DB_PASSWORD", os.getenv("PGPASSWORD", "123456")),
+            )
 
     return psycopg2.connect(
         host=os.getenv("PGHOST", os.getenv("DB_HOST", "localhost")),
         port=int(os.getenv("PGPORT", os.getenv("DB_PORT", "5432"))),
         dbname=os.getenv("PGDATABASE", os.getenv("DB_NAME", "parrotalk")),
-        user=os.getenv("PGUSER", os.getenv("DB_USER", "postgres")),
-        password=os.getenv("PGPASSWORD", os.getenv("DB_PASSWORD", "postgres")),
+        user=os.getenv("DB_USERNAME", os.getenv("PGUSER", os.getenv("DB_USER", "postgres"))),
+        password=os.getenv("DB_PASSWORD", os.getenv("PGPASSWORD", os.getenv("DB_PASSWORD", "postgres"))),
     )
 
 
