@@ -18,6 +18,7 @@ import java.util.List;
 public class PublicVocabularyDetailDto {
     private java.util.UUID id;
     private String word;
+    private String matchedFrom;
     private String commonMeaningVi;
     private String partOfSpeech;
     private String phonetic;

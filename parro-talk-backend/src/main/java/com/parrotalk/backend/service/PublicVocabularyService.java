@@ -9,6 +9,7 @@ import com.parrotalk.backend.entity.*;
 import com.parrotalk.backend.repository.TopicRepository;
 import com.parrotalk.backend.repository.VocabularyReportRepository;
 import com.parrotalk.backend.repository.VocabularyRepository;
+import com.parrotalk.backend.util.WordNormalizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -46,10 +48,18 @@ public class PublicVocabularyService {
     private final com.parrotalk.backend.repository.DictionaryEntryRepository dictionaryEntryRepository;
     private final VocabularyReportRepository vocabularyReportRepository;
     private WritingTtsService writingTtsService;
+    private WordNormalizer wordNormalizer = new WordNormalizer();
 
     @Autowired(required = false)
     void setWritingTtsService(WritingTtsService writingTtsService) {
         this.writingTtsService = writingTtsService;
+    }
+
+    @Autowired(required = false)
+    void setWordNormalizer(WordNormalizer wordNormalizer) {
+        if (wordNormalizer != null) {
+            this.wordNormalizer = wordNormalizer;
+        }
     }
 
     private String resolveAudioUrl(String word, String accent, String storedAudioUrl) {
@@ -128,24 +138,54 @@ public class PublicVocabularyService {
     public PublicVocabularyDetailDto getDetail(UUID id, User user) {
         Vocabulary entry = vocabularyRepository.findByIdWithGraph(id)
                 .orElseThrow(() -> new RuntimeException("Vocabulary entry not found with id: " + id));
-        return mapToDetailDto(entry, false);
+        return mapToDetailDto(entry, false, null);
     }
 
     @Transactional(readOnly = true)
     public PublicVocabularyDetailDto getDetailByIdOrWord(String idOrWord, User user) {
-        Vocabulary entry;
+        Vocabulary entry = null;
+        String matchedFrom = null;
         try {
             UUID id = UUID.fromString(idOrWord);
             entry = vocabularyRepository.findByIdWithGraph(id).orElse(null);
         } catch (IllegalArgumentException e) {
-            String normalized = idOrWord.toLowerCase().trim();
-            entry = vocabularyRepository.findByNormalizedWord(normalized).orElse(null);
+            String normalized = wordNormalizer.normalize(idOrWord);
+            if (!normalized.isEmpty()) {
+                Optional<Vocabulary> exact = vocabularyRepository.findByNormalizedWord(normalized);
+                if (exact.isPresent()) {
+                    entry = exact.get();
+                } else if (normalized.endsWith("'s") && normalized.length() > 2) {
+                    String stripped = normalized.substring(0, normalized.length() - 2);
+                    Optional<Vocabulary> strippedExact = vocabularyRepository.findByNormalizedWord(stripped);
+                    if (strippedExact.isPresent()) {
+                        entry = strippedExact.get();
+                    } else {
+                        Optional<Vocabulary> formMatch = vocabularyRepository.findFirstByWordForm(normalized);
+                        if (formMatch.isPresent()) {
+                            entry = formMatch.get();
+                            matchedFrom = normalized;
+                        } else {
+                            Optional<Vocabulary> strippedFormMatch = vocabularyRepository.findFirstByWordForm(stripped);
+                            if (strippedFormMatch.isPresent()) {
+                                entry = strippedFormMatch.get();
+                                matchedFrom = stripped;
+                            }
+                        }
+                    }
+                } else {
+                    Optional<Vocabulary> formMatch = vocabularyRepository.findFirstByWordForm(normalized);
+                    if (formMatch.isPresent()) {
+                        entry = formMatch.get();
+                        matchedFrom = normalized;
+                    }
+                }
+            }
         }
 
         if (entry == null) {
             throw new RuntimeException("Vocabulary not found: " + idOrWord);
         }
-        return mapToDetailDto(entry, false); // ignoring user saved status for now or check it
+        return mapToDetailDto(entry, false, matchedFrom); // ignoring user saved status for now or check it
     }
 
     @Transactional
@@ -190,7 +230,7 @@ public class PublicVocabularyService {
                 .build();
     }
 
-    private PublicVocabularyDetailDto mapToDetailDto(Vocabulary entry, boolean isSaved) {
+    private PublicVocabularyDetailDto mapToDetailDto(Vocabulary entry, boolean isSaved, String matchedFrom) {
         String pos = entry.getSenses().isEmpty() ? null : entry.getSenses().get(0).getPartOfSpeech();
         String cefr = entry.getSenses().isEmpty() ? null : entry.getSenses().get(0).getCefrLevel();
         String topic = entry.getSenses().isEmpty() || entry.getSenses().get(0).getTopic() == null ? null : entry.getSenses().get(0).getTopic().getName();
@@ -245,6 +285,7 @@ public class PublicVocabularyService {
         return PublicVocabularyDetailDto.builder()
                 .id(entry.getId())
                 .word(entry.getWord())
+                .matchedFrom(matchedFrom)
                 .commonMeaningVi(entry.getCommonMeaningVn())
                 .partOfSpeech(pos)
                 .phonetic(phonetic)

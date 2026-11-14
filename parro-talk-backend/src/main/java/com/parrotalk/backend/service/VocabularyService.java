@@ -4,11 +4,13 @@ import com.parrotalk.backend.dto.vocabulary.VocabularyDetailDTO;
 import com.parrotalk.backend.entity.Topic;
 import com.parrotalk.backend.entity.Vocabulary;
 import com.parrotalk.backend.repository.VocabularyRepository;
+import com.parrotalk.backend.util.WordNormalizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,10 +19,18 @@ public class VocabularyService {
 
     private final VocabularyRepository vocabularyRepository;
     private WritingTtsService writingTtsService;
+    private WordNormalizer wordNormalizer = new WordNormalizer();
 
     @Autowired(required = false)
     void setWritingTtsService(WritingTtsService writingTtsService) {
         this.writingTtsService = writingTtsService;
+    }
+
+    @Autowired(required = false)
+    void setWordNormalizer(WordNormalizer wordNormalizer) {
+        if (wordNormalizer != null) {
+            this.wordNormalizer = wordNormalizer;
+        }
     }
 
     private String resolveAudioUrl(String word, String accent, String storedAudioUrl) {
@@ -32,20 +42,41 @@ public class VocabularyService {
 
     @Transactional(readOnly = true)
     public VocabularyDetailDTO getVocabularyByWord(String word) {
-        String normalized = word.trim().toLowerCase();
-        Vocabulary vocabulary = vocabularyRepository.findByNormalizedWord(normalized)
-                .orElse(null);
-
-        if (vocabulary == null) {
-            return null; // Controller will handle 404
+        String normalized = wordNormalizer.normalize(word);
+        if (normalized.isEmpty()) {
+            return null;
         }
 
-        return mapToDTO(vocabulary);
+        Optional<Vocabulary> exact = vocabularyRepository.findByNormalizedWord(normalized);
+        if (exact.isPresent()) {
+            return mapToDTO(exact.get(), null);
+        }
+
+        if (normalized.endsWith("'s") && normalized.length() > 2) {
+            String stripped = normalized.substring(0, normalized.length() - 2);
+            Optional<Vocabulary> strippedExact = vocabularyRepository.findByNormalizedWord(stripped);
+            if (strippedExact.isPresent()) {
+                return mapToDTO(strippedExact.get(), null);
+            }
+            Optional<Vocabulary> formMatch = vocabularyRepository.findFirstByWordForm(normalized);
+            if (formMatch.isPresent()) {
+                return mapToDTO(formMatch.get(), normalized);
+            }
+            Optional<Vocabulary> strippedFormMatch = vocabularyRepository.findFirstByWordForm(stripped);
+            if (strippedFormMatch.isPresent()) {
+                return mapToDTO(strippedFormMatch.get(), stripped);
+            }
+            return null;
+        }
+
+        Optional<Vocabulary> formMatch = vocabularyRepository.findFirstByWordForm(normalized);
+        return formMatch.map(vocabulary -> mapToDTO(vocabulary, normalized)).orElse(null);
     }
 
-    private VocabularyDetailDTO mapToDTO(Vocabulary entity) {
+    private VocabularyDetailDTO mapToDTO(Vocabulary entity, String matchedFrom) {
         return VocabularyDetailDTO.builder()
                 .word(entity.getWord())
+                .matchedFrom(matchedFrom)
                 .commonMeaningVn(entity.getCommonMeaningVn())
                 .topics(entity.getSenses().stream()
                         .map(s -> s.getTopic())

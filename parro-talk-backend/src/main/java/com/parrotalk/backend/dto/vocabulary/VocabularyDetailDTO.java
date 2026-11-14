@@ -9,6 +9,7 @@ import java.util.List;
 @Builder
 public class VocabularyDetailDTO {
     private String word;
+    private String matchedFrom;
     private String commonMeaningVn;
     private List<String> topics;
     private List<PronunciationDTO> pronunciations;
