@@ -8,6 +8,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface UserMapper {
     @Mapping(target = "username", expression = "java(resolveUsername(user))")
+    @Mapping(target = "hasPassword", expression = "java(resolveHasPassword(user))")
     UserResponse toUserResponse(User user);
 
     default String resolveUsername(User user) {
@@ -15,6 +16,11 @@ public interface UserMapper {
             return user.getDisplayUsername();
         }
 
-        return user.getEmail().substring(0, user.getEmail().indexOf("@"));
+        int atIndex = user.getEmail() != null ? user.getEmail().indexOf("@") : -1;
+        return atIndex > 0 ? user.getEmail().substring(0, atIndex) : user.getEmail();
+    }
+
+    default boolean resolveHasPassword(User user) {
+        return user != null && user.getPassword() != null && !user.getPassword().isBlank();
     }
 }

@@ -1,5 +1,6 @@
 package com.parrotalk.backend.config;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,7 +40,9 @@ public class ChatModelProvider {
                 .baseUrl(properties.getBaseUrl())
                 .model(modelName)
                 .maxTokens(4096)
-                .temperature(0.1);
+                .temperature(0.1)
+                .timeout(Duration.ofSeconds(properties.getTimeoutSeconds()))
+                .maxRetries(properties.getSdkMaxRetries());
 
         if ("qwen/qwen3.8-27b".equals(modelName)) {
             options.reasoningEffort(ReasoningEffort.NONE.asString());

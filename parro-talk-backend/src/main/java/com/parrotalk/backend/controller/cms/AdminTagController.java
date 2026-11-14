@@ -1,5 +1,6 @@
 package com.parrotalk.backend.controller.cms;
 
+import com.parrotalk.backend.constant.CmsItemStatus;
 import com.parrotalk.backend.dto.ApiResponse;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.admin.AdminTagCreateRequest;
@@ -24,10 +25,12 @@ public class AdminTagController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<AdminTagDto>>> getTags(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) CmsItemStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        PageResponse<AdminTagDto> response = tagService.searchTags(page, size);
+        PageResponse<AdminTagDto> response = tagService.searchTags(search, status, page, size);
         return ResponseEntity.ok(ApiResponse.<PageResponse<AdminTagDto>>builder()
                 .result(response)
                 .build());

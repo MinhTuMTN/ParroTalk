@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
+import { playTTS, stopTTS } from "@/lib/tts";
 import {
   ArrowLeft,
   ArrowRight,
@@ -192,25 +194,35 @@ interface Props {
 }
 
 export function LearnWordsSession({ topic = "Business", questions, onComplete }: Props) {
+  const { settings, isLoading: isSettingsLoading, updateSettings } = useUserSettings();
   const [words, setWords] = useState<LearnWordData[]>(INITIAL_SAMPLE_WORDS);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [direction, setDirection] = useState<TranslationDirection>("EN_VI");
+  const [directionOverride, setDirectionOverride] =
+    useState<TranslationDirection | null>(null);
   const [ratings, setRatings] = useState<Record<string, RatingValue>>({});
   const [isFinished, setIsFinished] = useState(false);
-  const [autoPlayAudio, setAutoPlayAudio] = useState(false);
   const [sessionRound, setSessionRound] = useState(0);
+  const autoPlayAudioRef = useRef<HTMLAudioElement | null>(null);
+  const direction = directionOverride ?? settings.defaultFlashcardDirection;
+  const autoPlayAudio = settings.autoPlayVocabAudio;
   const questionsRef = React.useRef(questions);
   questionsRef.current = questions;
 
-  // Load words dynamically from API
+  // Load words dynamically from API after initial settings hydrate
   useEffect(() => {
+    if (isSettingsLoading) {
+      return;
+    }
     let isMounted = true;
     async function loadWords() {
       setLoading(true);
       try {
-        const fetched = await fetchLearnWords(topic, 10);
+        const fetched = await fetchLearnWords(
+          topic,
+          settings.vocabSessionSize || 10
+        );
         const propQuestions = questionsRef.current;
         if (isMounted) {
           if (fetched && fetched.length > 0) {
@@ -239,7 +251,7 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
     return () => {
       isMounted = false;
     };
-  }, [topic, sessionRound]);
+  }, [topic, sessionRound, isSettingsLoading, settings.vocabSessionSize]);
 
   // Reset flip state when moving cards or toggling direction
   useEffect(() => {
@@ -256,15 +268,67 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
 
   // Auto-play audio when navigating to a new card
   useEffect(() => {
-    if (autoPlayAudio && currentWord && !isFinished && !loading) {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(currentWord.word);
-        utterance.lang = "en-US";
-        window.speechSynthesis.speak(utterance);
+    const stopAutoPlayMedia = () => {
+      if (autoPlayAudioRef.current) {
+        autoPlayAudioRef.current.onended = null;
+        autoPlayAudioRef.current.onerror = null;
+        autoPlayAudioRef.current.pause();
+        autoPlayAudioRef.current.currentTime = 0;
+        autoPlayAudioRef.current = null;
       }
+      stopTTS();
+    };
+
+    if (!autoPlayAudio || !currentWord || isFinished || loading) {
+      stopAutoPlayMedia();
+      return;
     }
-  }, [currentIndex, autoPlayAudio, currentWord, isFinished, loading]);
+
+    const preferredAccent = settings.preferredAccent;
+    const fallbackLang = preferredAccent === "UK" ? "en-GB" : "en-US";
+    const speed = settings.playbackSpeed || 1.0;
+    const preferredUrl =
+      preferredAccent === "UK"
+        ? currentWord.audioUkUrl || currentWord.audioUsUrl
+        : currentWord.audioUsUrl || currentWord.audioUkUrl;
+
+    stopAutoPlayMedia();
+
+    if (preferredUrl && typeof Audio !== "undefined") {
+      const audio = new Audio(preferredUrl);
+      audio.playbackRate = speed;
+      autoPlayAudioRef.current = audio;
+      audio.onended = () => {
+        if (autoPlayAudioRef.current === audio) {
+          autoPlayAudioRef.current = null;
+        }
+      };
+      audio.onerror = () => {
+        if (autoPlayAudioRef.current === audio) {
+          autoPlayAudioRef.current = null;
+        }
+        playTTS(currentWord.word, { lang: fallbackLang, rate: speed });
+      };
+      audio.play().catch(() => {
+        if (autoPlayAudioRef.current === audio) {
+          autoPlayAudioRef.current = null;
+        }
+        playTTS(currentWord.word, { lang: fallbackLang, rate: speed });
+      });
+    } else {
+      playTTS(currentWord.word, { lang: fallbackLang, rate: speed });
+    }
+
+    return stopAutoPlayMedia;
+  }, [
+    currentIndex,
+    autoPlayAudio,
+    currentWord,
+    isFinished,
+    loading,
+    settings.preferredAccent,
+    settings.playbackSpeed,
+  ]);
 
   const handleRate = useCallback(
     (rating: RatingValue) => {
@@ -427,19 +491,19 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto py-12 px-4 space-y-6 animate-pulse">
-        <div className="h-8 bg-[#e0e4dc] rounded-xl w-1/3" />
-        <div className="h-4 bg-[#e0e4dc] rounded-lg w-1/2" />
-        <div className="min-h-[460px] bg-white border border-[#e0e4dc] rounded-3xl p-10 flex flex-col justify-between shadow-xs">
+        <div className="h-8 bg-[#e0e4dc] dark:bg-slate-800 rounded-xl w-1/3" />
+        <div className="h-4 bg-[#e0e4dc] dark:bg-slate-800 rounded-lg w-1/2" />
+        <div className="min-h-[460px] bg-white dark:bg-slate-900 border border-[#e0e4dc] dark:border-slate-700 rounded-3xl p-10 flex flex-col justify-between shadow-xs">
           <div className="flex justify-between">
-            <div className="h-6 bg-[#e0e4dc] rounded-full w-24" />
-            <div className="h-6 bg-[#e0e4dc] rounded-full w-20" />
+            <div className="h-6 bg-[#e0e4dc] dark:bg-slate-800 rounded-full w-24" />
+            <div className="h-6 bg-[#e0e4dc] dark:bg-slate-800 rounded-full w-20" />
           </div>
           <div className="flex flex-col items-center gap-4 my-auto">
-            <div className="h-10 bg-[#e0e4dc] rounded-xl w-64" />
-            <div className="h-5 bg-[#e0e4dc] rounded-lg w-32" />
-            <div className="h-10 bg-[#e0e4dc] rounded-xl w-48" />
+            <div className="h-10 bg-[#e0e4dc] dark:bg-slate-800 rounded-xl w-64" />
+            <div className="h-5 bg-[#e0e4dc] dark:bg-slate-800 rounded-lg w-32" />
+            <div className="h-10 bg-[#e0e4dc] dark:bg-slate-800 rounded-xl w-48" />
           </div>
-          <div className="h-6 bg-[#e0e4dc] rounded-lg w-full" />
+          <div className="h-6 bg-[#e0e4dc] dark:bg-slate-800 rounded-lg w-full" />
         </div>
       </div>
     );
@@ -449,17 +513,17 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
   if (isFinished) {
     return (
       <div className="max-w-2xl mx-auto py-12 px-4 animate-fade-up">
-        <div className="rounded-3xl border border-[#005721]/20 bg-white p-8 sm:p-10 text-center shadow-[0_12px_40px_rgba(0,87,33,0.08)] space-y-6">
-          <div className="w-16 h-16 rounded-full bg-[#005721]/10 border border-[#005721]/20 text-[#005721] flex items-center justify-center mx-auto shadow-sm">
-            <CheckCircle2 className="w-8 h-8 text-[#005721]" />
+        <div className="rounded-3xl border border-[#005721]/20 dark:border-emerald-700/50 bg-white dark:bg-slate-900 p-8 sm:p-10 text-center shadow-[0_12px_40px_rgba(0,87,33,0.08)] space-y-6">
+          <div className="w-16 h-16 rounded-full bg-[#005721]/10 dark:bg-emerald-950/60 border border-[#005721]/20 dark:border-emerald-700/50 text-[#005721] dark:text-emerald-300 flex items-center justify-center mx-auto shadow-sm">
+            <CheckCircle2 className="w-8 h-8 text-[#005721] dark:text-emerald-300" />
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-3xl font-extrabold text-[#0F172A] tracking-tight">
+            <h2 className="text-3xl font-extrabold text-[#0F172A] dark:text-slate-100 tracking-tight">
               Session Completed!
             </h2>
-            <p className="text-sm text-[#334155] max-w-md mx-auto leading-relaxed">
-              You&apos;ve reviewed all {words.length} words in <strong className="text-[#005721]">{topic}</strong>.
+            <p className="text-sm text-[#334155] dark:text-slate-300 max-w-md mx-auto leading-relaxed">
+              You&apos;ve reviewed all {words.length} words in <strong className="text-[#005721] dark:text-emerald-300">{topic}</strong>.
               Consistent practice builds long-term fluency and confidence.
             </p>
           </div>
@@ -469,10 +533,10 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
             {(["easy", "good", "hard", "again"] as RatingValue[]).map((r) => {
               const count = Object.values(ratings).filter((v) => v === r).length;
               const colorMap: Record<string, string> = {
-                easy: "text-[#005721] bg-[#005721]/10 border-[#005721]/30",
-                good: "text-[#257037] bg-[#257037]/10 border-[#257037]/30",
-                hard: "text-[#8c4f00] bg-[#ffdcbf]/50 border-[#8c4f00]/30",
-                again: "text-[#ba1a1a] bg-[#ffdad6]/50 border-[#ba1a1a]/30",
+                easy: "text-[#005721] dark:text-emerald-300 bg-[#005721]/10 dark:bg-emerald-950/60 border-[#005721]/30 dark:border-emerald-700/60",
+                good: "text-[#257037] dark:text-emerald-300 bg-[#257037]/10 dark:bg-emerald-950/50 border-[#257037]/30 dark:border-emerald-700/50",
+                hard: "text-[#8c4f00] dark:text-amber-300 bg-[#ffdcbf]/50 dark:bg-amber-950/50 border-[#8c4f00]/30 dark:border-amber-700/60",
+                again: "text-[#ba1a1a] dark:text-red-300 bg-[#ffdad6]/50 dark:bg-red-950/50 border-[#ba1a1a]/30 dark:border-red-700/60",
               };
               return (
                 <div key={r} className={`p-3 rounded-2xl border ${colorMap[r]}`}>
@@ -497,9 +561,9 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
                 setIsFinished(false);
                 setSessionRound((r) => r + 1);
               }}
-              className="min-h-[44px] inline-flex items-center gap-2 rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#f8faf9] px-5 py-2.5 text-xs font-bold text-[#0F172A] transition-all shadow-xs w-full sm:w-auto justify-center"
+              className="min-h-[44px] inline-flex items-center gap-2 rounded-xl border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-[#f8faf9] dark:hover:bg-slate-700 px-5 py-2.5 text-xs font-bold text-[#0F172A] dark:text-slate-100 transition-all shadow-xs w-full sm:w-auto justify-center"
             >
-              <RotateCcw className="w-4 h-4 text-[#334155]" />
+              <RotateCcw className="w-4 h-4 text-[#334155] dark:text-slate-300" />
               <span>Learn Next Words</span>
             </button>
 
@@ -524,20 +588,20 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#005721]">
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#005721] dark:text-emerald-400">
               FOCUSED PRACTICE SESSION
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A]">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F172A] dark:text-slate-100">
               Learn Words (Interactive Flashcards)
             </h1>
-            <p className="text-xs sm:text-sm text-[#334155]">
-              Topic: <strong className="text-[#005721]">{topic}</strong> · Master authentic vocabulary with 3D flashcards.
+            <p className="text-xs sm:text-sm text-[#334155] dark:text-slate-300">
+              Topic: <strong className="text-[#005721] dark:text-emerald-300">{topic}</strong> · Master authentic vocabulary with 3D flashcards.
             </p>
           </div>
 
           {/* Bidirectional Translation Switcher (EN ↔ VI / VI ↔ EN) */}
           <div
-            className="flex items-center bg-[#ebefe7] rounded-full p-1 border border-[#bfc9bc]/60 shadow-inner self-start sm:self-auto"
+            className="flex items-center bg-[#ebefe7] dark:bg-slate-800 rounded-full p-1 border border-[#bfc9bc]/60 dark:border-slate-700 shadow-inner self-start sm:self-auto"
             role="group"
             aria-label="Translation direction toggle"
           >
@@ -546,11 +610,11 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
               id="toggle-en-vi"
               aria-label="Study English to Vietnamese"
               aria-pressed={direction === "EN_VI"}
-              onClick={() => setDirection("EN_VI")}
+              onClick={() => setDirectionOverride("EN_VI")}
               className={`min-h-[36px] px-3.5 py-1 text-xs font-bold rounded-full transition-all duration-150 ${
                 direction === "EN_VI"
                   ? "bg-[#005721] text-white shadow-xs font-bold"
-                  : "text-[#334155] hover:text-[#0F172A]"
+                  : "text-[#334155] dark:text-slate-300 hover:text-[#0F172A] dark:hover:text-white"
               }`}
             >
               EN → VI
@@ -560,11 +624,11 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
               id="toggle-vi-en"
               aria-label="Study Vietnamese to English (Reverse active recall)"
               aria-pressed={direction === "VI_EN"}
-              onClick={() => setDirection("VI_EN")}
+              onClick={() => setDirectionOverride("VI_EN")}
               className={`min-h-[36px] px-3.5 py-1 text-xs font-bold rounded-full transition-all duration-150 ${
                 direction === "VI_EN"
                   ? "bg-[#005721] text-white shadow-xs font-bold"
-                  : "text-[#334155] hover:text-[#0F172A]"
+                  : "text-[#334155] dark:text-slate-300 hover:text-[#0F172A] dark:hover:text-white"
               }`}
             >
               VI → EN
@@ -573,17 +637,19 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
         </div>
 
         {/* Top Utility Strip: Auto-play & Shuffle & Progress */}
-        <div className="flex items-center justify-between gap-4 text-xs text-[#334155] pt-1">
+        <div className="flex items-center justify-between gap-4 text-xs text-[#334155] dark:text-slate-300 pt-1">
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2 cursor-pointer group select-none">
               <input
                 type="checkbox"
                 checked={autoPlayAudio}
-                onChange={(e) => setAutoPlayAudio(e.target.checked)}
-                className="w-4 h-4 rounded border-[#bfc9bc] text-[#005721] focus:ring-[#005721] transition"
+                onChange={(e) =>
+                  void updateSettings({ autoPlayVocabAudio: e.target.checked })
+                }
+                className="w-4 h-4 rounded border-[#bfc9bc] dark:border-slate-600 text-[#005721] focus:ring-[#005721] transition"
               />
-              <span className="group-hover:text-[#0F172A] transition-colors flex items-center gap-1 font-medium">
-                <Volume2 className="w-3.5 h-3.5 text-[#005721]" />
+              <span className="group-hover:text-[#0F172A] dark:group-hover:text-slate-100 transition-colors flex items-center gap-1 font-medium">
+                <Volume2 className="w-3.5 h-3.5 text-[#005721] dark:text-emerald-400" />
                 Auto-play audio
               </span>
             </label>
@@ -592,7 +658,7 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
               type="button"
               aria-label="Shuffle flashcards order"
               onClick={handleShuffle}
-              className="inline-flex items-center gap-1 hover:text-[#005721] font-medium transition-colors"
+              className="inline-flex items-center gap-1 hover:text-[#005721] dark:hover:text-emerald-300 font-medium transition-colors"
             >
               <Shuffle className="w-3.5 h-3.5" />
               <span>Shuffle</span>
@@ -600,16 +666,16 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-[#0F172A]">
+            <span className="font-semibold text-[#0F172A] dark:text-slate-100">
               Word {currentIndex + 1} of {words.length}
             </span>
-            <span className="text-[#64748B]">({ratedCount} rated)</span>
+            <span className="text-[#64748B] dark:text-slate-400">({ratedCount} rated)</span>
           </div>
         </div>
 
         {/* Progress bar */}
         <div className="space-y-1">
-          <div className="w-full h-2 bg-[#ebefe7] rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-[#ebefe7] dark:bg-slate-800 rounded-full overflow-hidden">
             <div
               className="bg-[#60B515] h-full rounded-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
@@ -625,10 +691,10 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
                 key={w.id || idx}
                 className={`h-full flex-1 rounded-full transition-all duration-200 ${
                   idx === currentIndex
-                    ? "bg-[#005721]"
+                    ? "bg-[#005721] dark:bg-emerald-400"
                     : idx < currentIndex || ratings[w.id]
                     ? "bg-[#60B515]"
-                    : "bg-[#e0e4dc]"
+                    : "bg-[#e0e4dc] dark:bg-slate-700"
                 }`}
               />
             ))}
@@ -656,28 +722,28 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
           aria-label="Go to previous flashcard"
           onClick={handlePrevious}
           disabled={currentIndex === 0}
-          className="min-h-[44px] inline-flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white hover:bg-[#f8faf9] disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2.5 text-xs font-bold text-[#0F172A] transition-all shadow-xs order-2 sm:order-1"
+          className="min-h-[44px] inline-flex items-center gap-1.5 rounded-xl border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-[#f8faf9] dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed px-4 py-2.5 text-xs font-bold text-[#0F172A] dark:text-slate-100 transition-all shadow-xs order-2 sm:order-1"
         >
-          <ArrowLeft className="w-4 h-4 text-[#334155]" />
+          <ArrowLeft className="w-4 h-4 text-[#334155] dark:text-slate-300" />
           <span>Previous</span>
         </button>
 
         {/* Keyboard Helper Badges */}
-        <div className="flex items-center gap-3 flex-wrap justify-center text-xs text-[#334155] order-1 sm:order-2">
+        <div className="flex items-center gap-3 flex-wrap justify-center text-xs text-[#334155] dark:text-slate-300 order-1 sm:order-2">
           <span className="inline-flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-[#ebefe7] rounded text-[11px] font-mono text-[#0F172A] border border-[#bfc9bc]">
+            <kbd className="px-1.5 py-0.5 bg-[#ebefe7] dark:bg-slate-800 rounded text-[11px] font-mono text-[#0F172A] dark:text-slate-200 border border-[#bfc9bc] dark:border-slate-700">
               Space
             </kbd>
             <span>Flip</span>
           </span>
           <span className="inline-flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-[#ebefe7] rounded text-[11px] font-mono text-[#0F172A] border border-[#bfc9bc]">
+            <kbd className="px-1.5 py-0.5 bg-[#ebefe7] dark:bg-slate-800 rounded text-[11px] font-mono text-[#0F172A] dark:text-slate-200 border border-[#bfc9bc] dark:border-slate-700">
               ← / →
             </kbd>
             <span>Navigate</span>
           </span>
           <span className="hidden md:inline-flex items-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-[#ebefe7] rounded text-[11px] font-mono text-[#0F172A] border border-[#bfc9bc]">
+            <kbd className="px-1.5 py-0.5 bg-[#ebefe7] dark:bg-slate-800 rounded text-[11px] font-mono text-[#0F172A] dark:text-slate-200 border border-[#bfc9bc] dark:border-slate-700">
               1 - 4
             </kbd>
             <span>Rate</span>
@@ -697,7 +763,7 @@ export function LearnWordsSession({ topic = "Business", questions, onComplete }:
       </div>
 
       {/* Spaced repetition footer badge */}
-      <div className="flex items-center justify-center gap-1.5 pt-2 text-xs text-[#64748B]">
+      <div className="flex items-center justify-center gap-1.5 pt-2 text-xs text-[#64748B] dark:text-slate-400">
         <Sparkles className="w-3.5 h-3.5 text-[#60B515]" />
         <span>Spaced Repetition schedules review intervals automatically based on your rating.</span>
       </div>

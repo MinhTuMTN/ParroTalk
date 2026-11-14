@@ -3,8 +3,11 @@
  * 100% free, zero external keys required, works seamlessly across modern browsers.
  */
 
+import { getStoredUserSettings } from '@/features/settings/hooks/useUserSettings';
+
 export interface PlayTTSOptions {
   lang?: 'en-US' | 'en-GB';
+  rate?: number;
   onStart?: () => void;
   onEnd?: () => void;
   onError?: (err: unknown) => void;
@@ -28,10 +31,17 @@ export function playTTS(
       return false;
     }
 
+    const storedSettings = getStoredUserSettings();
+    const defaultLang: 'en-US' | 'en-GB' =
+      storedSettings.preferredAccent === 'UK' ? 'en-GB' : 'en-US';
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    const lang = options?.lang || 'en-US';
+    const lang = options?.lang || defaultLang;
+    const rate =
+      typeof options?.rate === 'number' && Number.isFinite(options.rate)
+        ? options.rate
+        : storedSettings.playbackSpeed || 0.92;
     utterance.lang = lang;
-    utterance.rate = 0.92;
+    utterance.rate = rate;
     utterance.pitch = 1.0;
 
     const voices = window.speechSynthesis.getVoices();
@@ -72,24 +82,30 @@ export function stopTTS(): void {
 export function playAudioOrTTS(
   text: string, 
   audioUrl?: string, 
-  lang: 'en-US' | 'en-GB' = 'en-US',
+  lang?: 'en-US' | 'en-GB',
   callbacks?: {
     onStart?: () => void;
     onEnd?: () => void;
   }
 ): void {
+  const storedSettings = getStoredUserSettings();
+  const effectiveLang: 'en-US' | 'en-GB' =
+    lang || (storedSettings.preferredAccent === 'UK' ? 'en-GB' : 'en-US');
+  const playbackRate = storedSettings.playbackSpeed || 1.0;
+
   if (audioUrl && audioUrl.trim()) {
     callbacks?.onStart?.();
     const audio = new Audio(audioUrl);
+    audio.playbackRate = playbackRate;
     audio.onended = () => callbacks?.onEnd?.();
     audio.onerror = () => {
       // Fallback to TTS if the custom audio fails to load or play
-      playTTS(text, { lang, onStart: callbacks?.onStart, onEnd: callbacks?.onEnd });
+      playTTS(text, { lang: effectiveLang, rate: playbackRate, onStart: callbacks?.onStart, onEnd: callbacks?.onEnd });
     };
     audio.play().catch(() => {
-      playTTS(text, { lang, onStart: callbacks?.onStart, onEnd: callbacks?.onEnd });
+      playTTS(text, { lang: effectiveLang, rate: playbackRate, onStart: callbacks?.onStart, onEnd: callbacks?.onEnd });
     });
   } else {
-    playTTS(text, { lang, onStart: callbacks?.onStart, onEnd: callbacks?.onEnd });
+    playTTS(text, { lang: effectiveLang, rate: playbackRate, onStart: callbacks?.onStart, onEnd: callbacks?.onEnd });
   }
 }

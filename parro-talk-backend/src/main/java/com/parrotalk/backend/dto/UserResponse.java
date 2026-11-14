@@ -16,5 +16,6 @@ public class UserResponse {
     private String role;
     private String avatarUrl;
     private boolean emailVerified;
+    private boolean hasPassword;
     private LocalDateTime lastActiveAt;
 }

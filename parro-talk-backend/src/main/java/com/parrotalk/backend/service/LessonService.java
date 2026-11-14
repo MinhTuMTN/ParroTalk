@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+import org.hibernate.Hibernate;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Limit;
@@ -134,6 +135,7 @@ public class LessonService {
         return lessonRepository.findByFileHashAndOwnerId(fileHash, owner.getId());
     }
 
+    @Transactional(readOnly = true)
     public LessonResponse getLessonStatus(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
@@ -149,6 +151,7 @@ public class LessonService {
      * @return Lesson response
      */
     @Cacheable(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
+    @Transactional(readOnly = true)
     public LessonResponse getLessonDetail(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
@@ -162,6 +165,7 @@ public class LessonService {
         return lessonResponse;
     }
 
+    @Transactional(readOnly = true)
     public List<LessonResponse> getAllLessons(User user) {
         List<Lesson> lessons;
         if (user.getRole() == Role.ADMIN) {
@@ -291,26 +295,57 @@ public class LessonService {
      * @param size   Page size
      * @return Page of lessons
      */
+    @Transactional(readOnly = true)
     public PageResponse<LessonResponse> searchAdminLessons(
             String query,
             LessonVisibilityStatus status,
             int page,
             int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return searchAdminLessons(query, status, null, page, size);
+    }
 
-        Page<Lesson> lessonPage;
+    /**
+     * Get list lessons for Admin with optional category filter.
+     *
+     * @param query      Search query
+     * @param status     Lesson visibility status
+     * @param categoryId Optional category filter
+     * @param page       Page number
+     * @param size       Page size
+     * @return Page of lessons
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<LessonResponse> searchAdminLessons(
+            String query,
+            LessonVisibilityStatus status,
+            UUID categoryId,
+            int page,
+            int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+
         Specification<Lesson> specification = Specification.where((root, q, cb) -> cb.conjunction());
         if (status != null) {
             specification = specification.and((root, q, cb) -> cb.equal(root.get("visibilityStatus"), status));
         }
         if (StringUtils.isNotBlank(query)) {
+            String normalizedQuery = "%" + query.trim().toLowerCase() + "%";
             specification = specification
-                    .and((root, q, cb) -> cb.like(cb.lower(root.get("title")), "%" + query.toLowerCase() + "%"));
+                    .and((root, q, cb) -> cb.like(cb.lower(root.get("title")), normalizedQuery));
         }
-        lessonPage = lessonRepository.findAll(specification, pageable);
+        if (categoryId != null) {
+            specification = specification.and((root, q, cb) -> {
+                if (q != null) {
+                    q.distinct(true);
+                }
+                return cb.equal(root.join("categories").get("id"), categoryId);
+            });
+        }
+        Page<Lesson> lessonPage = lessonRepository.findAll(specification, pageable);
 
         List<LessonResponse> content = lessonPage.getContent().stream()
-                .map(lessonMapper::toLessonResponse)
+                .map(this::toAdminLessonResponse)
                 .collect(Collectors.toList());
 
         return PageResponse.<LessonResponse>builder()
@@ -364,15 +399,10 @@ public class LessonService {
         }
         lesson = lessonRepository.save(lesson);
 
-        LessonResponse response = lessonMapper.toLessonResponse(lesson);
-        Set<CategoryResponse> categories = lesson.getCategories().stream()
-                .map(categoryMapper::toCategoryResponse)
-                .collect(Collectors.toSet());
-        response.setCategories(categories);
-
-        return response;
+        return toAdminLessonResponse(lesson);
     }
 
+    @Transactional(readOnly = true)
     public LessonResponse getAdminLessonDetail(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
@@ -381,12 +411,9 @@ public class LessonService {
                 .findByLessonIdOrderByDisplayOrderAsc(lessonId);
         List<TranscriptionResponse> segments = buildSegmentResponses(lessonSegments);
 
-        LessonResponse response = lessonMapper.toLessonResponse(lesson);
+        LessonResponse response = toAdminLessonResponse(lesson);
         response.setSegments(segments);
         response.setTranslationSummary(buildTranslationSummary(lessonId, lessonSegments.size()));
-        response.setCategories(lesson.getCategories().stream()
-                .map(categoryMapper::toCategoryResponse)
-                .collect(Collectors.toSet()));
         return response;
     }
 
@@ -403,7 +430,23 @@ public class LessonService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
         lesson.setVisibilityStatus(status);
-        return lessonMapper.toLessonResponse(lessonRepository.save(lesson));
+        return toAdminLessonResponse(lessonRepository.save(lesson));
+    }
+
+    private LessonResponse toAdminLessonResponse(Lesson lesson) {
+        Set<Category> lessonCategories = lesson.getCategories();
+        if (lessonCategories != null) {
+            Hibernate.initialize(lessonCategories);
+        }
+        LessonResponse response = lessonMapper.toLessonResponse(lesson);
+        Set<CategoryResponse> mappedCategories = lessonCategories == null
+                ? Set.of()
+                : lessonCategories.stream()
+                        .filter(Objects::nonNull)
+                        .map(categoryMapper::toCategoryResponse)
+                        .collect(Collectors.toSet());
+        response.setCategories(mappedCategories);
+        return response;
     }
 
     /**
@@ -487,6 +530,7 @@ public class LessonService {
      * @param user     User
      * @return Lesson
      */
+    @Transactional(readOnly = true)
     public LessonResponse getAccessibleLessonDetail(UUID lessonId, User user) {
         Lesson lesson = findAccessibleLesson(lessonId, user);
 

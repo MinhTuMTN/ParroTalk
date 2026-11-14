@@ -2,6 +2,7 @@ package com.parrotalk.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -19,12 +20,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.parrotalk.backend.constant.ErrorCode;
 import com.parrotalk.backend.constant.Role;
+import com.parrotalk.backend.dto.AuthResponse;
 import com.parrotalk.backend.dto.LoginRequest;
+import com.parrotalk.backend.dto.RefreshRequest;
 import com.parrotalk.backend.dto.RegisterRequest;
+import com.parrotalk.backend.dto.TokenPair;
 import com.parrotalk.backend.dto.UserResponse;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.exception.AuthException;
 import com.parrotalk.backend.mapper.UserMapper;
+import com.parrotalk.backend.mapper.UserMapperImpl;
 import com.parrotalk.backend.security.JwtUtils;
 
 class AuthServiceTest {
@@ -197,5 +202,73 @@ class AuthServiceTest {
                 .build());
 
         verify(userService).updateLastActiveAt(user);
+    }
+
+    @Test
+    void authResponsesPopulateHasPasswordViaUserMapperAcrossRegisterLoginRefreshAndMe() {
+        JwtUtils realMapperJwtUtils = mock(JwtUtils.class);
+        AuthService authServiceWithRealMapper = new AuthService(
+                userService,
+                passwordEncoder,
+                realMapperJwtUtils,
+                authenticationManager,
+                new UserMapperImpl(),
+                tokenService,
+                emailVerificationService);
+
+        User passwordUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("local@example.com")
+                .displayUsername("local_user")
+                .fullName("Local User")
+                .password("$2a$10$hash")
+                .role(Role.USER)
+                .enabled(true)
+                .emailVerified(true)
+                .build();
+
+        User oauthUser = User.builder()
+                .id(UUID.randomUUID())
+                .email("oauth@example.com")
+                .displayUsername("oauth_user")
+                .fullName("OAuth User")
+                .password(null)
+                .role(Role.USER)
+                .enabled(true)
+                .emailVerified(true)
+                .build();
+
+        when(userService.findByEmailIncludeDeleted("local@example.com")).thenReturn(Optional.empty());
+        when(passwordEncoder.encode("secret123")).thenReturn("$2a$10$hash");
+        when(userService.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+        AuthResponse registered = authServiceWithRealMapper.register(RegisterRequest.builder()
+                .email("local@example.com")
+                .password("secret123")
+                .fullName("Local User")
+                .build());
+        assertTrue(registered.getUser().isHasPassword());
+
+        when(userService.findByEmail("local@example.com")).thenReturn(Optional.of(passwordUser));
+        org.springframework.security.core.Authentication auth = mock(org.springframework.security.core.Authentication.class);
+        when(auth.getPrincipal()).thenReturn(passwordUser);
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(userService.updateLastActiveAt(passwordUser)).thenReturn(passwordUser);
+        when(tokenService.issueTokens(passwordUser)).thenReturn(new TokenPair("access", "refresh"));
+        AuthResponse loggedIn = authServiceWithRealMapper.login(LoginRequest.builder()
+                .email("local@example.com")
+                .password("secret123")
+                .build());
+        assertTrue(loggedIn.getUser().isHasPassword());
+
+        when(realMapperJwtUtils.extractUsername("refresh-oauth")).thenReturn("oauth@example.com");
+        when(userService.findByEmail("oauth@example.com")).thenReturn(Optional.of(oauthUser));
+        when(realMapperJwtUtils.isTokenValid("refresh-oauth", oauthUser)).thenReturn(true);
+        when(userService.updateLastActiveAt(oauthUser)).thenReturn(oauthUser);
+        when(realMapperJwtUtils.generateToken(oauthUser)).thenReturn("new-access");
+        AuthResponse refreshedOAuth = authServiceWithRealMapper.refreshToken(RefreshRequest.builder()
+                .refreshToken("refresh-oauth")
+                .build());
+        assertFalse(refreshedOAuth.getUser().isHasPassword());
+        assertFalse(authServiceWithRealMapper.getCurrentUser(oauthUser).isHasPassword());
     }
 }

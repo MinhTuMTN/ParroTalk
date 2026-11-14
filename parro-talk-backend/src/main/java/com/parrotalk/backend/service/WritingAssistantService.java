@@ -7,24 +7,30 @@ import com.parrotalk.backend.constant.ErrorCode;
 import com.parrotalk.backend.constant.WritingItemType;
 import com.parrotalk.backend.constant.WritingItemValidationStatus;
 import com.parrotalk.backend.dto.PageResponse;
+import com.parrotalk.backend.dto.writing.GrammarIssueDto;
 import com.parrotalk.backend.dto.writing.GrammarValidationResultDto;
 import com.parrotalk.backend.dto.writing.WritingAnalyzeRequestDto;
 import com.parrotalk.backend.dto.writing.WritingSessionResponseDto;
 import com.parrotalk.backend.dto.writing.WritingSessionSummaryDto;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.entity.Vocabulary;
+import com.parrotalk.backend.entity.VocabularyPronunciation;
 import com.parrotalk.backend.entity.VocabularySense;
 import com.parrotalk.backend.entity.WritingGeneratedItem;
 import com.parrotalk.backend.entity.WritingSession;
 import com.parrotalk.backend.exception.ParroTalkException;
 import com.parrotalk.backend.repository.VocabularyRepository;
 import com.parrotalk.backend.repository.WritingSessionRepository;
+import com.parrotalk.backend.service.WritingAssistantAiService.AiDraftIssue;
+import com.parrotalk.backend.service.WritingAssistantAiService.AiDraftReviewPayload;
+import com.parrotalk.backend.service.WritingAssistantAiService.AiUsedItemEvaluation;
 import com.parrotalk.backend.util.WordNormalizer;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +52,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class WritingAssistantService {
 
     private static final Set<String> VALID_CEFR_LEVELS = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
@@ -59,6 +64,44 @@ public class WritingAssistantService {
     private final GrammarValidationService grammarValidationService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final WritingTtsService writingTtsService;
+    @Nullable
+    private final TtsPrewarmService ttsPrewarmService;
+
+    public WritingAssistantService(
+            WritingAssistantAiService aiService,
+            VocabularyRepository vocabularyRepository,
+            WritingSessionRepository sessionRepository,
+            WordNormalizer wordNormalizer,
+            GrammarValidationService grammarValidationService,
+            ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate,
+            WritingTtsService writingTtsService) {
+        this(aiService, vocabularyRepository, sessionRepository, wordNormalizer,
+                grammarValidationService, objectMapper, transactionTemplate, writingTtsService, null);
+    }
+
+    @Autowired
+    public WritingAssistantService(
+            WritingAssistantAiService aiService,
+            VocabularyRepository vocabularyRepository,
+            WritingSessionRepository sessionRepository,
+            WordNormalizer wordNormalizer,
+            GrammarValidationService grammarValidationService,
+            ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate,
+            WritingTtsService writingTtsService,
+            @Autowired(required = false) @Nullable TtsPrewarmService ttsPrewarmService) {
+        this.aiService = aiService;
+        this.vocabularyRepository = vocabularyRepository;
+        this.sessionRepository = sessionRepository;
+        this.wordNormalizer = wordNormalizer;
+        this.grammarValidationService = grammarValidationService;
+        this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
+        this.writingTtsService = writingTtsService;
+        this.ttsPrewarmService = ttsPrewarmService;
+    }
 
     /**
      * Analyzes the learner's idea with a single AI request (or serves from existing session cache),
@@ -85,12 +128,7 @@ public class WritingAssistantService {
                 if (existing == null) {
                     return null;
                 }
-                GrammarValidationResultDto draftVal = null;
-                if (existing.getUserDraft() != null && !existing.getUserDraft().isBlank()) {
-                    draftVal = grammarValidationService.validateUserDraft(
-                            existing.getUserDraft(), extractSuggestedTerms(existing));
-                }
-                return mapSessionToDto(existing, draftVal);
+                return mapSessionToDto(existing, resolveStoredDraftValidation(existing));
             });
             if (cachedDto != null) {
                 long cachedMs = (System.nanoTime() - startNs) / 1_000_000;
@@ -170,11 +208,13 @@ public class WritingAssistantService {
 
             for (WritingAssistantAiService.AiCompleteSentenceItem sent : aiPayload.getCompleteSentences()) {
                 if (sent.getSentenceEn() == null || sent.getSentenceEn().isBlank()) continue;
+                String sentenceText = sent.getSentenceEn().trim();
                 GrammarValidationResultDto validation = grammarValidationService.validateSentence(sent.getSentenceEn());
                 items.add(WritingGeneratedItem.builder()
                         .session(session)
                         .itemType(WritingItemType.COMPLETE_SENTENCE)
-                        .contentEn(sent.getSentenceEn().trim())
+                        .contentEn(sentenceText)
+                        .audioUrl(writingTtsService.buildTtsEndpointUrl(sentenceText, "US"))
                         .partOfSpeech(sent.getTone() != null ? sent.getTone().trim() : "Natural")
                         .meaningVn(sent.getTranslationVn())
                         .explanationVn(sent.getGrammarBreakdownVn())
@@ -192,6 +232,10 @@ public class WritingAssistantService {
         long dbElapsedMs = (System.nanoTime() - dbStartNs) / 1_000_000;
         long totalMs = (System.nanoTime() - startNs) / 1_000_000;
         log.info("Writing Assistant analysis completed in {} ms (AI: {} ms, DB: {} ms)", totalMs, aiElapsedMs, dbElapsedMs);
+
+        if (ttsPrewarmService != null) {
+            ttsPrewarmService.prewarmSession(responseDto);
+        }
 
         return responseDto;
     }
@@ -241,34 +285,66 @@ public class WritingAssistantService {
     }
 
     /**
-     * Retrieves a specific WritingSession owned by the user.
+     * Retrieves a specific WritingSession owned by the user, reusing persisted draft validation
+     * when available instead of recomputing or invoking AI on read.
      */
     @Transactional(readOnly = true)
     public WritingSessionResponseDto getSessionDetail(UUID sessionId, User user) {
         WritingSession session = findOwnedSession(sessionId, user);
-        GrammarValidationResultDto draftValidation = null;
-        if (session.getUserDraft() != null && !session.getUserDraft().isBlank()) {
-            List<String> suggestedTerms = extractSuggestedTerms(session);
-            draftValidation = grammarValidationService.validateUserDraft(session.getUserDraft(), suggestedTerms);
-        }
-        return mapSessionToDto(session, draftValidation);
+        return mapSessionToDto(session, resolveStoredDraftValidation(session));
     }
 
     /**
-     * Saves and validates the learner's drafted sentence for a session.
+     * Saves and validates the learner's drafted sentence for a session using deterministic rules
+     * plus AI draft review, keeping database transactions short and off the AI network call.
      */
-    @Transactional
     public WritingSessionResponseDto updateUserDraft(UUID sessionId, String userDraft, User user) {
-        WritingSession session = findOwnedSession(sessionId, user);
-        String trimmedDraft = userDraft == null ? "" : userDraft.trim();
-        session.setUserDraft(trimmedDraft);
+        String normalizedDraft = userDraft == null ? "" : userDraft.trim();
 
-        List<String> suggestedTerms = extractSuggestedTerms(session);
-        GrammarValidationResultDto validation = grammarValidationService.validateUserDraft(trimmedDraft, suggestedTerms);
-        session.setGrammarCheckJson(serializeJsonSafely(validation));
+        DraftReviewContext context = executeInTransaction(() -> {
+            WritingSession session = findOwnedSession(sessionId, user);
+            return new DraftReviewContext(
+                    session.getCoreIdeaSummaryVn(),
+                    session.getScaleType(),
+                    session.getTargetLevel(),
+                    extractSuggestedTerms(session)
+            );
+        });
 
-        WritingSession saved = sessionRepository.save(session);
-        return mapSessionToDto(saved, validation);
+        GrammarValidationResultDto ruleResult =
+                grammarValidationService.validateUserDraft(normalizedDraft, context.suggestedTerms());
+
+        AiDraftReviewPayload aiReview = null;
+        boolean aiUnavailable = false;
+        if (ruleResult.getStatus() != WritingItemValidationStatus.REJECTED && hasText(normalizedDraft)) {
+            try {
+                aiReview = aiService.reviewDraft(
+                        normalizedDraft,
+                        context.coreIdeaSummaryVn(),
+                        context.scaleType(),
+                        context.targetLevel(),
+                        context.suggestedTerms()
+                );
+                if (aiReview == null) {
+                    aiUnavailable = true;
+                }
+            } catch (Exception e) {
+                aiUnavailable = true;
+                log.warn("AI draft review unavailable for session {}, falling back to rule validation: {}",
+                        sessionId, e.getMessage());
+            }
+        }
+
+        GrammarValidationResultDto validation =
+                mergeDraftValidation(normalizedDraft, ruleResult, aiReview, context.suggestedTerms(), aiUnavailable);
+
+        return executeInTransaction(() -> {
+            WritingSession session = findOwnedSession(sessionId, user);
+            session.setUserDraft(normalizedDraft);
+            session.setGrammarCheckJson(serializeJsonSafely(validation));
+            WritingSession saved = sessionRepository.save(session);
+            return mapSessionToDto(saved, validation);
+        });
     }
 
     /**
@@ -299,7 +375,8 @@ public class WritingAssistantService {
         return session.getGeneratedItems().stream()
                 .filter(i -> i.getItemType() == WritingItemType.VOCABULARY
                         || i.getItemType() == WritingItemType.EXPRESSION
-                        || i.getItemType() == WritingItemType.COLLOCATION)
+                        || i.getItemType() == WritingItemType.COLLOCATION
+                        || i.getItemType() == WritingItemType.SENTENCE_PATTERN)
                 .map(WritingGeneratedItem::getContentEn)
                 .filter(t -> t != null && !t.isBlank())
                 .toList();
@@ -382,11 +459,36 @@ public class WritingAssistantService {
         VocabularySense linkedSense = findBestMatchingSense(linkedVocab, item.getPartOfSpeech());
         WritingItemValidationStatus status = grammarValidationService.validateLexicalItem(text, item.getMeaningVn());
 
+        String phonetic = item.getPhonetic();
+        String audioUrl;
+
+        DictionaryPronunciations pron = extractDictionaryPronunciations(linkedVocab);
+
+        if (hasText(pron.usIpa())) {
+            phonetic = pron.usIpa();
+        } else if (!hasText(phonetic)) {
+            phonetic = hasText(pron.ukIpa()) ? pron.ukIpa() : pron.fallbackIpa();
+        }
+
+        if (hasText(pron.usAudioUrl())) {
+            audioUrl = pron.usAudioUrl();
+        } else if (hasText(pron.ukAudioUrl())) {
+            audioUrl = pron.ukAudioUrl();
+        } else {
+            audioUrl = pron.fallbackAudioUrl();
+        }
+
+        if (!hasText(audioUrl)) {
+            audioUrl = writingTtsService.buildTtsEndpointUrl(text, "US");
+        }
+
         return WritingGeneratedItem.builder()
                 .session(session)
                 .itemType(itemType)
                 .contentEn(text)
                 .normalizedText(normalized)
+                .phonetic(phonetic)
+                .audioUrl(audioUrl)
                 .partOfSpeech(item.getPartOfSpeech())
                 .cefrLevel(item.getCefrLevel())
                 .meaningVn(item.getMeaningVn())
@@ -443,18 +545,26 @@ public class WritingAssistantService {
                                     .validationStatus(item.getValidationStatus())
                                     .build()
                     );
-                    case COMPLETE_SENTENCE -> completeSentences.add(
-                            WritingSessionResponseDto.WritingCompleteSentenceDto.builder()
-                                    .id(item.getId())
-                                    .tone(item.getPartOfSpeech())
-                                    .sentenceEn(item.getContentEn())
-                                    .translationVn(item.getMeaningVn())
-                                    .grammarBreakdownVn(item.getExplanationVn())
-                                    .whyItWorksVn(item.getUsageContextVn())
-                                    .validationStatus(item.getValidationStatus())
-                                    .grammarCheck(grammarValidationService.validateSentence(item.getContentEn()))
-                                    .build()
-                    );
+                    case COMPLETE_SENTENCE -> {
+                        String audioUsUrl = hasText(item.getAudioUrl())
+                                ? item.getAudioUrl()
+                                : writingTtsService.buildTtsEndpointUrl(item.getContentEn(), "US");
+                        String audioUkUrl = writingTtsService.buildTtsEndpointUrl(item.getContentEn(), "UK");
+                        completeSentences.add(
+                                WritingSessionResponseDto.WritingCompleteSentenceDto.builder()
+                                        .id(item.getId())
+                                        .tone(item.getPartOfSpeech())
+                                        .sentenceEn(item.getContentEn())
+                                        .translationVn(item.getMeaningVn())
+                                        .grammarBreakdownVn(item.getExplanationVn())
+                                        .whyItWorksVn(item.getUsageContextVn())
+                                        .audioUsUrl(audioUsUrl)
+                                        .audioUkUrl(audioUkUrl)
+                                        .validationStatus(item.getValidationStatus())
+                                        .grammarCheck(buildPersistedSentenceGrammarCheck(item))
+                                        .build()
+                        );
+                    }
                 }
             }
         }
@@ -482,11 +592,49 @@ public class WritingAssistantService {
     private WritingSessionResponseDto.WritingLexicalItemDto mapLexicalDto(WritingGeneratedItem item) {
         Vocabulary linkedVocab = item.getLinkedVocabulary();
         VocabularySense linkedSense = item.getLinkedSense();
+
+        DictionaryPronunciations pron = extractDictionaryPronunciations(linkedVocab);
+
+        String phonetic = item.getPhonetic();
+        if (!hasText(phonetic)) {
+            phonetic = hasText(pron.usIpa()) ? pron.usIpa()
+                    : (hasText(pron.ukIpa()) ? pron.ukIpa() : pron.fallbackIpa());
+        }
+
+        String audioUrl = item.getAudioUrl();
+        String audioUsUrl = pron.usAudioUrl();
+        String audioUkUrl = pron.ukAudioUrl();
+
+        if (!hasText(audioUsUrl)) {
+            audioUsUrl = writingTtsService.buildTtsEndpointUrl(item.getContentEn(), "US");
+        }
+        if (!hasText(audioUkUrl)) {
+            audioUkUrl = writingTtsService.buildTtsEndpointUrl(item.getContentEn(), "UK");
+        }
+        if (!hasText(audioUrl)) {
+            audioUrl = hasText(pron.fallbackAudioUrl())
+                    ? pron.fallbackAudioUrl()
+                    : (hasText(audioUsUrl) ? audioUsUrl : audioUkUrl);
+        }
+
+        String exampleAudioUsUrl = hasText(item.getExampleEn())
+                ? writingTtsService.buildTtsEndpointUrl(item.getExampleEn(), "US")
+                : null;
+        String exampleAudioUkUrl = hasText(item.getExampleEn())
+                ? writingTtsService.buildTtsEndpointUrl(item.getExampleEn(), "UK")
+                : null;
+
         return WritingSessionResponseDto.WritingLexicalItemDto.builder()
                 .id(item.getId())
                 .itemType(item.getItemType())
                 .text(item.getContentEn())
                 .normalizedText(item.getNormalizedText())
+                .phonetic(phonetic)
+                .audioUrl(audioUrl)
+                .audioUsUrl(audioUsUrl)
+                .audioUkUrl(audioUkUrl)
+                .exampleAudioUsUrl(exampleAudioUsUrl)
+                .exampleAudioUkUrl(exampleAudioUkUrl)
                 .partOfSpeech(item.getPartOfSpeech())
                 .cefrLevel(item.getCefrLevel())
                 .meaningVn(item.getMeaningVn())
@@ -500,6 +648,341 @@ public class WritingAssistantService {
                 .dictionaryWord(linkedVocab != null ? linkedVocab.getWord() : null)
                 .validationStatus(item.getValidationStatus())
                 .build();
+    }
+
+    private GrammarValidationResultDto buildPersistedSentenceGrammarCheck(WritingGeneratedItem item) {
+        WritingItemValidationStatus status = item.getValidationStatus() != null
+                ? item.getValidationStatus()
+                : WritingItemValidationStatus.APPROVED;
+        return GrammarValidationResultDto.builder()
+                .valid(status != WritingItemValidationStatus.REJECTED)
+                .status(status)
+                .summaryVn(item.getValidationNotes())
+                .build();
+    }
+
+    private GrammarValidationResultDto resolveStoredDraftValidation(WritingSession session) {
+        if (session == null || !hasText(session.getUserDraft())) {
+            return null;
+        }
+        GrammarValidationResultDto persisted = deserializeGrammarCheckSafely(session.getGrammarCheckJson());
+        if (persisted != null && persisted.getStatus() != null) {
+            return persisted;
+        }
+        return grammarValidationService.validateUserDraft(session.getUserDraft(), extractSuggestedTerms(session));
+    }
+
+    private GrammarValidationResultDto mergeDraftValidation(
+            String draft,
+            GrammarValidationResultDto ruleResult,
+            AiDraftReviewPayload aiReview,
+            List<String> suggestedTerms,
+            boolean aiUnavailable) {
+        if (aiReview == null) {
+            List<GrammarIssueDto> ruleIssues = ruleResult.getIssues() != null
+                    ? new ArrayList<>(ruleResult.getIssues())
+                    : new ArrayList<>();
+            String baseSummary = ruleResult.getSummaryVn() != null ? ruleResult.getSummaryVn() : "";
+            String finalSummary = aiUnavailable && hasText(draft)
+                    ? (baseSummary.isBlank() ? "AI review unavailable." : baseSummary + " (AI review unavailable.)")
+                    : baseSummary;
+
+            return GrammarValidationResultDto.builder()
+                    .valid(ruleResult.isValid())
+                    .status(ruleResult.getStatus())
+                    .summaryVn(finalSummary)
+                    .issues(ruleIssues)
+                    .correctedSentence(ruleResult.getCorrectedSentence())
+                    .usedTerms(ruleResult.getUsedTerms())
+                    .missingTerms(ruleResult.getMissingTerms())
+                    .score(ruleResult.getScore())
+                    .build();
+        }
+
+        List<GrammarIssueDto> aiIssues = new ArrayList<>();
+        if (aiReview.getIssues() != null) {
+            for (AiDraftIssue aiIssue : aiReview.getIssues()) {
+                if (aiIssue == null) {
+                    continue;
+                }
+                int[] span = locateAiIssueSpan(draft, aiIssue.getOriginal(), aiIssues);
+                String issueType = normalizeAiIssueType(aiIssue.getType());
+                String explanation = hasText(aiIssue.getExplanationVn())
+                        ? aiIssue.getExplanationVn().trim()
+                        : "Cần chỉnh sửa ngữ pháp hoặc diễn đạt cho tự nhiên hơn.";
+                List<String> replacements = hasText(aiIssue.getSuggestion())
+                        ? List.of(aiIssue.getSuggestion().trim())
+                        : List.of();
+
+                aiIssues.add(GrammarIssueDto.builder()
+                        .ruleId("AI_" + issueType)
+                        .type(issueType)
+                        .message(hasText(aiIssue.getOriginal()) ? aiIssue.getOriginal().trim() : explanation)
+                        .messageVn(explanation)
+                        .offset(span[0])
+                        .length(span[1])
+                        .replacements(replacements)
+                        .build());
+            }
+        }
+
+        List<GrammarIssueDto> mergedIssues = new ArrayList<>(aiIssues);
+        if (ruleResult.getIssues() != null) {
+            for (GrammarIssueDto ruleIssue : ruleResult.getIssues()) {
+                // Only deduplicate deterministic rule issues against located AI issues (never against each other).
+                if (!overlapsExistingIssue(ruleIssue, aiIssues, draft.length())) {
+                    mergedIssues.add(ruleIssue);
+                }
+            }
+        }
+
+        boolean hasBlockingIssue = mergedIssues.stream()
+                .anyMatch(issue -> "GRAMMAR".equalsIgnoreCase(issue.getType())
+                        || "SPELLING".equalsIgnoreCase(issue.getType()));
+        boolean rejectedByLength = ruleResult.getStatus() == WritingItemValidationStatus.REJECTED;
+        boolean valid = !rejectedByLength && !hasBlockingIssue;
+        WritingItemValidationStatus status = rejectedByLength
+                ? WritingItemValidationStatus.REJECTED
+                : (valid ? WritingItemValidationStatus.APPROVED : WritingItemValidationStatus.NEEDS_REVIEW);
+
+        MergedTerms mergedTerms = mergeUsedAndMissingTerms(
+                suggestedTerms, ruleResult, aiReview.getUsedItems());
+
+        String summaryVn = hasText(aiReview.getOverallVn())
+                ? aiReview.getOverallVn().trim()
+                : ruleResult.getSummaryVn();
+
+        String correctedSentence = hasText(aiReview.getCorrectedSentence())
+                ? aiReview.getCorrectedSentence().trim()
+                : (valid ? draft : null);
+
+        return GrammarValidationResultDto.builder()
+                .valid(valid)
+                .status(status)
+                .summaryVn(summaryVn)
+                .issues(mergedIssues)
+                .correctedSentence(correctedSentence)
+                .usedTerms(mergedTerms.usedTerms())
+                .missingTerms(mergedTerms.missingTerms())
+                .score(aiReview.getScore())
+                .build();
+    }
+
+    private String normalizeAiIssueType(String type) {
+        if (!hasText(type)) {
+            return "GRAMMAR";
+        }
+        return switch (type.trim().toUpperCase(Locale.ROOT)) {
+            case "GRAMMAR", "SPELLING", "WORD_CHOICE", "PUNCTUATION" -> type.trim().toUpperCase(Locale.ROOT);
+            default -> "GRAMMAR";
+        };
+    }
+
+    private int[] locateAiIssueSpan(String draft, String original, List<GrammarIssueDto> alreadyMapped) {
+        if (!hasText(draft) || !hasText(original)) {
+            return new int[]{0, 0};
+        }
+        String needle = original.trim();
+        int idx = findNextNonCollidingOccurrence(draft, needle, alreadyMapped, false);
+        if (idx < 0) {
+            idx = findNextNonCollidingOccurrence(draft, needle, alreadyMapped, true);
+        }
+        if (idx >= 0) {
+            return new int[]{idx, Math.min(needle.length(), draft.length() - idx)};
+        }
+        return new int[]{0, 0};
+    }
+
+    private int findNextNonCollidingOccurrence(
+            String haystack,
+            String needle,
+            List<GrammarIssueDto> alreadyMapped,
+            boolean ignoreCase) {
+        String source = ignoreCase ? haystack.toLowerCase(Locale.ROOT) : haystack;
+        String target = ignoreCase ? needle.toLowerCase(Locale.ROOT) : needle;
+        int fromIndex = 0;
+        int firstMatch = -1;
+        while (fromIndex <= source.length() - target.length()) {
+            int found = source.indexOf(target, fromIndex);
+            if (found < 0) {
+                break;
+            }
+            if (firstMatch < 0) {
+                firstMatch = found;
+            }
+            int end = found + target.length();
+            boolean overlaps = false;
+            for (GrammarIssueDto existing : alreadyMapped) {
+                int exStart = existing.getOffset();
+                int exEnd = exStart + existing.getLength();
+                if (found < exEnd && exStart < end) {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (!overlaps) {
+                return found;
+            }
+            fromIndex = found + 1;
+        }
+        return firstMatch;
+    }
+
+    private boolean overlapsExistingIssue(
+            GrammarIssueDto ruleIssue,
+            List<GrammarIssueDto> existingIssues,
+            int draftLength) {
+        int rStart = ruleIssue.getOffset();
+        int rEnd = rStart + Math.max(1, ruleIssue.getLength());
+        for (GrammarIssueDto existing : existingIssues) {
+            // Unlocated AI diagnostics (length <= 0) carry draft-level guidance without an exact span; never suppress rules.
+            if (existing.getLength() <= 0) {
+                continue;
+            }
+            if ("TERMINAL_PUNCTUATION".equals(ruleIssue.getRuleId())
+                    && "PUNCTUATION".equalsIgnoreCase(existing.getType())
+                    && existing.getOffset() + existing.getLength() >= Math.max(0, draftLength - 2)) {
+                return true;
+            }
+            int eStart = existing.getOffset();
+            int eEnd = eStart + Math.max(1, existing.getLength());
+            if (rStart < eEnd && eStart < rEnd
+                    && (existing.getType() == null
+                    || ruleIssue.getType() == null
+                    || existing.getType().equalsIgnoreCase(ruleIssue.getType())
+                    || "REPEATED_WORD".equals(ruleIssue.getRuleId()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private MergedTerms mergeUsedAndMissingTerms(
+            List<String> suggestedTerms,
+            GrammarValidationResultDto ruleResult,
+            List<AiUsedItemEvaluation> aiUsedItems) {
+        Set<String> usedLower = new LinkedHashSet<>();
+        if (ruleResult.getUsedTerms() != null) {
+            for (String term : ruleResult.getUsedTerms()) {
+                if (hasText(term)) {
+                    usedLower.add(term.trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        if (aiUsedItems != null) {
+            for (AiUsedItemEvaluation eval : aiUsedItems) {
+                if (eval != null && hasText(eval.getText()) && Boolean.TRUE.equals(eval.getUsed())) {
+                    usedLower.add(eval.getText().trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+
+        List<String> usedTerms = new ArrayList<>();
+        List<String> missingTerms = new ArrayList<>();
+        Set<String> seenSuggested = new LinkedHashSet<>();
+        if (suggestedTerms != null) {
+            for (String rawTerm : suggestedTerms) {
+                if (!hasText(rawTerm)) {
+                    continue;
+                }
+                String trimmed = rawTerm.trim();
+                String lower = trimmed.toLowerCase(Locale.ROOT);
+                if (!seenSuggested.add(lower)) {
+                    continue;
+                }
+                if (usedLower.contains(lower)) {
+                    usedTerms.add(trimmed);
+                } else {
+                    missingTerms.add(trimmed);
+                }
+            }
+        }
+        return new MergedTerms(usedTerms, missingTerms);
+    }
+
+    private DictionaryPronunciations extractDictionaryPronunciations(Vocabulary vocab) {
+        String usAudioUrl = null;
+        String ukAudioUrl = null;
+        String fallbackAudioUrl = null;
+        String usIpa = null;
+        String ukIpa = null;
+        String fallbackIpa = null;
+
+        if (vocab != null && vocab.getPronunciations() != null) {
+            for (VocabularyPronunciation p : vocab.getPronunciations()) {
+                String accent = normalizePronunciationAccent(p.getAccent());
+                if ("US".equals(accent)) {
+                    if (usIpa == null && hasText(p.getIpa())) {
+                        usIpa = p.getIpa();
+                    }
+                    if (usAudioUrl == null && hasText(p.getAudioUrl())) {
+                        usAudioUrl = p.getAudioUrl();
+                    }
+                } else if ("UK".equals(accent)) {
+                    if (ukIpa == null && hasText(p.getIpa())) {
+                        ukIpa = p.getIpa();
+                    }
+                    if (ukAudioUrl == null && hasText(p.getAudioUrl())) {
+                        ukAudioUrl = p.getAudioUrl();
+                    }
+                } else {
+                    if (fallbackIpa == null && hasText(p.getIpa())) {
+                        fallbackIpa = p.getIpa();
+                    }
+                    if (fallbackAudioUrl == null && hasText(p.getAudioUrl())) {
+                        fallbackAudioUrl = p.getAudioUrl();
+                    }
+                }
+            }
+        }
+
+        return new DictionaryPronunciations(usAudioUrl, ukAudioUrl, fallbackAudioUrl, usIpa, ukIpa, fallbackIpa);
+    }
+
+    private String normalizePronunciationAccent(String accent) {
+        if (!hasText(accent)) {
+            return "OTHER";
+        }
+        return switch (accent.trim().toUpperCase(Locale.ROOT)) {
+            case "US", "EN-US", "EN_US", "AMERICAN" -> "US";
+            case "UK", "GB", "EN-GB", "EN_GB", "BRITISH" -> "UK";
+            default -> "OTHER";
+        };
+    }
+
+    private GrammarValidationResultDto deserializeGrammarCheckSafely(String json) {
+        if (!hasText(json) || "{}".equals(json.trim())) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, GrammarValidationResultDto.class);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to deserialize persisted grammarCheckJson: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private record DraftReviewContext(
+            String coreIdeaSummaryVn,
+            DifficultyScale scaleType,
+            String targetLevel,
+            List<String> suggestedTerms) {
+    }
+
+    private record MergedTerms(List<String> usedTerms, List<String> missingTerms) {
+    }
+
+    private record DictionaryPronunciations(
+            String usAudioUrl,
+            String ukAudioUrl,
+            String fallbackAudioUrl,
+            String usIpa,
+            String ukIpa,
+            String fallbackIpa) {
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String serializeJsonSafely(Object value) {

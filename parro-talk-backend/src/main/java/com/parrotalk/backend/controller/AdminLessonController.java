@@ -51,17 +51,28 @@ public class AdminLessonController {
     /**
      * Get list lessons.
      * 
-     * @param search Search query
-     * @param status Lesson status
-     * @param page Page number
-     * @param limit Page limit
+     * @param search     Search query
+     * @param query      Alternative search query alias
+     * @param status     Lesson visibility status
+     * @param categoryId Optional category ID filter
+     * @param page       Page number
+     * @param limit      Page limit
+     * @param size       Optional alternative page size alias
      * @return Page of Lessons
      */
     @GetMapping
-    public ResponseEntity<PageResponse<LessonResponse>> getAdminLessons(@RequestParam(required = false) String search,
-            @RequestParam(required = false) LessonVisibilityStatus status, @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(lessonService.searchAdminLessons(search, status, page, limit));
+    public ResponseEntity<PageResponse<LessonResponse>> getAdminLessons(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) LessonVisibilityStatus status,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(required = false) Integer size) {
+        String effectiveQuery = (search != null && !search.isBlank()) ? search : query;
+        int effectiveLimit = (size != null && size > 0) ? size : limit;
+        return ResponseEntity
+                .ok(lessonService.searchAdminLessons(effectiveQuery, status, categoryId, page, effectiveLimit));
     }
 
     /**

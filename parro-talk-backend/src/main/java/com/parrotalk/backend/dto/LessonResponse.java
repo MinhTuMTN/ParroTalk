@@ -49,6 +49,8 @@ public class LessonResponse {
     private String description;
     /** Audio duration */
     private Integer duration;
+    /** Total transcription segments */
+    private Integer totalSegments;
     /** Categories */
     private Set<CategoryResponse> categories;
     /** Tags */

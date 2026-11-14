@@ -37,6 +37,7 @@ public class WritingAssistantAiServiceTest {
                         .vocabulary(List.of(
                                 WritingAssistantAiService.AiSuggestionLexicalItem.builder()
                                         .word("impair")
+                                        .phonetic("/ɪmˈpeər/")
                                         .partOfSpeech("verb")
                                         .cefrLevel("C1")
                                         .meaningVn("làm suy giảm")
@@ -46,6 +47,7 @@ public class WritingAssistantAiServiceTest {
                         .expressions(List.of(
                                 WritingAssistantAiService.AiSuggestionLexicalItem.builder()
                                         .phrase("drive under the influence")
+                                        .phonetic("/draɪv ˈʌndər ði ˈɪnfluəns/")
                                         .cefrLevel("B2")
                                         .meaningVn("lái xe khi có cồn")
                                         .build()
@@ -53,6 +55,7 @@ public class WritingAssistantAiServiceTest {
                         .collocations(List.of(
                                 WritingAssistantAiService.AiSuggestionLexicalItem.builder()
                                         .phrase("blood alcohol concentration")
+                                        .phonetic("/blʌd ˈælkəhɒl ˌkɒnsənˈtreɪʃən/")
                                         .cefrLevel("B2")
                                         .meaningVn("nồng độ cồn trong máu")
                                         .build()
@@ -85,6 +88,9 @@ public class WritingAssistantAiServiceTest {
         assertEquals("VI", result.getDetectedLanguage());
         assertEquals(1, result.getVocabulary().size());
         assertEquals("impair", result.getVocabulary().get(0).getWord());
+        assertEquals("/ɪmˈpeər/", result.getVocabulary().get(0).getPhonetic());
+        assertEquals("/draɪv ˈʌndər ði ˈɪnfluəns/", result.getExpressions().get(0).getPhonetic());
+        assertEquals("/blʌd ˈælkəhɒl ˌkɒnsənˈtreɪʃən/", result.getCollocations().get(0).getPhonetic());
         assertTrue(result.getCompleteSentences().isEmpty());
         assertNull(result.getCombinationGuideVn());
         assertTrue(userPromptCaptor.getValue().contains("IELTS 6.5"));
@@ -129,5 +135,75 @@ public class WritingAssistantAiServiceTest {
                 DifficultyScale.CEFR,
                 "B1"
         ));
+    }
+
+    @Test
+    @DisplayName("reviewDraft sends prompt via AiCoreClient, normalizes issue types, and clamps score")
+    @SuppressWarnings("unchecked")
+    void testReviewDraft_NormalizesIssuesAndClampsScore() {
+        WritingAssistantAiService.AiDraftReviewPayload mockReview =
+                WritingAssistantAiService.AiDraftReviewPayload.builder()
+                        .correctedSentence("She went to school yesterday.")
+                        .issues(List.of(
+                                WritingAssistantAiService.AiDraftIssue.builder()
+                                        .type("grammar")
+                                        .original("go")
+                                        .suggestion("went")
+                                        .explanationVn("Thi qua khu voi 'yesterday' can dung 'went'.")
+                                        .build(),
+                                WritingAssistantAiService.AiDraftIssue.builder()
+                                        .type("UNKNOWN_CATEGORY")
+                                        .original("yesterday")
+                                        .suggestion("yesterday")
+                                        .explanationVn("Giu nguyen.")
+                                        .build()
+                        ))
+                        .score(120)
+                        .usedItems(List.of(
+                                WritingAssistantAiService.AiUsedItemEvaluation.builder()
+                                        .text("go to school")
+                                        .used(true)
+                                        .correctUsage(false)
+                                        .note("Sai thi qua khu.")
+                                        .build()
+                        ))
+                        .overallVn("Can sua dong tu sang qua khu don.")
+                        .build();
+
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
+        when(aiCoreClient.callAndValidate(systemCaptor.capture(), userCaptor.capture(),
+                eq(WritingAssistantAiService.AiDraftReviewPayload.class), any()))
+                .thenAnswer(inv -> {
+                    Function<WritingAssistantAiService.AiDraftReviewPayload, WritingAssistantAiService.AiDraftReviewPayload> validator =
+                            inv.getArgument(3);
+                    return validator.apply(mockReview);
+                });
+
+        WritingAssistantAiService.AiDraftReviewPayload result = aiService.reviewDraft(
+                "She go to school yesterday.",
+                "Co ay da di hoc hom qua.",
+                DifficultyScale.CEFR,
+                "A2",
+                List.of("go to school", "yesterday")
+        );
+
+        assertNotNull(result);
+        assertEquals("She went to school yesterday.", result.getCorrectedSentence());
+        assertEquals(100, result.getScore());
+        assertEquals(2, result.getIssues().size());
+        assertEquals("GRAMMAR", result.getIssues().get(0).getType());
+        assertEquals("GRAMMAR", result.getIssues().get(1).getType());
+        assertEquals(1, result.getUsedItems().size());
+        assertTrue(userCaptor.getValue().contains("She go to school yesterday."));
+        assertTrue(systemCaptor.getValue().contains("US or UK"));
+    }
+
+    @Test
+    @DisplayName("reviewDraft rejects blank drafts without calling AiCoreClient")
+    void testReviewDraft_BlankDraft_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, () -> aiService.reviewDraft(
+                "   ", "idea", DifficultyScale.CEFR, "B1", List.of()));
+        verifyNoInteractions(aiCoreClient);
     }
 }

@@ -8,6 +8,7 @@ import com.parrotalk.backend.dto.FeaturedLessonDTO;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.entity.Category;
 import com.parrotalk.backend.entity.Lesson;
+import org.hibernate.Hibernate;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -56,7 +57,7 @@ public interface LessonMapper {
         if (hasCustomThumb) {
             return thumb;
         }
-        if (lesson.getCategories() != null) {
+        if (lesson.getCategories() != null && Hibernate.isInitialized(lesson.getCategories())) {
             String categoryImage = lesson.getCategories().stream()
                     .filter(c -> c != null && c.getImageUrl() != null && !c.getImageUrl().isBlank())
                     .sorted(Comparator.comparing(
@@ -79,7 +80,7 @@ public interface LessonMapper {
      * @return List of category names
      */
     default List<String> mapCategories(Set<Category> categories) {
-        if (categories == null) {
+        if (categories == null || !Hibernate.isInitialized(categories)) {
             return List.of();
         }
         return categories.stream().map(c -> c.getName()).toList();

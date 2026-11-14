@@ -51,6 +51,9 @@ axiosInstance.interceptors.response.use(
             localStorage.removeItem("token");
             localStorage.removeItem("refreshToken");
             localStorage.removeItem("user");
+            localStorage.removeItem("parrotalk_user_settings");
+            localStorage.removeItem("parrotalk_video_loop");
+            window.dispatchEvent(new Event("parrotalk:auth-changed"));
 
             const publicPaths = ["/", "/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
             if (!publicPaths.includes(window.location.pathname)) {

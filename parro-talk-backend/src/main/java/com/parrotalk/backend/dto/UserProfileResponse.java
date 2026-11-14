@@ -18,7 +18,10 @@ import java.util.UUID;
 public class UserProfileResponse {
     private UUID id;
     private String fullName;
+    private String username;
     private String email;
+    private String avatarUrl;
+    private boolean hasPassword;
     private int totalLessonsCompleted;
     private double totalScore;
     private double avgScore;

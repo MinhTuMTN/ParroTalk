@@ -83,24 +83,24 @@ export function WritingPromptComposer({
   };
 
   return (
-    <section className="rounded-2xl border border-ink-200/80 bg-white p-4 sm:p-5 shadow-card space-y-3">
+    <section className="rounded-2xl border border-ink-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-card space-y-3">
       {/* ── Top Row: Label + Inline Sample Chips + Character Count ── */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <label
             htmlFor="writing-idea-input"
-            className="text-xs font-extrabold uppercase tracking-wider text-ink-600"
+            className="text-xs font-extrabold uppercase tracking-wider text-ink-600 dark:text-slate-300"
           >
             Ý tưởng cần diễn đạt
           </label>
-          <span className="text-[11px] font-medium text-ink-400">
+          <span className="text-[11px] font-medium text-ink-400 dark:text-slate-400">
             ({inputText.length}/1000)
           </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-semibold text-ink-400 inline-flex items-center gap-1">
-            <Sparkles className="h-3 w-3 text-brand-600 shrink-0" aria-hidden="true" />
+          <span className="text-[11px] font-semibold text-ink-400 dark:text-slate-400 inline-flex items-center gap-1">
+            <Sparkles className="h-3 w-3 text-brand-600 dark:text-emerald-400 shrink-0" aria-hidden="true" />
             Mẫu:
           </span>
           {SAMPLE_IDEAS.map((sample) => (
@@ -108,7 +108,7 @@ export function WritingPromptComposer({
               key={sample.label}
               type="button"
               onClick={() => onInputTextChange(sample.text)}
-              className="rounded-full border border-brand-200/80 bg-brand-50/60 px-2.5 py-0.5 text-[11px] font-semibold text-brand-700 hover:bg-brand-100/80 transition-colors cursor-pointer whitespace-nowrap"
+              className="rounded-full border border-brand-200/80 dark:border-emerald-800 bg-brand-50/60 dark:bg-emerald-950/50 px-2.5 py-0.5 text-[11px] font-semibold text-brand-700 dark:text-emerald-300 hover:bg-brand-100/80 dark:hover:bg-emerald-900/60 transition-colors cursor-pointer whitespace-nowrap"
             >
               {sample.label}
             </button>
@@ -124,18 +124,18 @@ export function WritingPromptComposer({
         value={inputText}
         onChange={(e) => onInputTextChange(e.target.value)}
         placeholder="Nhập ý tưởng bằng tiếng Việt hoặc tiếng Anh (VD: Người say rượu không được lái xe vì nồng độ cồn trong máu làm giảm tầm nhìn...)"
-        className="w-full rounded-xl border border-ink-200 bg-ink-50/40 px-3.5 py-3 text-sm sm:text-base text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-3 focus:ring-brand-500/15 transition-all resize-y"
+        className="w-full rounded-xl border border-ink-200 dark:border-slate-700 bg-ink-50/40 dark:bg-slate-950 px-3.5 py-3 text-sm sm:text-base text-ink-900 dark:text-slate-100 placeholder:text-ink-400 dark:placeholder:text-slate-500 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-3 focus:ring-brand-500/15 transition-all resize-y"
       />
 
       {/* ── Compact Bottom Control Toolbar: Mode + Scale/Level + Actions ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1.5 border-t border-ink-100">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1.5 border-t border-ink-100 dark:border-slate-800">
         {/* Left: Compact Mode & Level Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* 1. Compact Mode Segmented Control */}
           <div
             role="group"
             aria-label="Chế độ hỗ trợ"
-            className="inline-flex items-center rounded-xl bg-ink-100/80 p-1 border border-ink-200/60"
+            className="inline-flex items-center rounded-xl bg-ink-100/80 dark:bg-slate-800 p-1 border border-ink-200/60 dark:border-slate-700"
           >
             <button
               type="button"
@@ -144,8 +144,8 @@ export function WritingPromptComposer({
               title="Suggestion Mode: Gợi ý nhanh từ vựng, collocations và cấu trúc câu để bạn tự đặt câu"
               className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 mode === "SUGGESTION"
-                  ? "bg-white text-brand-700 shadow-2xs ring-1 ring-brand-500/20"
-                  : "text-ink-600 hover:text-ink-900"
+                  ? "bg-white dark:bg-slate-700 text-brand-700 dark:text-emerald-300 shadow-2xs ring-1 ring-brand-500/20"
+                  : "text-ink-600 dark:text-slate-300 hover:text-ink-900 dark:hover:text-white"
               }`}
             >
               <Lightbulb className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -159,8 +159,8 @@ export function WritingPromptComposer({
               title="Guidance Mode: Giải thích chi tiết, hướng dẫn ghép câu và cung cấp câu mẫu hoàn chỉnh"
               className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 mode === "GUIDANCE"
-                  ? "bg-white text-brand-700 shadow-2xs ring-1 ring-brand-500/20"
-                  : "text-ink-600 hover:text-ink-900"
+                  ? "bg-white dark:bg-slate-700 text-brand-700 dark:text-emerald-300 shadow-2xs ring-1 ring-brand-500/20"
+                  : "text-ink-600 dark:text-slate-300 hover:text-ink-900 dark:hover:text-white"
               }`}
             >
               <BookOpenCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -172,7 +172,7 @@ export function WritingPromptComposer({
           <div
             role="group"
             aria-label="Trình độ mục tiêu"
-            className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-ink-100/80 p-1 border border-ink-200/60"
+            className="inline-flex flex-wrap items-center gap-1 rounded-xl bg-ink-100/80 dark:bg-slate-800 p-1 border border-ink-200/60 dark:border-slate-700"
           >
             {/* Scale Toggle */}
             <button
@@ -181,8 +181,8 @@ export function WritingPromptComposer({
               onClick={() => handleScaleSwitch("CEFR")}
               className={`rounded-lg px-2 py-1 text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 scaleType === "CEFR"
-                  ? "bg-ink-900 text-white shadow-2xs"
-                  : "text-ink-500 hover:text-ink-800"
+                  ? "bg-ink-900 dark:bg-emerald-600 text-white shadow-2xs"
+                  : "text-ink-500 dark:text-slate-300 hover:text-ink-800 dark:hover:text-white"
               }`}
             >
               CEFR
@@ -193,14 +193,14 @@ export function WritingPromptComposer({
               onClick={() => handleScaleSwitch("IELTS")}
               className={`rounded-lg px-2 py-1 text-[11px] font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 scaleType === "IELTS"
-                  ? "bg-ink-900 text-white shadow-2xs"
-                  : "text-ink-500 hover:text-ink-800"
+                  ? "bg-ink-900 dark:bg-emerald-600 text-white shadow-2xs"
+                  : "text-ink-500 dark:text-slate-300 hover:text-ink-800 dark:hover:text-white"
               }`}
             >
               IELTS
             </button>
 
-            <span className="h-4 w-px bg-ink-200/90 mx-0.5" aria-hidden="true" />
+            <span className="h-4 w-px bg-ink-200/90 dark:bg-slate-700 mx-0.5" aria-hidden="true" />
 
             {/* Compact Level Pills */}
             {scaleType === "CEFR"
@@ -216,7 +216,7 @@ export function WritingPromptComposer({
                       className={`rounded-lg px-2 py-1 text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                         active
                           ? "bg-brand-600 text-white shadow-2xs"
-                          : "text-ink-600 hover:bg-white/70 hover:text-ink-900"
+                          : "text-ink-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700 hover:text-ink-900 dark:hover:text-white"
                       }`}
                     >
                       {lvl.label}
@@ -235,7 +235,7 @@ export function WritingPromptComposer({
                       className={`rounded-lg px-1.5 py-1 text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                         active
                           ? "bg-brand-600 text-white shadow-2xs"
-                          : "text-ink-600 hover:bg-white/70 hover:text-ink-900"
+                          : "text-ink-600 dark:text-slate-300 hover:bg-white/70 dark:hover:bg-slate-700 hover:text-ink-900 dark:hover:text-white"
                       }`}
                     >
                       {lvl.label}
@@ -253,7 +253,7 @@ export function WritingPromptComposer({
               onClick={onClear}
               disabled={loading}
               title="Làm mới nội dung"
-              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-ink-200 bg-white px-3 py-2 text-xs font-bold text-ink-600 hover:bg-ink-50 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-ink-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs font-bold text-ink-600 dark:text-slate-200 hover:bg-ink-50 dark:hover:bg-slate-700 transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
             >
               <RotateCcw className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               <span>Làm mới</span>

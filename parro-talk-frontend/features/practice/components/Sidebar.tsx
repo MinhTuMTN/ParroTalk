@@ -1,9 +1,13 @@
-import { Mic, Play, Book, FileText, Star, LogOut, PanelLeftClose, PanelLeftOpen, CloudUpload, Shield, PenTool } from "lucide-react";
+"use client";
+
+import { Mic, Play, Book, FileText, Star, LogOut, PanelLeftClose, PanelLeftOpen, CloudUpload, Shield, PenTool, Settings } from "lucide-react";
 
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
+import { getSettingsCopy } from "@/features/settings/types";
 import { Brain } from "lucide-react";
 
 interface SidebarProps {
@@ -16,27 +20,29 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { settings } = useUserSettings();
+  const navCopy = getSettingsCopy(settings.uiLanguage).nav;
 
   const menuItems = [
-    { icon: Play, label: "Library", path: "/library", active: pathname === "/library", hidden: false },
-    { icon: Book, label: "Vocabulary", path: "/vocabulary", active: pathname.startsWith("/vocabulary"), hidden: false },
-    { icon: PenTool, label: "Writing", path: "/writing", active: pathname.startsWith("/writing"), hidden: false },
-    { icon: Brain, label: "Practice", path: "/practice", active: pathname.startsWith("/practice"), hidden: false },
+    { icon: Play, label: navCopy.library, path: "/library", active: pathname === "/library", hidden: false },
+    { icon: Book, label: navCopy.vocabulary, path: "/vocabulary", active: pathname.startsWith("/vocabulary"), hidden: false },
+    { icon: PenTool, label: navCopy.writing, path: "/writing", active: pathname.startsWith("/writing"), hidden: false },
+    { icon: Brain, label: navCopy.practice, path: "/practice", active: pathname.startsWith("/practice"), hidden: false },
     { icon: FileText, label: "Notes", path: "#", hidden: true },
     { icon: Mic, label: "Transcript", path: "#", hidden: true },
     ...(user?.role === "ADMIN" ? [
-      { icon: Shield, label: "Admin", path: "/admin/lessons", active: pathname.startsWith("/admin"), hidden: false },
-      { icon: CloudUpload, label: "Upload", path: "/upload", active: pathname.startsWith("/upload"), hidden: false }
+      { icon: Shield, label: navCopy.admin, path: "/admin/lessons", active: pathname.startsWith("/admin"), hidden: false },
+      { icon: CloudUpload, label: navCopy.upload, path: "/upload", active: pathname.startsWith("/upload"), hidden: false }
     ] : user?.role === "PRO_USER" ? [
-      { icon: CloudUpload, label: "Upload", path: "/upload", active: pathname.startsWith("/upload"), hidden: false }
+      { icon: CloudUpload, label: navCopy.upload, path: "/upload", active: pathname.startsWith("/upload"), hidden: false }
     ] : []),
-
+    { icon: Settings, label: navCopy.settings, path: "/settings", active: pathname.startsWith("/settings"), hidden: false },
   ];
 
   return (
     <aside
       className={`
-        bg-white border-r border-gray-100 flex flex-col h-screen top-0 z-[70] transition-all duration-300
+        bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col h-screen top-0 z-[70] transition-all duration-300
         
         /* MOBILE & TABLET (< lg) */
         fixed inset-y-0 left-0 shadow-2xl lg:shadow-none
@@ -86,7 +92,7 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
           {/* Toggle button - Desktop Only */}
           <button
             onClick={onToggle}
-            className="hidden lg:flex p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-90 z-10"
+            className="hidden lg:flex p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl text-gray-400 dark:text-slate-400 transition-all active:scale-90 z-10"
           >
             {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
           </button>
@@ -94,7 +100,7 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
           {/* Close button - Mobile Only */}
           <button
             onClick={onMobileClose}
-            className="lg:hidden p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-all active:scale-90 z-10"
+            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl text-gray-400 dark:text-slate-400 transition-all active:scale-90 z-10"
           >
             <PanelLeftClose size={20} />
           </button>
@@ -111,11 +117,12 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
                   key={index}
                   href={item.path}
                   title={isCollapsed ? item.label : ""}
+                  onClick={onMobileClose}
                   className={`
                 flex items-center gap-4 px-3 py-2.5 rounded-xl font-bold transition-all relative group
                 ${item.active
-                      ? "bg-green-500 text-white shadow-lg shadow-green-100"
-                      : "text-gray-400 hover:text-green-500 hover:bg-green-50"}
+                      ? "bg-green-500 text-white shadow-lg shadow-green-100 dark:shadow-none"
+                      : "text-gray-400 dark:text-slate-400 hover:text-green-500 dark:hover:text-emerald-300 hover:bg-green-50 dark:hover:bg-emerald-950/40"}
                 ${isCollapsed ? "w-10 justify-center p-0 h-10" : ""}
               `}
                 >
@@ -129,18 +136,18 @@ export default function Sidebar({ isCollapsed, onToggle, isMobileMenuOpen, onMob
 
       <div className={`mt-auto p-6 flex flex-col gap-4 ${isCollapsed ? "items-center" : ""}`}>
         {user?.role === "USER" && (
-          <button className={`py-4 bg-orange-50 text-orange-600 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 border border-orange-100 overflow-hidden ${isCollapsed ? "w-10 h-10 p-0" : "w-full text-sm"}`}>
+          <button className={`py-4 bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 border border-orange-100 dark:border-orange-800/60 overflow-hidden ${isCollapsed ? "w-10 h-10 p-0" : "w-full text-sm"}`}>
             <Star size={16} fill="currentColor" className="shrink-0" />
-            {!isCollapsed && "Upgrade to Pro"}
+            {!isCollapsed && navCopy.upgradeToPro}
           </button>
         )}
 
         <button
           onClick={logout}
-          className={`flex items-center gap-4 text-gray-400 font-bold hover:text-red-500 transition-all ${isCollapsed ? "w-10 h-10 justify-center pr-0" : "px-4 py-2 text-sm"}`}
+          className={`flex items-center gap-4 text-gray-400 dark:text-slate-400 font-bold hover:text-red-500 dark:hover:text-red-400 transition-all ${isCollapsed ? "w-10 h-10 justify-center pr-0" : "px-4 py-2 text-sm"}`}
         >
           <LogOut size={20} className="shrink-0" />
-          {!isCollapsed && "Logout"}
+          {!isCollapsed && navCopy.logout}
         </button>
       </div>
     </aside>

@@ -1,8 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDebounce } from "use-debounce";
 import { lessonService } from "@/features/lesson/services/lessonService";
-import { LessonStatus, type Lesson, type LessonFilter } from "@/features/lesson/types/lesson";
+import {
+  LessonStatus,
+  type Lesson,
+  type LessonFilter,
+} from "@/features/lesson/types/lesson";
 
 type BulkAction = "publish" | "hide" | "delete";
 
@@ -10,7 +15,9 @@ export function useLessons() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<LessonFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch] = useDebounce(searchQuery, 300);
   const [page, setPage] = useState(0);
   const [limit] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
@@ -25,8 +32,9 @@ export function useLessons() {
     setError(null);
     try {
       const data = await lessonService.getLessons({
-        search: searchQuery,
+        search: debouncedSearch,
         status: activeFilter,
+        categoryId: categoryFilter,
         page,
         limit,
       });
@@ -41,15 +49,24 @@ export function useLessons() {
     } finally {
       setLoading(false);
     }
-  }, [activeFilter, searchQuery, page, limit]);
+  }, [activeFilter, categoryFilter, debouncedSearch, page, limit]);
+
+  const prevFiltersRef = useRef({ debouncedSearch, activeFilter, categoryFilter });
 
   useEffect(() => {
+    if (
+      prevFiltersRef.current.debouncedSearch !== debouncedSearch ||
+      prevFiltersRef.current.activeFilter !== activeFilter ||
+      prevFiltersRef.current.categoryFilter !== categoryFilter
+    ) {
+      prevFiltersRef.current = { debouncedSearch, activeFilter, categoryFilter };
+      if (page !== 0) {
+        setPage(0);
+        return;
+      }
+    }
     void fetchLessons();
-  }, [fetchLessons]);
-
-  useEffect(() => {
-    setPage(0);
-  }, [searchQuery, activeFilter]);
+  }, [debouncedSearch, activeFilter, categoryFilter, page, fetchLessons]);
 
   const filteredLessons = useMemo(() => lessons, [lessons]);
 
@@ -62,8 +79,17 @@ export function useLessons() {
     );
 
     try {
-      await lessonService.updateLessonStatus(lesson.id, status);
-      setSuccess("Lesson status updated.");
+      const updated = await lessonService.updateLessonStatus(lesson.id, status);
+      setLessons((current) =>
+        current.map((item) =>
+          item.id === lesson.id
+            ? { ...item, ...updated, status: updated.status }
+            : item,
+        ),
+      );
+      setSuccess(
+        `Lesson "${lesson.title}" ${status === LessonStatus.PUBLISHED ? "published" : "hidden"}.`,
+      );
     } catch {
       setLessons(previous);
       setError("Failed to update lesson status.");
@@ -88,21 +114,31 @@ export function useLessons() {
 
   const selectLesson = (id: string, checked: boolean) => {
     setSelectedIds((current) =>
-      checked ? Array.from(new Set([...current, id])) : current.filter((item) => item !== id),
+      checked
+        ? Array.from(new Set([...current, id]))
+        : current.filter((item) => item !== id),
     );
   };
 
   const selectAllVisible = (checked: boolean) => {
     if (!checked) {
       setSelectedIds((current) =>
-        current.filter((id) => !filteredLessons.some((lesson) => lesson.id === id)),
+        current.filter(
+          (id) => !filteredLessons.some((lesson) => lesson.id === id),
+        ),
       );
       return;
     }
 
     setSelectedIds((current) =>
-      Array.from(new Set([...current, ...filteredLessons.map((lesson) => lesson.id)])),
+      Array.from(
+        new Set([...current, ...filteredLessons.map((lesson) => lesson.id)]),
+      ),
     );
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
   };
 
   const bulkAction = async (action: BulkAction) => {
@@ -110,14 +146,22 @@ export function useLessons() {
     if (selected.length === 0) return;
     setError(null);
     setSuccess(null);
+    setMutating(true);
 
     if (action === "delete") {
-      setMutating(true);
       try {
-        await Promise.all(selected.map((lesson) => lessonService.deleteLesson(lesson.id)));
+        const results = await Promise.allSettled(
+          selected.map((lesson) => lessonService.deleteLesson(lesson.id)),
+        );
+        const fulfilled = results.filter((r) => r.status === "fulfilled").length;
+        const rejected = results.length - fulfilled;
         setSelectedIds([]);
         await fetchLessons();
-        setSuccess("Selected lessons deleted.");
+        if (rejected === 0) {
+          setSuccess(`${selected.length} lesson(s) deleted.`);
+        } else {
+          setError(`Deleted ${fulfilled} of ${selected.length} lessons. ${rejected} failed.`);
+        }
       } catch {
         setError("Bulk delete failed.");
       } finally {
@@ -126,7 +170,8 @@ export function useLessons() {
       return;
     }
 
-    const status: LessonStatus = action === "publish" ? LessonStatus.PUBLISHED : LessonStatus.HIDDEN;
+    const status: LessonStatus =
+      action === "publish" ? LessonStatus.PUBLISHED : LessonStatus.HIDDEN;
     const previous = lessons;
     setLessons((current) =>
       current.map((lesson) =>
@@ -134,13 +179,27 @@ export function useLessons() {
       ),
     );
     try {
-      await Promise.all(
-        selected.map((lesson) => lessonService.updateLessonStatus(lesson.id, status)),
+      const results = await Promise.allSettled(
+        selected.map((lesson) =>
+          lessonService.updateLessonStatus(lesson.id, status),
+        ),
       );
-      setSuccess(`Selected lessons ${action === "publish" ? "published" : "hidden"}.`);
+      const fulfilled = results.filter((r) => r.status === "fulfilled").length;
+      const rejected = results.length - fulfilled;
+      await fetchLessons();
+      if (rejected === 0) {
+        setSuccess(
+          `${selected.length} lesson(s) ${action === "publish" ? "published" : "hidden"}.`,
+        );
+      } else {
+        setLessons(previous);
+        setError(`Updated ${fulfilled} of ${selected.length} lessons. ${rejected} failed.`);
+      }
     } catch {
       setLessons(previous);
       setError("Bulk action failed.");
+    } finally {
+      setMutating(false);
     }
   };
 
@@ -161,7 +220,9 @@ export function useLessons() {
     filteredLessons,
     selectedIds,
     activeFilter,
+    categoryFilter,
     searchQuery,
+    debouncedSearch,
     page,
     limit,
     totalItems,
@@ -171,15 +232,18 @@ export function useLessons() {
     error,
     success,
     setActiveFilter,
+    setCategoryFilter,
     setSearchQuery,
+    setPage,
+    refresh: fetchLessons,
     toggleStatus,
     removeLesson,
     selectLesson,
     selectAllVisible,
+    clearSelection,
     bulkAction,
     goToNextPage,
     goToPrevPage,
     clearMessages,
   };
 }
-

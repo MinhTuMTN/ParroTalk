@@ -1,39 +1,47 @@
 "use client";
 
-import { Button } from "./Button";
+import { Button, type ButtonVariant } from "./Button";
 import { X } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 interface ConfirmationModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onCancel?: () => void;
   onConfirm: () => void;
   title: string;
   message: string;
   confirmText?: string;
   cancelText?: string;
+  confirmVariant?: ButtonVariant;
   isLoading?: boolean;
 }
 
 export default function ConfirmationModal({
   isOpen,
   onClose,
+  onCancel,
   onConfirm,
   title,
   message,
   confirmText = "Confirm",
   cancelText = "Cancel",
+  confirmVariant = "dark",
   isLoading = false,
 }: ConfirmationModalProps) {
-  
+  const handleClose = useMemo(
+    () => onClose ?? onCancel ?? (() => {}),
+    [onClose, onCancel],
+  );
+
   // Close on Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
+  }, [handleClose]);
 
   if (!isOpen) return null;
 
@@ -42,7 +50,7 @@ export default function ConfirmationModal({
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       {/* Modal Card */}
@@ -50,7 +58,7 @@ export default function ConfirmationModal({
         <Button 
           variant="ghost"
           size="icon"
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 hover:bg-gray-50 !rounded-full"
           aria-label="Close"
         >
@@ -72,14 +80,14 @@ export default function ConfirmationModal({
           <Button
             variant="secondary"
             size="lg"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isLoading}
             className="flex-1 font-bold bg-gray-50 text-gray-500 hover:bg-gray-100 border-none shadow-none"
           >
             {cancelText}
           </Button>
           <Button
-            variant="dark"
+            variant={confirmVariant}
             size="lg"
             onClick={onConfirm}
             isLoading={isLoading}

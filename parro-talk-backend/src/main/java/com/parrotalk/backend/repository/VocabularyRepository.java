@@ -18,6 +18,7 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, UUID>, J
     Optional<Vocabulary> findByNormalizedWord(String normalizedWord);
     List<Vocabulary> findByNormalizedWordIn(List<String> normalizedWords);
 
+    /** Loads vocabularies with senses in one query; pronunciations are batch-loaded (@BatchSize). */
     @EntityGraph(attributePaths = {"senses"})
     @Query("SELECT v FROM Vocabulary v WHERE v.normalizedWord IN :normalizedWords")
     List<Vocabulary> findByNormalizedWordInWithSenses(@Param("normalizedWords") java.util.Collection<String> normalizedWords);

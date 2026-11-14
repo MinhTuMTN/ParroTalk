@@ -57,6 +57,12 @@ public class WritingGeneratedItem extends BaseEntity {
     @Column(name = "normalized_text", length = 500)
     private String normalizedText;
 
+    @Column(name = "phonetic", length = 255)
+    private String phonetic;
+
+    @Column(name = "audio_url", length = 500)
+    private String audioUrl;
+
     @Column(name = "part_of_speech", length = 64)
     private String partOfSpeech;
 

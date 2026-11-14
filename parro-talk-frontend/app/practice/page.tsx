@@ -5,10 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { practiceApi } from '@/features/practice/services/api';
 import { PracticeStatistics } from '@/features/practice/types';
+import { useUserSettings } from '@/features/settings/hooks/useUserSettings';
 import { Brain, Flame, Target, Trophy, Clock } from 'lucide-react';
 
 export default function PracticeDashboard() {
   const router = useRouter();
+  const { settings } = useUserSettings();
+  const dailyGoal = Math.max(1, settings.dailyGoal || 15);
   const [stats, setStats] = useState<PracticeStatistics | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -65,15 +68,15 @@ export default function PracticeDashboard() {
         <div className="space-y-2">
           <div className="flex justify-between text-sm font-medium text-slate-600 dark:text-slate-400">
             <span>Progress</span>
-            <span>{Math.min(100, Math.round((stats.todayLearned / 20) * 100))}%</span>
+            <span>{Math.min(100, Math.round((stats.todayLearned / dailyGoal) * 100))}%</span>
           </div>
           <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: `${Math.min(100, (stats.todayLearned / 20) * 100)}%` }}
+              style={{ width: `${Math.min(100, (stats.todayLearned / dailyGoal) * 100)}%` }}
             />
           </div>
-          <p className="text-xs text-slate-500 text-right">Goal: 20 words / day</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 text-right">Goal: {dailyGoal} words / day</p>
         </div>
       </div>
     </div>

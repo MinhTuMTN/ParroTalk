@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
 import { AuthProvider } from "@/features/auth/hooks/useAuth";
+import { ThemeSync } from "@/features/settings/components/ThemeSync";
 
 import { THEME_COLOR } from "@/lib/constants/colors";
 
@@ -42,9 +43,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi" className={`antialiased ${plusJakartaSans.variable}`}>
-      <body className="font-sans min-h-screen bg-[#F8FAF9] text-slate-900">
+    <html
+      lang="vi"
+      suppressHydrationWarning
+      className={`antialiased ${plusJakartaSans.variable}`}
+    >
+      <body className="font-sans min-h-screen bg-[#F8FAF9] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <AuthProvider>
+          <ThemeSync />
           {children}
         </AuthProvider>
       </body>

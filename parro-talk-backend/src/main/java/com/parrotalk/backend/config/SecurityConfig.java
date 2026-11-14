@@ -8,6 +8,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -107,6 +108,7 @@ public class SecurityConfig {
                 // Authorize HTTP requests
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/writing/tts").permitAll()
                         .requestMatchers(trimmedPublicEndpoints).permitAll()
                         .anyRequest().authenticated())
                 // Disable session management due to JWT authentication

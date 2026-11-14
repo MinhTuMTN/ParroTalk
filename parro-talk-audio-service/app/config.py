@@ -18,8 +18,33 @@ RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
 
 PROCESSING_QUEUE = "audio-processing-queue"
 RESULT_QUEUE = "audio-result-queue"
+TTS_SYNTHESIS_QUEUE = os.getenv("TTS_SYNTHESIS_QUEUE", "tts-synthesis-queue")
+TTS_RESULT_QUEUE = os.getenv("TTS_RESULT_QUEUE", "tts-result-queue")
+TTS_DLQ = os.getenv("TTS_DLQ", "tts-synthesis-dlq")
+TTS_CONCURRENCY = max(1, int(os.getenv("TTS_CONCURRENCY", "4")))
+
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_TTS_FOLDER = os.getenv("CLOUDINARY_TTS_FOLDER", "tts")
 
 RAPIDAPI_HOST = "youtube-mp3-audio-video-downloader.p.rapidapi.com"
+
+TTS_VOICE_US = os.getenv("TTS_VOICE_US", "en-US-JennyNeural")
+TTS_VOICE_UK = os.getenv("TTS_VOICE_UK", "en-GB-SoniaNeural")
+TTS_ALLOWED_VOICES_US = ("en-US-JennyNeural", "en-US-GuyNeural", "en-US-AriaNeural")
+TTS_ALLOWED_VOICES_UK = ("en-GB-SoniaNeural", "en-GB-RyanNeural", "en-GB-LibbyNeural")
+TTS_ALLOWED_VOICES = TTS_ALLOWED_VOICES_US + TTS_ALLOWED_VOICES_UK
+TTS_VOICE_LOOKUP_BY_ACCENT = {
+    "US": {voice.lower(): voice for voice in TTS_ALLOWED_VOICES_US},
+    "UK": {voice.lower(): voice for voice in TTS_ALLOWED_VOICES_UK},
+}
+TTS_VOICE_LOOKUP = {
+    **TTS_VOICE_LOOKUP_BY_ACCENT["US"],
+    **TTS_VOICE_LOOKUP_BY_ACCENT["UK"],
+}
+TTS_MAX_TEXT_LENGTH = int(os.getenv("TTS_MAX_TEXT_LENGTH", "500"))
+TTS_CACHE_DIR = os.getenv("TTS_CACHE_DIR", "tts_cache")
 
 
 def _load_keys(primary_name: str, fallback_name: str) -> list[str]:

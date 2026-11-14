@@ -56,6 +56,12 @@ public class WritingSessionResponseDto {
         private WritingItemType itemType;
         private String text;
         private String normalizedText;
+        private String phonetic;
+        private String audioUrl;
+        private String audioUsUrl;
+        private String audioUkUrl;
+        private String exampleAudioUsUrl;
+        private String exampleAudioUkUrl;
         private String partOfSpeech;
         private String cefrLevel;
         private String meaningVn;
@@ -94,6 +100,8 @@ public class WritingSessionResponseDto {
         private String translationVn;
         private String grammarBreakdownVn;
         private String whyItWorksVn;
+        private String audioUsUrl;
+        private String audioUkUrl;
         private WritingItemValidationStatus validationStatus;
         private GrammarValidationResultDto grammarCheck;
     }

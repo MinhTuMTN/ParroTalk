@@ -15,6 +15,9 @@ public class RabbitMQConfig {
     public static final String VERIFY_EMAIL_QUEUE = "verify-email-queue";
     public static final String VERIFY_EMAIL_RETRY_QUEUE = "verify-email-retry-queue";
     public static final String VERIFY_EMAIL_DLQ = "verify-email-dlq";
+    public static final String TTS_SYNTHESIS_QUEUE = "tts-synthesis-queue";
+    public static final String TTS_RESULT_QUEUE = "tts-result-queue";
+    public static final String TTS_DLQ = "tts-synthesis-dlq";
 
     @Bean
     public Queue processingQueue() {
@@ -54,6 +57,24 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue ttsSynthesisQueue() {
+        return QueueBuilder.durable(TTS_SYNTHESIS_QUEUE)
+                .withArgument("x-dead-letter-exchange", "")
+                .withArgument("x-dead-letter-routing-key", TTS_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Queue ttsResultQueue() {
+        return QueueBuilder.durable(TTS_RESULT_QUEUE).build();
+    }
+
+    @Bean
+    public Queue ttsDlq() {
+        return QueueBuilder.durable(TTS_DLQ).build();
+    }
+
+    @Bean
     public DirectExchange exchange() {
         return new DirectExchange(EXCHANGE);
     }
@@ -81,6 +102,16 @@ public class RabbitMQConfig {
     @Bean
     public Binding bindingVerifyEmailDlq(Queue verifyEmailDlq, DirectExchange exchange) {
         return BindingBuilder.bind(verifyEmailDlq).to(exchange).with(VERIFY_EMAIL_DLQ);
+    }
+
+    @Bean
+    public Binding bindingTtsSynthesisQueue(Queue ttsSynthesisQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(ttsSynthesisQueue).to(exchange).with(TTS_SYNTHESIS_QUEUE);
+    }
+
+    @Bean
+    public Binding bindingTtsResultQueue(Queue ttsResultQueue, DirectExchange exchange) {
+        return BindingBuilder.bind(ttsResultQueue).to(exchange).with(TTS_RESULT_QUEUE);
     }
 
     @Bean

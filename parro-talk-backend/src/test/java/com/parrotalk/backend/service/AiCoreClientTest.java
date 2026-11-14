@@ -15,6 +15,7 @@ import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.core.ParameterizedTypeReference;
 
 import com.parrotalk.backend.config.ChatModelProvider;
@@ -52,7 +53,7 @@ class AiCoreClientTest {
                 .system(systemPrompt)
                 .user(userPrompt)
                 .call()
-                .entity(String.class)).thenReturn(rawResponse);
+                .responseEntity(String.class)).thenReturn(new ResponseEntity<>(null, rawResponse));
 
         Function<String, Integer> validator = resp -> {
             assertEquals(rawResponse, resp);
@@ -82,7 +83,7 @@ class AiCoreClientTest {
                 .system(systemPrompt)
                 .user(userPrompt)
                 .call()
-                .entity(String.class)).thenThrow(new RuntimeException("OpenAI rate limit exceeded"));
+                .responseEntity(String.class)).thenThrow(new RuntimeException("OpenAI rate limit exceeded"));
 
         Function<String, Integer> validator = String::length;
 
@@ -111,7 +112,7 @@ class AiCoreClientTest {
                 .system(systemPrompt)
                 .user(userPrompt)
                 .call()
-                .entity(String.class)).thenReturn(rawResponse);
+                .responseEntity(String.class)).thenReturn(new ResponseEntity<>(null, rawResponse));
 
         Function<String, Integer> validator = resp -> {
             throw new IllegalArgumentException("Validation failed for: " + resp);
@@ -143,7 +144,7 @@ class AiCoreClientTest {
                 .system(systemPrompt)
                 .user(userPrompt)
                 .call()
-                .entity(typeRef)).thenReturn(rawList);
+                .responseEntity(typeRef)).thenReturn(new ResponseEntity<>(null, rawList));
 
         Function<List<String>, Integer> validator = List::size;
 
@@ -171,7 +172,7 @@ class AiCoreClientTest {
                 .system(systemPrompt)
                 .user(userPrompt)
                 .call()
-                .entity(typeRef)).thenThrow(new RuntimeException("Network timeout"));
+                .responseEntity(typeRef)).thenThrow(new RuntimeException("Network timeout"));
 
         Function<List<String>, Integer> validator = List::size;
 

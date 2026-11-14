@@ -108,8 +108,14 @@ type BackendLesson = {
   title: string;
   fileUrl?: string | null;
   source?: string | null;
+  thumbnailUrl?: string | null;
+  mediaType?: string | null;
+  sourceType?: string | null;
+  status?: "PENDING" | "PROCESSING" | "DONE" | "FAILED";
+  progress?: number | null;
+  totalSegments?: number | null;
   duration?: number | null;
-  visibilityStatus: LessonStatus;
+  visibilityStatus?: LessonStatus | null;
   categories?: BackendCategory[];
   tags?: BackendCategory[];
   segments?: BackendSegment[];
@@ -176,6 +182,7 @@ export type PageResponse<T> = {
 export type LessonListParams = {
   search?: string;
   status?: LessonStatus | "all";
+  categoryId?: string;
   page?: number;
   limit?: number;
 };
@@ -205,7 +212,15 @@ const mapLesson = (lesson: BackendLesson): AdminLesson => ({
   title: lesson.title,
   source: lesson.source ?? lesson.fileUrl ?? "",
   duration: lesson.duration ?? 0,
-  status: toLessonStatus(lesson.visibilityStatus),
+  status: lesson.visibilityStatus
+    ? toLessonStatus(lesson.visibilityStatus)
+    : LessonStatus.HIDDEN,
+  thumbnailUrl: lesson.thumbnailUrl ?? null,
+  mediaType: lesson.mediaType ?? undefined,
+  sourceType: lesson.sourceType ?? undefined,
+  processingStatus: lesson.status ?? undefined,
+  progress: lesson.progress ?? undefined,
+  totalSegments: lesson.totalSegments ?? undefined,
   categories: lesson.categories ?? [],
   tags: lesson.tags ?? [],
   createdAt: lesson.createdAt,
@@ -377,27 +392,34 @@ export const lessonService = {
   },
 
   async getLessons(params: LessonListParams = {}): Promise<LessonListResult> {
-    const response = await axiosInstance.get<PageResponse<BackendLesson>>(
-      "/admin/lessons",
-      {
-        params: {
-          search: params.search?.trim() || undefined,
-          status:
-            params.status && params.status !== "all"
-              ? toBackendStatus(params.status)
-              : undefined,
-          page: params.page ?? 0,
-          limit: params.limit ?? 10,
-        },
+    const response = await axiosInstance.get<
+      PageResponse<BackendLesson> | { result?: PageResponse<BackendLesson> }
+    >("/admin/lessons", {
+      params: {
+        search: params.search?.trim() || undefined,
+        status:
+          params.status && params.status !== "all"
+            ? toBackendStatus(params.status)
+            : undefined,
+        categoryId:
+          params.categoryId && params.categoryId !== "all"
+            ? params.categoryId
+            : undefined,
+        page: params.page ?? 0,
+        limit: params.limit ?? 10,
       },
-    );
+    });
+
+    const pageData =
+      (response.data as { result?: PageResponse<BackendLesson> })?.result ??
+      (response.data as PageResponse<BackendLesson>);
 
     return {
-      lessons: response.data.content.map(mapLesson),
-      page: response.data.page,
-      limit: response.data.size,
-      totalItems: response.data.totalElements,
-      totalPages: response.data.totalPages,
+      lessons: (pageData?.content ?? []).map(mapLesson),
+      page: pageData?.page ?? 0,
+      limit: pageData?.size ?? params.limit ?? 10,
+      totalItems: pageData?.totalElements ?? 0,
+      totalPages: pageData?.totalPages ?? 0,
     };
   },
 

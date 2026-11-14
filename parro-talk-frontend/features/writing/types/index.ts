@@ -13,13 +13,22 @@ export type WritingItemValidationStatus =
   | "REJECTED"
   | "NEEDS_REVIEW";
 
+export type GrammarIssueType =
+  | "GRAMMAR"
+  | "SPELLING"
+  | "WORD_CHOICE"
+  | "PUNCTUATION";
+
 export interface GrammarIssue {
-  ruleId: string;
-  message: string;
+  ruleId?: string;
+  type?: GrammarIssueType | string;
+  original?: string;
+  suggestion?: string;
+  message?: string;
   messageVn: string;
-  offset: number;
-  length: number;
-  replacements: string[];
+  offset?: number;
+  length?: number;
+  replacements?: string[];
 }
 
 export interface GrammarValidationResult {
@@ -27,6 +36,12 @@ export interface GrammarValidationResult {
   status: WritingItemValidationStatus;
   summaryVn: string;
   issues: GrammarIssue[];
+  score?: number;
+  correctedSentence?: string;
+  usedTerms?: string[];
+  missingTerms?: string[];
+  aiReviewed?: boolean;
+  reviewSource?: string;
 }
 
 export interface WritingLexicalItem {
@@ -34,6 +49,10 @@ export interface WritingLexicalItem {
   itemType: WritingItemType;
   text: string;
   normalizedText?: string;
+  phonetic?: string;
+  audioUrl?: string;
+  audioUsUrl?: string;
+  audioUkUrl?: string;
   partOfSpeech?: string;
   cefrLevel?: string;
   meaningVn?: string;
@@ -41,6 +60,8 @@ export interface WritingLexicalItem {
   usageContextVn?: string;
   exampleEn?: string;
   exampleVn?: string;
+  exampleAudioUsUrl?: string;
+  exampleAudioUkUrl?: string;
   inDictionary: boolean;
   linkedVocabularyId?: string;
   linkedSenseId?: string;
@@ -61,6 +82,8 @@ export interface WritingCompleteSentenceItem {
   id: string;
   tone?: string;
   sentenceEn: string;
+  audioUsUrl?: string;
+  audioUkUrl?: string;
   translationVn?: string;
   grammarBreakdownVn?: string;
   whyItWorksVn?: string;

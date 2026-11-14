@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS tts_audio_cache (
+    cache_key VARCHAR(100) PRIMARY KEY,
+    cloudinary_url VARCHAR(500) NOT NULL,
+    accent VARCHAR(10) NOT NULL,
+    voice VARCHAR(80) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

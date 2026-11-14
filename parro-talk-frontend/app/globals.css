@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: var(--font-plus-jakarta-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -90,6 +91,11 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  html.dark body {
+    background-color: #0b1120;
+    color: #f1f5f9;
+  }
 }
 
 /* Glassmorphism & Surface Cards */
@@ -101,11 +107,21 @@
   box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.05), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
 }
 
+html.dark .glass-card {
+  background: rgba(15, 23, 42, 0.86);
+  border-color: rgba(51, 65, 85, 0.85);
+}
+
 .soft-card {
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.85);
   box-shadow: 0 4px 20px -2px rgba(16, 185, 129, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html.dark .soft-card {
+  background: #0f172a;
+  border-color: rgba(51, 65, 85, 0.8);
 }
 
 .soft-card:hover {
@@ -117,6 +133,11 @@
   background: linear-gradient(135deg, #eaf6ef 0%, #d8eee1 100%);
   border: 1px solid rgba(78, 170, 120, 0.25);
   box-shadow: 0 8px 24px -4px rgba(59, 158, 102, 0.12);
+}
+
+html.dark .gradient-sage-card {
+  background: linear-gradient(135deg, #064e3b 0%, #0f172a 100%);
+  border-color: rgba(52, 211, 153, 0.28);
 }
 
 /* Tactile 3D Buttons & Interactions */

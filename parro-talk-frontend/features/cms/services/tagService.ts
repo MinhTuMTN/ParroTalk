@@ -1,10 +1,21 @@
 import api from '@/lib/axios';
 import { PageResponse, ApiResponse } from '@/types/api';
-import { AdminTagDto, AdminTagCreateRequest, AdminTagUpdateRequest } from '../types';
+import { AdminTagDto, AdminTagCreateRequest, AdminTagUpdateRequest, CmsItemStatus } from '../types';
 
 export const tagService = {
-    async getTags(page = 0, size = 10): Promise<PageResponse<AdminTagDto>> {
+    async getTags(
+        page = 0,
+        size = 10,
+        search?: string,
+        status?: CmsItemStatus
+    ): Promise<PageResponse<AdminTagDto>> {
         const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+        if (search && search.trim()) {
+            params.append('search', search.trim());
+        }
+        if (status) {
+            params.append('status', status);
+        }
         const response = await api.get<ApiResponse<PageResponse<AdminTagDto>>>(`/admin/lesson-tags?${params.toString()}`);
         return response.data.result;
     },

@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
+import { getSettingsCopy } from "@/features/settings/types";
 import {
   BarChart3,
   Boxes,
@@ -13,8 +15,7 @@ import {
   Tags,
   UsersRound,
   BookType,
-  Layers,
-  PieChart
+  Layers
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -43,13 +44,16 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { logout } = useAuth();
+  const { settings } = useUserSettings();
+  const navCopy = getSettingsCopy(settings.uiLanguage).nav;
   const isMobileOpen = isMobileMenuOpen ?? !collapsed;
 
   const menuItems: SidebarItem[] = [
     {
       icon: LayoutDashboard,
       label: "Dashboard",
-      disabled: true,
+      path: "/admin",
+      active: pathname === "/admin",
     },
     {
       icon: FileText,
@@ -90,26 +94,22 @@ export default function Sidebar({
       active: pathname.startsWith("/admin/vocabularies"),
     },
     {
-      icon: PieChart,
-      label: "CMS",
-      path: "/admin/cms",
-      active: pathname.startsWith("/admin/cms"),
-    },
-    {
       icon: BarChart3,
       label: "Reports",
-      disabled: true,
+      path: "/admin/reports",
+      active: pathname.startsWith("/admin/reports"),
     },
     {
       icon: Settings,
-      label: "Settings",
-      disabled: true,
+      label: navCopy.settings,
+      path: "/settings",
+      active: pathname.startsWith("/settings"),
     },
   ];
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 top-0 z-[70] flex h-screen flex-col border-r border-gray-100 bg-white shadow-2xl transition-all duration-300 lg:sticky lg:shadow-none ${isMobileOpen ? "translate-x-0" : "-translate-x-full"
+      className={`fixed inset-y-0 left-0 top-0 z-[70] flex h-screen flex-col border-r border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl transition-all duration-300 lg:sticky lg:shadow-none ${isMobileOpen ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "lg:w-20" : "lg:w-64"
         } w-[280px] sm:w-[320px] lg:translate-x-0`
       }
@@ -147,7 +147,7 @@ export default function Sidebar({
 
           <button
             onClick={onToggle}
-            className="hidden rounded-xl p-2 text-gray-400 transition-all hover:bg-gray-100 active:scale-90 lg:flex"
+            className="hidden rounded-xl p-2 text-gray-400 dark:text-slate-400 transition-all hover:bg-gray-100 dark:hover:bg-slate-800 active:scale-90 lg:flex"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
@@ -155,7 +155,7 @@ export default function Sidebar({
 
           <button
             onClick={onMobileClose ?? onToggle}
-            className="rounded-xl p-2 text-gray-400 transition-all hover:bg-gray-100 active:scale-90 lg:hidden"
+            className="rounded-xl p-2 text-gray-400 dark:text-slate-400 transition-all hover:bg-gray-100 dark:hover:bg-slate-800 active:scale-90 lg:hidden"
             aria-label="Close sidebar"
           >
             <PanelLeftClose size={20} />
@@ -166,14 +166,14 @@ export default function Sidebar({
           {menuItems.map((item) =>
             item.path ? (
               <Link
-                key={item.label}
+                key={item.path}
                 href={item.path}
                 prefetch={false}
                 title={collapsed ? item.label : ""}
                 onClick={onMobileClose}
                 className={`group relative flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold transition-all ${item.active
-                  ? "bg-emerald-50 text-emerald-700"
-                  : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-700"
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300"
                   } ${collapsed ? "h-10 w-10 justify-center p-0" : ""}`}
               >
                 <item.icon size={20} className="shrink-0" />
@@ -185,7 +185,7 @@ export default function Sidebar({
                 type="button"
                 disabled={item.disabled}
                 title={collapsed ? item.label : ""}
-                className={`flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold text-slate-400 ${collapsed ? "h-10 w-10 justify-center p-0" : ""
+                className={`flex items-center gap-4 rounded-xl px-3 py-2.5 font-bold text-slate-400 dark:text-slate-500 ${collapsed ? "h-10 w-10 justify-center p-0" : ""
                   }`}
               >
                 <item.icon size={20} className="shrink-0" />
@@ -201,11 +201,11 @@ export default function Sidebar({
           type="button"
           onClick={logout}
           className={`
-            flex items-center gap-4 font-bold text-gray-400 transition-all hover:text-red-500 ${collapsed ? "h-10 w-10 justify-center" : "px-4 py-2 text-sm"
+            flex items-center gap-4 font-bold text-gray-400 dark:text-slate-400 transition-all hover:text-red-500 dark:hover:text-red-400 ${collapsed ? "h-10 w-10 justify-center" : "px-4 py-2 text-sm"
             }`}
         >
           <LogOut size={20} className="shrink-0" />
-          {!collapsed && "Logout"}
+          {!collapsed && navCopy.logout}
         </button>
       </div>
     </aside>

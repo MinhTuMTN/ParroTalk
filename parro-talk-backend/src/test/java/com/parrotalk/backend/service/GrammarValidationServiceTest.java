@@ -89,5 +89,62 @@ public class GrammarValidationServiceTest {
         assertEquals(WritingItemValidationStatus.NEEDS_REVIEW,
                 validationService.validateLexicalItem("impair", ""));
     }
+
+    @Test
+    @DisplayName("Inflection-aware and word-boundary matching matches inflected terms without substring false positives")
+    void testValidateUserDraft_InflectionAwareAndWordBoundaryMatching() {
+        GrammarValidationResultDto result = validationService.validateUserDraft(
+                "Alcohol impaired his driving ability and she went home early, preventing others from causing harm.",
+                List.of("impair", "drive", "go", "air", "prevent sb from doing sth", "[Subject] + prevented + [O]")
+        );
+
+        assertNotNull(result.getUsedTerms());
+        assertNotNull(result.getMissingTerms());
+        assertTrue(result.getUsedTerms().contains("impair"), "Should match 'impaired'");
+        assertTrue(result.getUsedTerms().contains("drive"), "Should match 'driving'");
+        assertTrue(result.getUsedTerms().contains("go"), "Should match irregular 'went'");
+        assertTrue(result.getUsedTerms().contains("prevent sb from doing sth"), "Should match phrase gap");
+        assertFalse(result.getUsedTerms().contains("air"), "Should NOT match 'air' inside 'impaired'");
+        assertTrue(result.getMissingTerms().contains("air"));
+        assertTrue(result.getMissingTerms().contains("[Subject] + prevented + [O]"));
+    }
+
+    @Test
+    @DisplayName("Sentence patterns match anchor tokens and allowlist avoids false positives on camelCase or valid doubled words")
+    void testValidateUserDraft_SentencePatternAndAllowlists() {
+        GrammarValidationResultDto result = validationService.validateUserDraft(
+                "iPhone had had great reviews (even in tests). She should not drive because it is unsafe.",
+                List.of("[Subject] + should not + [V-inf] + because + [Clause].")
+        );
+
+        assertTrue(result.isValid(), "Expected valid draft without false positives, issues=" + result.getIssues());
+        assertEquals(WritingItemValidationStatus.APPROVED, result.getStatus());
+        assertTrue(result.getUsedTerms().contains("[Subject] + should not + [V-inf] + because + [Clause]."));
+    }
+
+    @Test
+    @DisplayName("Draft validation enforces MIN_DRAFT_LENGTH = 3 while validateSentence requires MIN_SENTENCE_LENGTH = 6")
+    void testValidateUserDraft_MinDraftLengthThree() {
+        GrammarValidationResultDto draftHi = validationService.validateUserDraft("Hi.", List.of());
+        assertNotEquals(WritingItemValidationStatus.REJECTED, draftHi.getStatus());
+        assertTrue(draftHi.isValid());
+
+        GrammarValidationResultDto draftShort = validationService.validateUserDraft("Hi", List.of());
+        assertEquals(WritingItemValidationStatus.REJECTED, draftShort.getStatus());
+        assertFalse(draftShort.isValid());
+    }
+
+    @Test
+    @DisplayName("Multi-sentence draft reports raw text offsets without trim shift")
+    void testValidateUserDraft_MultiSentenceAndRawOffsets() {
+        GrammarValidationResultDto result = validationService.validateUserDraft(
+                "  First sentence. second sentence.",
+                List.of()
+        );
+
+        assertFalse(result.isValid());
+        assertTrue(result.getIssues().stream()
+                .anyMatch(i -> "UPPERCASE_START".equals(i.getRuleId()) && i.getOffset() == 18));
+    }
 }
 

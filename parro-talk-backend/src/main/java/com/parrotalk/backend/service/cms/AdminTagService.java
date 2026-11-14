@@ -15,10 +15,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,14 +35,40 @@ public class AdminTagService {
     private final AuditLogRepository auditLogRepository;
 
     @Transactional(readOnly = true)
-    public PageResponse<AdminTagDto> searchTags(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        
-        Page<Tag> tagPage = tagRepository.findAll(pageable);
+    public PageResponse<AdminTagDto> searchTags(String search, CmsItemStatus status, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("createdAt").descending());
 
-        List<AdminTagDto> content = tagPage.getContent().stream().map(t -> {
+        Specification<Tag> spec = (root, query, cb) -> cb.conjunction();
+        if (search != null && !search.trim().isEmpty()) {
+            String pattern = "%" + search.trim().toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("name")), pattern),
+                    cb.like(cb.lower(root.get("slug")), pattern)
+            ));
+        }
+        if (status != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), status));
+        }
+
+        Page<Tag> tagPage = tagRepository.findAll(spec, pageable);
+
+        List<Tag> tags = tagPage.getContent();
+        Map<UUID, Long> countMap = new HashMap<>();
+        if (!tags.isEmpty()) {
+            List<UUID> tagIds = tags.stream().map(Tag::getId).collect(Collectors.toList());
+            List<Object[]> counts = tagRepository.countLessonsByTagIds(tagIds);
+            for (Object[] row : counts) {
+                if (row.length >= 2 && row[0] instanceof UUID && row[1] instanceof Number) {
+                    countMap.put((UUID) row[0], ((Number) row[1]).longValue());
+                }
+            }
+        }
+
+        List<AdminTagDto> content = tags.stream().map(t -> {
             AdminTagDto dto = tagMapper.toDto(t);
-            dto.setLessonsCount(tagRepository.countLessonsByTagId(t.getId()));
+            dto.setLessonsCount(countMap.getOrDefault(t.getId(), 0L));
             return dto;
         }).collect(Collectors.toList());
 
@@ -49,6 +79,11 @@ public class AdminTagService {
                 .totalPages(tagPage.getTotalPages())
                 .totalElements(tagPage.getTotalElements())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminTagDto> searchTags(int page, int size) {
+        return searchTags(null, null, page, size);
     }
 
     @Transactional(readOnly = true)
@@ -64,7 +99,9 @@ public class AdminTagService {
     public AdminTagDto createTag(AdminTagCreateRequest request) {
         String slug = request.getSlug();
         if (slug == null || slug.isBlank()) {
-            slug = request.getName().toLowerCase().replaceAll("[^a-z0-9]+", "-");
+            slug = generateSlug(request.getName());
+        } else {
+            slug = generateSlug(slug);
         }
         
         if (tagRepository.existsBySlug(slug)) {
@@ -83,6 +120,19 @@ public class AdminTagService {
         logAudit("Tag", tag.getId(), "CREATE");
 
         return tagMapper.toDto(tag);
+    }
+
+    private String generateSlug(String input) {
+        if (input == null || input.isBlank()) {
+            return "";
+        }
+        String normalized = Normalizer.normalize(input, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replace('đ', 'd')
+                .replace('Đ', 'D');
+        return normalized.toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
     }
 
     @Transactional

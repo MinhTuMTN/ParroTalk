@@ -1,6 +1,7 @@
 "use client";
 
 import Switch from "@/components/ui/Switch";
+import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import { Pause, Play, Zap } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ReactPlayer from "react-player/lazy";
@@ -50,13 +51,8 @@ export default function VideoPlayer({
   const [localSpeed, localSetSpeed] = useState(1);
   const speed = speedProp !== undefined ? speedProp : localSpeed;
   const setSpeed = setSpeedProp !== undefined ? setSpeedProp : localSetSpeed;
-  const [isLooping, setIsLooping] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("parrotalk_video_loop");
-      return saved !== null ? JSON.parse(saved) : false;
-    }
-    return false;
-  });
+  const { settings, updateSettings } = useUserSettings();
+  const isLooping = settings.dictationAutoReplay;
 
   const hasEndedRef = useRef(false);
 
@@ -77,10 +73,6 @@ export default function VideoPlayer({
   const [progressPercent, setProgressPercent] = useState(0);
   const isYoutube = src?.includes('youtube.com') || src?.includes('youtu.be');
 
-  useEffect(() => {
-    localStorage.setItem("parrotalk_video_loop", JSON.stringify(isLooping));
-  }, [isLooping]);
-
   const handleReplay = useCallback(() => {
     if (activeSegment && playerRef.current) {
       if (isYoutube) {
@@ -97,15 +89,51 @@ export default function VideoPlayer({
   }, [activeSegment, onReplay, isYoutube, setIsPlaying]);
 
   useEffect(() => {
+    const replayKey = settings.dictationReplayKey || "Escape";
+
+    if (replayKey === "Control") {
+      let ctrlAlone = false;
+      const handleCtrlDown = (e: KeyboardEvent) => {
+        if (e.key === "Control" && !e.repeat && !e.altKey && !e.metaKey && !e.shiftKey) {
+          ctrlAlone = true;
+        } else if (ctrlAlone) {
+          ctrlAlone = false;
+        }
+      };
+      const handleCtrlUp = (e: KeyboardEvent) => {
+        if (e.key === "Control" && ctrlAlone) {
+          ctrlAlone = false;
+          e.preventDefault();
+          handleReplay();
+        }
+      };
+      window.addEventListener("keydown", handleCtrlDown);
+      window.addEventListener("keyup", handleCtrlUp);
+      return () => {
+        window.removeEventListener("keydown", handleCtrlDown);
+        window.removeEventListener("keyup", handleCtrlUp);
+      };
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.repeat || e.defaultPrevented) {
+        return;
+      }
+      if (
+        e.key === "Escape" &&
+        typeof document !== "undefined" &&
+        document.querySelector('[data-quick-settings-open="true"]')
+      ) {
+        return;
+      }
+      if (e.key === replayKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
         handleReplay();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleReplay]);
+  }, [handleReplay, settings.dictationReplayKey]);
 
   // Use ref to hold latest handleReplay closure and avoid infinite rendering loops
   const handleReplayRef = useRef(handleReplay);
@@ -208,7 +236,9 @@ export default function VideoPlayer({
   };
 
   const toggleSpeed = useCallback(() => {
-    setSpeed(prev => prev === 1.5 ? 0.5 : prev + 0.25);
+    setSpeed((prev) =>
+      prev >= 1.5 ? 0.5 : Math.min(1.5, Math.round((prev + 0.25) * 100) / 100)
+    );
   }, [setSpeed]);
 
 
@@ -250,7 +280,7 @@ export default function VideoPlayer({
 
   return (
     <div className="flex flex-col gap-3 w-full max-w-[480px] shrink-0">
-      <div className="relative aspect-[4/3] bg-gray-950 rounded-3xl overflow-hidden group shadow-xl border border-gray-100">
+      <div className="relative aspect-[4/3] bg-gray-950 rounded-3xl overflow-hidden group shadow-xl border border-gray-100 dark:border-slate-800">
         {src ? (
           isYoutube ? (
             <div className="absolute inset-0 w-full h-full">
@@ -333,18 +363,18 @@ export default function VideoPlayer({
         </div>
       </div>
       {/* Compact Controls Card */}
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col gap-4">
         {/* Lesson Info Section */}
         {lessonTitle && (
-          <div className="flex flex-col gap-1 pb-3 border-b border-gray-100">
-            <h3 className="text-sm font-black text-gray-800 leading-snug tracking-tight">
+          <div className="flex flex-col gap-1 pb-3 border-b border-gray-100 dark:border-slate-800">
+            <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 leading-snug tracking-tight">
               {lessonTitle}
             </h3>
-            <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 uppercase tracking-widest">
+            <div className="flex items-center gap-2 text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">
               {lessonDuration !== undefined && lessonDuration > 0 && (
                 <>
                   <span>{formatDuration(lessonDuration)}</span>
-                  <span className="text-gray-200">•</span>
+                  <span className="text-gray-200 dark:text-slate-700">•</span>
                 </>
               )}
               <span>{totalSegments} segments</span>
@@ -355,26 +385,28 @@ export default function VideoPlayer({
         <div className="flex items-center justify-between">
           {/* Loop Setting */}
           <div className="flex flex-row items-center gap-4">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+            <span className="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">
               Auto replay
             </span>
 
             <Switch
               checked={isLooping}
-              onChange={() => setIsLooping(!isLooping)}
+              onChange={() =>
+                void updateSettings({ dictationAutoReplay: !isLooping })
+              }
             />
           </div>
 
           {/* Speed Setting */}
           <div className="flex flex-row items-center gap-4">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+            <span className="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">
               Speed
             </span>
 
-            <div className="flex bg-gray-50 p-0.5 rounded-xl gap-0.5 border border-gray-100">
+            <div className="flex bg-gray-50 dark:bg-slate-800 p-0.5 rounded-xl gap-0.5 border border-gray-100 dark:border-slate-700">
               <button
                 onClick={toggleSpeed}
-                className="px-3 py-1.5 rounded-lg text-[10px] font-black transition-all active:scale-95 bg-white text-green-600 shadow-sm border border-gray-100"
+                className="px-3 py-1.5 rounded-lg text-[10px] font-black transition-all active:scale-95 bg-white dark:bg-slate-700 text-green-600 dark:text-emerald-300 shadow-sm border border-gray-100 dark:border-slate-600"
               >
                 {speed}x
               </button>

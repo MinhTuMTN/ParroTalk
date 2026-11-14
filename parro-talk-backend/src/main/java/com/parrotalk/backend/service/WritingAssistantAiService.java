@@ -41,16 +41,44 @@ public class WritingAssistantAiService {
             2. coreIdeaSummaryVn: 1 short Vietnamese sentence summarizing the core idea.
             3. vocabulary: 4 key words calibrated to the target level:
                - word (English lemma)
+               - phonetic (standard IPA pronunciation, e.g. "/ˌkɒm.bɪˈneɪ.ʃən/")
                - partOfSpeech ("noun", "verb", "adjective", "adverb")
                - cefrLevel ("A1".."C2")
                - meaningVn (short Vietnamese meaning, 2-5 words)
                - usageContextVn (brief grammar/collocation note, 3-6 words)
-            4. expressions: 2 idiomatic phrases or phrasal verbs (fields: phrase, cefrLevel, meaningVn, usageContextVn).
-            5. collocations: 3 natural word partnerships (fields: phrase, cefrLevel, meaningVn, usageContextVn).
+            4. expressions: 2 idiomatic phrases or phrasal verbs (fields: phrase, phonetic, cefrLevel, meaningVn, usageContextVn).
+            5. collocations: 3 natural word partnerships (fields: phrase, phonetic, cefrLevel, meaningVn, usageContextVn).
             6. sentencePatterns: 2 sentence templates with bracketed slots (e.g., "[Subject] + should not + [V-inf] + because + [Clause].") with short meaningVn and usageContextVn. NEVER output full completed sentences.
 
             DO NOT include combinationGuideVn, completeSentences, explanationVn, exampleEn, or exampleVn.
             Output ONLY valid JSON with no markdown fences.
+            """;
+
+    private static final String DRAFT_REVIEW_SYSTEM_PROMPT = """
+            You are an expert English grammar checker and writing coach for Vietnamese learners.
+            Task: Strictly review a learner's English draft sentence/paragraph against their core idea, proficiency level, and suggested target items.
+
+            STRICT EVALUATION RULES:
+            1. Judge grammar, spelling, word choice, and punctuation accurately and strictly. Catch real errors such as subject-verb disagreement ("She go" -> "She went"), wrong tense ("go ... yesterday"), missing/wrong articles or prepositions, fragment/run-on clauses, and misspellings.
+            2. Do NOT flag valid US or UK spelling/grammar variants (e.g., color/colour, organize/organise, canceled/cancelled, gotten/got, optional Oxford comma) and do NOT invent errors if the draft is already grammatical and natural.
+            3. If the draft has no errors, return "issues": [] and set "score" high (90-100).
+            4. Evaluate each item in "suggestedItems" (including vocabulary words, collocations, expressions, and bracketed sentence patterns like "[Subject] + should not + [V-inf]") in ANY valid grammatical inflection, tense, plural, or filled-slot form.
+            5. Keep all "explanationVn", "note", and "overallVn" concise and natural in Vietnamese.
+
+            OUTPUT REQUIREMENTS (Single compact JSON Object, no markdown fences):
+            - correctedSentence: string (the grammatically corrected natural version of the learner's draft)
+            - issues: array of objects, each with:
+              - type: "GRAMMAR" | "SPELLING" | "WORD_CHOICE" | "PUNCTUATION"
+              - original: string (exact problematic substring from the learner's draft)
+              - suggestion: string (recommended replacement)
+              - explanationVn: string (clear concise explanation in Vietnamese)
+            - score: integer 0-100 (overall quality score based on accuracy, naturalness, and idea clarity)
+            - usedItems: array of objects matching suggestedItems, each with:
+              - text: string (suggested item text)
+              - used: boolean (true if used in the draft, including inflections or filled pattern slots)
+              - correctUsage: boolean (true if used both present AND grammatically/semantically accurate)
+              - note: string (brief Vietnamese note on usage or null/empty if straightforward)
+            - overallVn: string (1 short Vietnamese overall feedback sentence)
             """;
 
     private static final String GUIDANCE_SYSTEM_PROMPT = """
@@ -68,6 +96,7 @@ public class WritingAssistantAiService {
             3. combinationGuideVn: 3 short numbered steps in Vietnamese on how to combine the suggested vocabulary, collocations, and patterns.
             4. vocabulary: 4 key words calibrated to the target level:
                - word (English lemma)
+               - phonetic (standard IPA pronunciation, e.g. "/ˌkɒm.bɪˈneɪ.ʃən/")
                - partOfSpeech ("noun", "verb", "adjective", "adverb")
                - cefrLevel ("A1".."C2")
                - meaningVn (short Vietnamese meaning, 2-5 words)
@@ -75,8 +104,8 @@ public class WritingAssistantAiService {
                - usageContextVn (short grammar/register note, 3-8 words)
                - exampleEn (1 short illustrative sentence <= 12 words)
                - exampleVn (Vietnamese translation of exampleEn)
-            5. expressions: 2 idiomatic phrases or phrasal verbs relevant to the idea (fields: phrase, cefrLevel, meaningVn, explanationVn, usageContextVn, exampleEn, exampleVn).
-            6. collocations: 3 natural word partnerships needed for this idea (fields: phrase, cefrLevel, meaningVn, explanationVn, usageContextVn, exampleEn, exampleVn).
+            5. expressions: 2 idiomatic phrases or phrasal verbs relevant to the idea (fields: phrase, phonetic, cefrLevel, meaningVn, explanationVn, usageContextVn, exampleEn, exampleVn).
+            6. collocations: 3 natural word partnerships needed for this idea (fields: phrase, phonetic, cefrLevel, meaningVn, explanationVn, usageContextVn, exampleEn, exampleVn).
             7. sentencePatterns: 2 sentence templates using bracketed slots (e.g., "[Subject] + should not + [V-inf] + because + [Clause].") with short meaningVn, explanationVn, and usageContextVn. NEVER put the full completed sentence inside sentencePatterns.
             8. completeSentences: 2 complete English sentences expressing the full idea at the target level (one "Natural / Standard" and one "Formal / IELTS Writing"), each with:
                - tone ("Natural / Standard" or "Formal / IELTS Writing")
@@ -135,6 +164,9 @@ public class WritingAssistantAiService {
 
         @JsonProperty("phrase")
         private String phrase;
+
+        @JsonProperty("phonetic")
+        private String phonetic;
 
         @JsonProperty("partOfSpeech")
         private String partOfSpeech;
@@ -250,6 +282,9 @@ public class WritingAssistantAiService {
         @JsonProperty("phrase")
         private String phrase;
 
+        @JsonProperty("phonetic")
+        private String phonetic;
+
         @JsonProperty("partOfSpeech")
         private String partOfSpeech;
 
@@ -266,6 +301,7 @@ public class WritingAssistantAiService {
             return AiLexicalItem.builder()
                     .word(word)
                     .phrase(phrase)
+                    .phonetic(phonetic)
                     .partOfSpeech(partOfSpeech)
                     .cefrLevel(cefrLevel)
                     .meaningVn(meaningVn)
@@ -391,6 +427,161 @@ public class WritingAssistantAiService {
                     return raw;
                 }
         );
+    }
+
+    /**
+     * Reviews a learner's English draft using the configured LLM for grammar, spelling,
+     * word choice, punctuation, corrected sentence, score, and suggested-item usage.
+     */
+    public AiDraftReviewPayload reviewDraft(
+            String draft,
+            String coreIdeaSummaryVn,
+            DifficultyScale scaleType,
+            String targetLevel,
+            List<String> suggestedItems) {
+        if (draft == null || draft.isBlank()) {
+            throw new IllegalArgumentException("Draft cannot be blank for AI review");
+        }
+
+        DifficultyScale resolvedScale = scaleType != null ? scaleType : DifficultyScale.CEFR;
+        String resolvedLevel = (targetLevel != null && !targetLevel.isBlank()) ? targetLevel.trim() : "B1";
+        String levelDescriptor = resolvedScale + " " + resolvedLevel + " (" + buildLevelGuidance(resolvedScale, resolvedLevel) + ")";
+        String coreIdea = (coreIdeaSummaryVn != null && !coreIdeaSummaryVn.isBlank())
+                ? coreIdeaSummaryVn.trim()
+                : "(not provided)";
+        String suggestedList = (suggestedItems == null || suggestedItems.isEmpty())
+                ? "(none)"
+                : String.join(", ", suggestedItems);
+
+        String userPrompt = String.format("""
+                Learner Draft: "%s"
+                Core Idea (Vietnamese): "%s"
+                Target Proficiency Level: %s
+                Suggested Items to Check: [%s]
+
+                Strictly evaluate grammar, spelling, word choice, punctuation, overall score (0-100), correctedSentence, and usage of each suggested item. Return ONLY the JSON object.
+                """,
+                draft.trim(),
+                coreIdea,
+                levelDescriptor,
+                suggestedList);
+
+        return aiCoreClient.callAndValidate(
+                DRAFT_REVIEW_SYSTEM_PROMPT,
+                userPrompt,
+                AiDraftReviewPayload.class,
+                raw -> {
+                    if (raw == null) {
+                        throw new IllegalArgumentException("AI returned null draft review payload");
+                    }
+                    List<AiDraftIssue> normalizedIssues = new ArrayList<>();
+                    if (raw.getIssues() != null) {
+                        for (AiDraftIssue issue : raw.getIssues()) {
+                            if (issue == null) {
+                                continue;
+                            }
+                            issue.setType(normalizeIssueType(issue.getType()));
+                            normalizedIssues.add(issue);
+                        }
+                    }
+                    raw.setIssues(normalizedIssues);
+
+                    List<AiUsedItemEvaluation> normalizedUsed = new ArrayList<>();
+                    if (raw.getUsedItems() != null) {
+                        for (AiUsedItemEvaluation item : raw.getUsedItems()) {
+                            if (item != null && item.getText() != null && !item.getText().isBlank()) {
+                                normalizedUsed.add(item);
+                            }
+                        }
+                    }
+                    raw.setUsedItems(normalizedUsed);
+
+                    if (raw.getScore() != null) {
+                        raw.setScore(Math.max(0, Math.min(100, raw.getScore())));
+                    }
+                    if ((raw.getCorrectedSentence() == null || raw.getCorrectedSentence().isBlank())
+                            && normalizedIssues.isEmpty()) {
+                        raw.setCorrectedSentence(draft.trim());
+                    }
+                    if (raw.getOverallVn() == null) {
+                        raw.setOverallVn("");
+                    }
+                    return raw;
+                }
+        );
+    }
+
+    private String normalizeIssueType(String type) {
+        if (type == null || type.isBlank()) {
+            return "GRAMMAR";
+        }
+        String upper = type.trim().toUpperCase();
+        return switch (upper) {
+            case "GRAMMAR", "SPELLING", "WORD_CHOICE", "PUNCTUATION" -> upper;
+            default -> "GRAMMAR";
+        };
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AiDraftReviewPayload {
+        @JsonProperty("correctedSentence")
+        private String correctedSentence;
+
+        @JsonProperty("issues")
+        @Builder.Default
+        private List<AiDraftIssue> issues = new ArrayList<>();
+
+        @JsonProperty("score")
+        private Integer score;
+
+        @JsonProperty("usedItems")
+        @Builder.Default
+        private List<AiUsedItemEvaluation> usedItems = new ArrayList<>();
+
+        @JsonProperty("overallVn")
+        private String overallVn;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AiDraftIssue {
+        @JsonProperty("type")
+        private String type;
+
+        @JsonProperty("original")
+        private String original;
+
+        @JsonProperty("suggestion")
+        private String suggestion;
+
+        @JsonProperty("explanationVn")
+        private String explanationVn;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AiUsedItemEvaluation {
+        @JsonProperty("text")
+        private String text;
+
+        @JsonProperty("used")
+        private Boolean used;
+
+        @JsonProperty("correctUsage")
+        private Boolean correctUsage;
+
+        @JsonProperty("note")
+        private String note;
     }
 
     private String buildLevelGuidance(DifficultyScale scaleType, String targetLevel) {

@@ -39,6 +39,12 @@ export type Lesson = {
   source: string;
   duration: number;
   status: LessonStatus;
+  thumbnailUrl?: string | null;
+  mediaType?: "AUDIO" | "VIDEO" | string;
+  sourceType?: "YOUTUBE" | "CLOUDINARY" | string;
+  processingStatus?: "PENDING" | "PROCESSING" | "DONE" | "FAILED";
+  progress?: number;
+  totalSegments?: number;
   categories: LessonCategory[];
   tags: LessonTag[];
   segments: Segment[];

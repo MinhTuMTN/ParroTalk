@@ -102,6 +102,16 @@ app:
     cloud_name: ${CLOUDINARY_CLOUD_NAME:your_cloud_name}
     api_key: ${CLOUDINARY_API_KEY:your_api_key}
     api_secret: ${CLOUDINARY_API_SECRET:your_api_secret}
+  tts:
+    cache-dir: ${TTS_CACHE_DIR:uploads/tts}
+    python-command: ${TTS_PYTHON_CMD:python}
+    timeout-seconds: ${TTS_TIMEOUT_SECONDS:8}
+    max-concurrent-processes: ${TTS_MAX_CONCURRENT_PROCESSES:4}
+    local-fallback-enabled: ${TTS_LOCAL_FALLBACK_ENABLED:true}
+    prewarm:
+      enabled: ${TTS_PREWARM_ENABLED:true}
+      max-clips: ${TTS_PREWARM_MAX_CLIPS:40}
+      mode: ${TTS_PREWARM_MODE:rabbitmq}
 
 application:
   frontend:
@@ -134,6 +144,8 @@ application:
   ai:
     api-keys: ${GROQ_API_KEYS:}
     base-url: https://api.groq.com/openai/v1
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
+    sdk-max-retries: ${AI_SDK_MAX_RETRIES:0}
     model:
       - qwen/qwen3.8-27b
 

@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import { useUI } from "@/hooks/useUI";
 import UserMenu from "@/components/common/UserMenu";
 import VocabularyDetailPopup from "@/components/vocabulary/VocabularyDetailPopup";
@@ -31,10 +32,18 @@ export default function WritingAssistantPage() {
   const { openMobileMenu } = useUI();
   const router = useRouter();
 
+  const { settings } = useUserSettings();
   const [inputText, setInputText] = useState("");
-  const [mode, setMode] = useState<WritingMode>("SUGGESTION");
-  const [scaleType, setScaleType] = useState<DifficultyScale>("CEFR");
-  const [targetLevel, setTargetLevel] = useState("B2");
+  const [modeOverride, setModeOverride] = useState<WritingMode | null>(null);
+  const [scaleTypeOverride, setScaleTypeOverride] =
+    useState<DifficultyScale | null>(null);
+  const [targetLevelOverride, setTargetLevelOverride] = useState<string | null>(
+    null
+  );
+
+  const mode = modeOverride ?? settings.defaultWritingMode;
+  const scaleType = scaleTypeOverride ?? settings.defaultDifficultyScale;
+  const targetLevel = targetLevelOverride ?? settings.defaultTargetLevel;
 
   const [activeSession, setActiveSession] =
     useState<WritingSessionResponse | null>(null);
@@ -127,7 +136,7 @@ export default function WritingAssistantPage() {
   };
 
   const handleModeChange = (nextMode: WritingMode) => {
-    setMode(nextMode);
+    setModeOverride(nextMode);
     // If switching an active session to GUIDANCE mode and it doesn't have completeSentences yet, fetch GUIDANCE analysis
     if (
       nextMode === "GUIDANCE" &&
@@ -150,9 +159,9 @@ export default function WritingAssistantPage() {
       const detail = await writingService.getSessionDetail(sessionId);
       setActiveSession(detail);
       setInputText(detail.inputText);
-      setMode(detail.mode);
-      setScaleType(detail.scaleType);
-      setTargetLevel(detail.targetLevel);
+      setModeOverride(detail.mode);
+      setScaleTypeOverride(detail.scaleType);
+      setTargetLevelOverride(detail.targetLevel);
     } catch {
       setErrorMessage("Không thể tải chi tiết phiên luyện viết đã chọn.");
     }
@@ -189,31 +198,34 @@ export default function WritingAssistantPage() {
     setInputText("");
     setActiveSession(null);
     setErrorMessage(null);
+    setModeOverride(null);
+    setScaleTypeOverride(null);
+    setTargetLevelOverride(null);
   };
 
   return (
-    <div className="min-h-screen bg-ink-50 text-ink-900 flex flex-col">
+    <div className="min-h-screen bg-ink-50 dark:bg-slate-950 text-ink-900 dark:text-slate-100 flex flex-col">
       {/* ── Top Sticky Header ── */}
-      <header className="sticky top-0 z-40 border-b border-brand-100/80 bg-white/90 backdrop-blur-md px-4 md:px-8 py-3 flex items-center justify-between shadow-2xs">
+      <header className="sticky top-0 z-40 border-b border-brand-100/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/95 backdrop-blur-md px-4 md:px-8 py-3 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={openMobileMenu}
             aria-label="Mở menu điều hướng"
-            className="lg:hidden p-2 hover:bg-brand-50 rounded-xl text-ink-600 transition-all cursor-pointer"
+            className="lg:hidden p-2 hover:bg-brand-50 dark:hover:bg-slate-800 rounded-xl text-ink-600 dark:text-slate-300 transition-all cursor-pointer"
           >
             <Menu size={22} />
           </button>
 
           <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-100 dark:bg-emerald-950/70 text-brand-700 dark:text-emerald-300">
               <PenTool className="h-4 w-4" aria-hidden="true" />
             </span>
             <div>
-              <h1 className="text-base font-extrabold text-ink-900 leading-tight">
+              <h1 className="text-base font-extrabold text-ink-900 dark:text-slate-100 leading-tight">
                 Writing Assistant
               </h1>
-              <p className="text-[11px] text-ink-500 hidden sm:block">
+              <p className="text-[11px] text-ink-500 dark:text-slate-400 hidden sm:block">
                 Diễn đạt ý tưởng sang tiếng Anh tự nhiên theo chuẩn CEFR &amp; IELTS
               </p>
             </div>
@@ -236,9 +248,9 @@ export default function WritingAssistantPage() {
               mode={mode}
               onModeChange={handleModeChange}
               scaleType={scaleType}
-              onScaleTypeChange={setScaleType}
+              onScaleTypeChange={setScaleTypeOverride}
               targetLevel={targetLevel}
-              onTargetLevelChange={setTargetLevel}
+              onTargetLevelChange={setTargetLevelOverride}
               loading={analyzing}
               onSubmit={handleAnalyze}
               onClear={handleClear}
@@ -248,9 +260,9 @@ export default function WritingAssistantPage() {
             {errorMessage && (
               <div
                 role="alert"
-                className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs sm:text-sm font-semibold text-red-700"
+                className="flex items-center gap-3 rounded-xl border border-red-200 dark:border-rose-800 bg-red-50 dark:bg-rose-950/50 px-4 py-3 text-xs sm:text-sm font-semibold text-red-700 dark:text-rose-200"
               >
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-600 dark:text-rose-400" aria-hidden="true" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -260,15 +272,15 @@ export default function WritingAssistantPage() {
               <div
                 aria-busy="true"
                 aria-label="Đang phân tích ý tưởng"
-                className="rounded-2xl border border-ink-200/80 bg-white p-5 shadow-card space-y-3.5 animate-pulse"
+                className="rounded-2xl border border-ink-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-card space-y-3.5 animate-pulse"
               >
-                <div className="h-5 w-1/3 rounded-lg bg-brand-100" />
+                <div className="h-5 w-1/3 rounded-lg bg-brand-100 dark:bg-emerald-950/60" />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="h-24 rounded-xl bg-ink-100/80" />
-                  <div className="h-24 rounded-xl bg-ink-100/80" />
-                  <div className="h-24 rounded-xl bg-ink-100/80" />
+                  <div className="h-24 rounded-xl bg-ink-100/80 dark:bg-slate-800" />
+                  <div className="h-24 rounded-xl bg-ink-100/80 dark:bg-slate-800" />
+                  <div className="h-24 rounded-xl bg-ink-100/80 dark:bg-slate-800" />
                 </div>
-                <div className="h-20 rounded-xl bg-ink-100/60" />
+                <div className="h-20 rounded-xl bg-ink-100/60 dark:bg-slate-800" />
               </div>
             )}
 
@@ -276,25 +288,25 @@ export default function WritingAssistantPage() {
             {!analyzing && activeSession && (
               <div className="space-y-4">
                 {/* Compact Mode Switcher Bar for Current Result */}
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-200/80 bg-white px-3.5 py-2 shadow-2xs">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-ink-600">
-                    <Sparkles className="h-3.5 w-3.5 text-brand-600" aria-hidden="true" />
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-ink-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-ink-600 dark:text-slate-300">
+                    <Sparkles className="h-3.5 w-3.5 text-brand-600 dark:text-emerald-400" aria-hidden="true" />
                     <span>
                       Kết quả{" "}
-                      <strong className="text-brand-700">
+                      <strong className="text-brand-700 dark:text-emerald-300">
                         {activeSession.scaleType} {activeSession.targetLevel}
                       </strong>
                     </span>
                   </div>
 
-                  <div className="inline-flex rounded-lg bg-ink-100/80 p-0.5">
+                  <div className="inline-flex rounded-lg bg-ink-100/80 dark:bg-slate-800 p-0.5">
                     <button
                       type="button"
                       onClick={() => handleModeChange("SUGGESTION")}
                       className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
                         mode === "SUGGESTION"
-                          ? "bg-white text-brand-700 shadow-2xs"
-                          : "text-ink-600 hover:text-ink-900"
+                          ? "bg-white dark:bg-slate-700 text-brand-700 dark:text-emerald-300 shadow-2xs"
+                          : "text-ink-600 dark:text-slate-300 hover:text-ink-900 dark:hover:text-white"
                       }`}
                     >
                       <Lightbulb className="h-3 w-3" aria-hidden="true" />
@@ -305,8 +317,8 @@ export default function WritingAssistantPage() {
                       onClick={() => handleModeChange("GUIDANCE")}
                       className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
                         mode === "GUIDANCE"
-                          ? "bg-white text-brand-700 shadow-2xs"
-                          : "text-ink-600 hover:text-ink-900"
+                          ? "bg-white dark:bg-slate-700 text-brand-700 dark:text-emerald-300 shadow-2xs"
+                          : "text-ink-600 dark:text-slate-300 hover:text-ink-900 dark:hover:text-white"
                       }`}
                     >
                       <BookOpenCheck className="h-3 w-3" aria-hidden="true" />
@@ -326,6 +338,7 @@ export default function WritingAssistantPage() {
                   />
                 ) : (
                   <GuidanceModeView
+                    key={activeSession.id}
                     session={activeSession}
                     onOpenDictionary={(w) => setDictionaryPopupWord(w)}
                   />
@@ -335,18 +348,18 @@ export default function WritingAssistantPage() {
 
             {/* Empty State when no session is active */}
             {!analyzing && !activeSession && (
-              <div className="rounded-2xl border border-dashed border-brand-200 bg-white/70 p-6 text-center space-y-2">
-                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700">
+              <div className="rounded-2xl border border-dashed border-brand-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/70 p-6 text-center space-y-2">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 dark:bg-emerald-950/70 text-brand-700 dark:text-emerald-300">
                   <PenTool className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <h2 className="text-sm sm:text-base font-extrabold text-ink-900">
+                <h2 className="text-sm sm:text-base font-extrabold text-ink-900 dark:text-slate-100">
                   Sẵn sàng hỗ trợ bạn viết tiếng Anh tự nhiên
                 </h2>
-                <p className="mx-auto max-w-lg text-xs text-ink-500 leading-relaxed">
+                <p className="mx-auto max-w-lg text-xs text-ink-500 dark:text-slate-400 leading-relaxed">
                   Nhập ý tưởng bằng tiếng Việt hoặc tiếng Anh vào khung phía trên, chọn chế độ{" "}
-                  <strong className="text-brand-700">Gợi ý</strong> (nhanh, tự luyện viết) hoặc{" "}
-                  <strong className="text-brand-700">Hướng dẫn</strong> (chi tiết kèm câu mẫu) và nhấn{" "}
-                  <strong className="text-brand-700">Phân tích</strong>.
+                  <strong className="text-brand-700 dark:text-emerald-300">Gợi ý</strong> (nhanh, tự luyện viết) hoặc{" "}
+                  <strong className="text-brand-700 dark:text-emerald-300">Hướng dẫn</strong> (chi tiết kèm câu mẫu) và nhấn{" "}
+                  <strong className="text-brand-700 dark:text-emerald-300">Phân tích</strong>.
                 </p>
               </div>
             )}
