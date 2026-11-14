@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parrotalk.backend.entity.*;
 import com.parrotalk.backend.repository.TopicRepository;
 import com.parrotalk.backend.repository.VocabularyRepository;
+import com.parrotalk.backend.util.WordFormGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class VocabularyImporterService {
     private final TopicRepository topicRepository;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final WordFormGenerator wordFormGenerator;
 
     public void importFromJson(String filePath) {
         log.info("Starting vocabulary import from: {}", filePath);
@@ -238,6 +240,9 @@ public class VocabularyImporterService {
             } else {
                 vocabulary = new Vocabulary();
                 vocabulary.setNormalizedWord(normalizedWord);
+                if (wordFormGenerator != null) {
+                    vocabulary.setWordForms(wordFormGenerator.generateForms(normalizedWord));
+                }
                 // Put it in map to handle duplicates within the same batch
                 existingVocabMap.put(normalizedWord, vocabulary);
                 result.inserted++;

@@ -6,6 +6,7 @@ import com.parrotalk.backend.dto.admin.vocab.AdminVocabularyRequestDto;
 import com.parrotalk.backend.entity.*;
 import com.parrotalk.backend.repository.TopicRepository;
 import com.parrotalk.backend.repository.VocabularyRepository;
+import com.parrotalk.backend.util.WordFormGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,7 @@ public class AdminCoreVocabularyService {
 
     private final VocabularyRepository vocabularyRepository;
     private final TopicRepository topicRepository;
+    private final WordFormGenerator wordFormGenerator;
 
     @Transactional(readOnly = true)
     public Page<AdminVocabularyListDto> getVocabularies(String search, String level, String partOfSpeech, UUID topicId, Pageable pageable) {
@@ -54,8 +56,12 @@ public class AdminCoreVocabularyService {
     @Transactional
     public AdminVocabularyDetailDto createVocabulary(AdminVocabularyRequestDto request) {
         Vocabulary vocab = new Vocabulary();
+        String normalizedWord = request.getWord().toLowerCase().trim();
         vocab.setWord(request.getWord());
-        vocab.setNormalizedWord(request.getWord().toLowerCase().trim());
+        vocab.setNormalizedWord(normalizedWord);
+        if (wordFormGenerator != null) {
+            vocab.setWordForms(wordFormGenerator.generateForms(normalizedWord));
+        }
         vocab.setCommonMeaningVn(request.getCommonMeaningVn());
 
         updateNestedEntities(vocab, request);
@@ -66,9 +72,14 @@ public class AdminCoreVocabularyService {
     public AdminVocabularyDetailDto updateVocabulary(UUID id, AdminVocabularyRequestDto request) {
         Vocabulary vocab = vocabularyRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Vocabulary not found"));
-        
+
+        String normalizedWord = request.getWord().toLowerCase().trim();
+        boolean wordChanged = !normalizedWord.equals(vocab.getNormalizedWord());
         vocab.setWord(request.getWord());
-        vocab.setNormalizedWord(request.getWord().toLowerCase().trim());
+        vocab.setNormalizedWord(normalizedWord);
+        if (wordFormGenerator != null && (wordChanged || vocab.getWordForms() == null || vocab.getWordForms().isEmpty())) {
+            vocab.setWordForms(wordFormGenerator.generateForms(normalizedWord));
+        }
         vocab.setCommonMeaningVn(request.getCommonMeaningVn());
 
         updateNestedEntities(vocab, request);
