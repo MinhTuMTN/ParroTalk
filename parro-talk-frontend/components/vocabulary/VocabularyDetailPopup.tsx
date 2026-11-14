@@ -10,6 +10,7 @@ interface VocabularyDetailPopupProps {
 
 interface VocabularyData {
   word: string;
+  matchedFrom?: string | null;
   commonMeaningVn?: string;
   pronunciations?: { accent: string; ipa: string; audioUrl?: string }[];
   senses?: {
@@ -65,6 +66,11 @@ export default function VocabularyDetailPopup({ word, onClose }: VocabularyDetai
           <div className="p-8">
             <div className="mb-6">
               <h2 className="text-3xl font-bold text-slate-900 mb-2">{data.word}</h2>
+              {data.matchedFrom && data.matchedFrom.toLowerCase() !== data.word.toLowerCase() && (
+                <p className="text-xs text-slate-500 mb-2">
+                  Đang hiển thị từ gốc của &quot;{data.matchedFrom}&quot;
+                </p>
+              )}
               {data.commonMeaningVn && (
                 <p className="text-lg text-emerald-700 font-medium">{data.commonMeaningVn}</p>
               )}
