@@ -164,6 +164,43 @@ public class WritingTtsService {
     }
 
     /**
+     * Returns true if {@code url} points to an external dictionary host (e.g. Cambridge Dictionary)
+     * that blocks hotlinking / browser playback with 403.
+     */
+    public static boolean isBlockedExternalAudioUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        String lower = url.toLowerCase(Locale.ROOT);
+        return lower.contains("dictionary.cambridge.org");
+    }
+
+    /**
+     * Resolves a playable pronunciation audio URL for a vocabulary word/phrase.
+     * Keeps valid non-blocked stored URLs (such as Cloudinary CDN URLs), and replaces
+     * missing or blocked Cambridge URLs with a cached Cloudinary URL or the Edge-TTS endpoint.
+     */
+    public String resolvePronunciationAudioUrl(String text, String accent, String storedAudioUrl) {
+        if (storedAudioUrl != null && !storedAudioUrl.isBlank() && !isBlockedExternalAudioUrl(storedAudioUrl)) {
+            return storedAudioUrl.trim();
+        }
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        String normalizedAccent = normalizeAccent(accent);
+        try {
+            Optional<String> cloudinaryUrl = resolveCloudinaryUrlIfCached(text, normalizedAccent, null);
+            if (cloudinaryUrl.isPresent()) {
+                return cloudinaryUrl.get();
+            }
+            return buildTtsEndpointUrl(text, normalizedAccent);
+        } catch (ParroTalkException e) {
+            log.debug("Skipping TTS fallback URL for text='{}': {}", text, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Builds the relative TTS API URL for a given text and accent, or returns null if invalid.
      */
     public String buildTtsEndpointUrl(String text, String accent) {

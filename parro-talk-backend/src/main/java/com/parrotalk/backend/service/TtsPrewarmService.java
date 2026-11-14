@@ -128,7 +128,7 @@ public class TtsPrewarmService {
                 if (rabbitTemplate != null) {
                     publishBatchToRabbitMq(clips);
                 } else {
-                    log.debug("TTS prewarm mode is rabbitmq but RabbitTemplate is unavailable; skipping {} clips",
+                    log.warn("TTS prewarm mode is rabbitmq but RabbitTemplate is unavailable; skipping {} clips",
                             clips.size());
                 }
                 return;
@@ -172,8 +172,10 @@ public class TtsPrewarmService {
                     RabbitMQConfig.TTS_SYNTHESIS_QUEUE,
                     Map.of("items", List.of(item))
             );
+            log.info("Enqueued on-demand TTS synthesis to RabbitMQ {}: cacheKey={}, accent={}, voice={}",
+                    RabbitMQConfig.TTS_SYNTHESIS_QUEUE, cacheKey, normAccent, voice);
         } catch (Exception e) {
-            log.debug("On-demand RabbitMQ TTS enqueue skipped: {}", e.getMessage());
+            log.warn("On-demand RabbitMQ TTS enqueue failed: {}", e.getMessage());
         }
     }
 
@@ -217,7 +219,7 @@ public class TtsPrewarmService {
                 RabbitMQConfig.TTS_SYNTHESIS_QUEUE,
                 Map.of("items", uncachedItems)
         );
-        log.debug("Published {} uncached TTS clips to RabbitMQ {}", uncachedItems.size(), RabbitMQConfig.TTS_SYNTHESIS_QUEUE);
+        log.info("Published {} uncached TTS clips to RabbitMQ {}", uncachedItems.size(), RabbitMQConfig.TTS_SYNTHESIS_QUEUE);
     }
 
     List<PrewarmClip> collectPrioritizedClips(WritingSessionResponseDto session) {

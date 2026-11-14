@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import { playTTS } from "@/lib/tts";
+import { resolveWritingAudioUrl } from "@/features/writing/services/writingService";
 import {
   Volume2,
   Bookmark,
@@ -107,7 +108,8 @@ export function LearnWordsCard({
 
   const playAudio = (accent: "US" | "UK") => {
     setPlayingAccent(accent);
-    const audioUrl = accent === "US" ? wordData.audioUsUrl : wordData.audioUkUrl;
+    const rawAudioUrl = accent === "US" ? wordData.audioUsUrl : wordData.audioUkUrl;
+    const audioUrl = resolveWritingAudioUrl(rawAudioUrl, wordData.word, accent);
 
     if (audioUrl) {
       const audio = new Audio(audioUrl);

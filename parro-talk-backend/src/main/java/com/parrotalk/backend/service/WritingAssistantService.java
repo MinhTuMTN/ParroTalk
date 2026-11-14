@@ -4,12 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parrotalk.backend.constant.DifficultyScale;
 import com.parrotalk.backend.constant.ErrorCode;
+import com.parrotalk.backend.constant.WritingAssessmentCriterion;
 import com.parrotalk.backend.constant.WritingItemType;
 import com.parrotalk.backend.constant.WritingItemValidationStatus;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.writing.GrammarIssueDto;
 import com.parrotalk.backend.dto.writing.GrammarValidationResultDto;
 import com.parrotalk.backend.dto.writing.WritingAnalyzeRequestDto;
+import com.parrotalk.backend.dto.writing.WritingAssessmentCriterionDto;
 import com.parrotalk.backend.dto.writing.WritingSessionResponseDto;
 import com.parrotalk.backend.dto.writing.WritingSessionSummaryDto;
 import com.parrotalk.backend.entity.User;
@@ -21,6 +23,7 @@ import com.parrotalk.backend.entity.WritingSession;
 import com.parrotalk.backend.exception.ParroTalkException;
 import com.parrotalk.backend.repository.VocabularyRepository;
 import com.parrotalk.backend.repository.WritingSessionRepository;
+import com.parrotalk.backend.service.WritingAssistantAiService.AiCriterionAssessment;
 import com.parrotalk.backend.service.WritingAssistantAiService.AiDraftIssue;
 import com.parrotalk.backend.service.WritingAssistantAiService.AiDraftReviewPayload;
 import com.parrotalk.backend.service.WritingAssistantAiService.AiUsedItemEvaluation;
@@ -696,6 +699,9 @@ public class WritingAssistantService {
                     .usedTerms(ruleResult.getUsedTerms())
                     .missingTerms(ruleResult.getMissingTerms())
                     .score(ruleResult.getScore())
+                    .assessmentCriteria(null)
+                    .aiReviewed(false)
+                    .reviewSource("RULE_ONLY")
                     .build();
         }
 
@@ -756,6 +762,11 @@ public class WritingAssistantService {
                 ? aiReview.getCorrectedSentence().trim()
                 : (valid ? draft : null);
 
+        List<WritingAssessmentCriterionDto> mappedCriteria = mapAssessmentCriteria(aiReview.getAssessmentCriteria());
+        Integer overallScore = mappedCriteria != null && !mappedCriteria.isEmpty()
+                ? (int) Math.round(mappedCriteria.stream().mapToInt(WritingAssessmentCriterionDto::getScore).average().orElse(0.0))
+                : aiReview.getScore();
+
         return GrammarValidationResultDto.builder()
                 .valid(valid)
                 .status(status)
@@ -764,8 +775,33 @@ public class WritingAssistantService {
                 .correctedSentence(correctedSentence)
                 .usedTerms(mergedTerms.usedTerms())
                 .missingTerms(mergedTerms.missingTerms())
-                .score(aiReview.getScore())
+                .score(overallScore)
+                .assessmentCriteria(mappedCriteria)
+                .aiReviewed(true)
+                .reviewSource("AI")
                 .build();
+    }
+
+    private List<WritingAssessmentCriterionDto> mapAssessmentCriteria(List<AiCriterionAssessment> aiCriteria) {
+        if (aiCriteria == null || aiCriteria.isEmpty()) {
+            return null;
+        }
+        List<WritingAssessmentCriterionDto> mapped = new ArrayList<>(aiCriteria.size());
+        for (AiCriterionAssessment item : aiCriteria) {
+            if (item == null || item.getScore() == null) {
+                continue;
+            }
+            WritingAssessmentCriterion criterion = WritingAssessmentCriterion.fromString(item.getCriterion());
+            mapped.add(WritingAssessmentCriterionDto.builder()
+                    .criterion(criterion)
+                    .nameEn(criterion.getNameEn())
+                    .labelVn(criterion.getLabelVn())
+                    .score(item.getScore())
+                    .weight(criterion.getDefaultWeight())
+                    .feedbackVn(item.getFeedbackVn() != null ? item.getFeedbackVn().trim() : "")
+                    .build());
+        }
+        return mapped.isEmpty() ? null : mapped;
     }
 
     private String normalizeAiIssueType(String type) {
@@ -915,21 +951,24 @@ public class WritingAssistantService {
                     if (usIpa == null && hasText(p.getIpa())) {
                         usIpa = p.getIpa();
                     }
-                    if (usAudioUrl == null && hasText(p.getAudioUrl())) {
+                    if (usAudioUrl == null && hasText(p.getAudioUrl())
+                            && !WritingTtsService.isBlockedExternalAudioUrl(p.getAudioUrl())) {
                         usAudioUrl = p.getAudioUrl();
                     }
                 } else if ("UK".equals(accent)) {
                     if (ukIpa == null && hasText(p.getIpa())) {
                         ukIpa = p.getIpa();
                     }
-                    if (ukAudioUrl == null && hasText(p.getAudioUrl())) {
+                    if (ukAudioUrl == null && hasText(p.getAudioUrl())
+                            && !WritingTtsService.isBlockedExternalAudioUrl(p.getAudioUrl())) {
                         ukAudioUrl = p.getAudioUrl();
                     }
                 } else {
                     if (fallbackIpa == null && hasText(p.getIpa())) {
                         fallbackIpa = p.getIpa();
                     }
-                    if (fallbackAudioUrl == null && hasText(p.getAudioUrl())) {
+                    if (fallbackAudioUrl == null && hasText(p.getAudioUrl())
+                            && !WritingTtsService.isBlockedExternalAudioUrl(p.getAudioUrl())) {
                         fallbackAudioUrl = p.getAudioUrl();
                     }
                 }

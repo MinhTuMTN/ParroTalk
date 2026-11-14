@@ -8,8 +8,6 @@ import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.ai.chat.metadata.Usage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 
 import com.parrotalk.backend.config.ChatModelProvider;
@@ -20,10 +18,10 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Generic AI client service providing structured prompt execution,
- * automatic retries, and post-processing validation.
+ * automatic key/model rotation on failure, and post-processing validation.
  *
- * <p>Each failed attempt rotates to the next API key/model, so the retry backoff is
- * intentionally short: waiting is pointless when the next attempt uses a different key.
+ * <p>Each failed attempt quarantines bad/rate-limited keys when applicable and
+ * rotates to the next healthy API key/model.
  *
  * @author MinhTuMTN
  */
@@ -31,6 +29,10 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class AiCoreClient {
+
+    private static final int DEFAULT_MIN_ATTEMPTS = 3;
+    private static final int DEFAULT_MAX_ATTEMPTS = 15;
+    private static final long SAME_KEY_BACKOFF_MS = 200L;
 
     private final ChatModelProvider chatModelProvider;
 
@@ -46,20 +48,15 @@ public class AiCoreClient {
      * @param validator Mapping and validation function applied to the LLM response
      * @return Transformed and validated result
      */
-    @Retryable(
-            retryFor = {Exception.class},
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 300, multiplier = 2.0)
-    )
     public <T, R> R callAndValidate(
             String systemPrompt,
             String userPrompt,
             Class<T> responseType,
             Function<T, R> validator) {
 
-        ChatModelNode node = chatModelProvider.current();
-        return execute(node, responseType.getSimpleName(),
-                () -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
+        return executeWithRotation(
+                responseType.getSimpleName(),
+                node -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
                 validator);
     }
 
@@ -75,20 +72,15 @@ public class AiCoreClient {
      * @param validator Mapping and validation function applied to the LLM response
      * @return Transformed and validated result
      */
-    @Retryable(
-            retryFor = {Exception.class},
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 300, multiplier = 2.0)
-    )
     public <T, R> R callAndValidate(
             String systemPrompt,
             String userPrompt,
             ParameterizedTypeReference<T> responseType,
             Function<T, R> validator) {
 
-        ChatModelNode node = chatModelProvider.current();
-        return execute(node, responseType.getType().getTypeName(),
-                () -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
+        return executeWithRotation(
+                responseType.getType().getTypeName(),
+                node -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
                 validator);
     }
 
@@ -99,6 +91,34 @@ public class AiCoreClient {
                 .call();
     }
 
+    private <T, R> R executeWithRotation(
+            String target,
+            Function<ChatModelNode, ResponseEntity<ChatResponse, T>> call,
+            Function<T, R> validator) {
+
+        int maxAttempts = Math.max(DEFAULT_MIN_ATTEMPTS, Math.min(chatModelProvider.size(), DEFAULT_MAX_ATTEMPTS));
+        RuntimeException lastException = null;
+
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            ChatModelNode node = chatModelProvider.current();
+            try {
+                return execute(node, target, () -> call.apply(node), validator);
+            } catch (RuntimeException e) {
+                lastException = e;
+                chatModelProvider.markFailed(node, e);
+                boolean hasMoreAttempts = attempt < maxAttempts;
+                log.warn("AI call or validation failed on attempt {}/{} (model: {}, key: {}). {} Error: {}",
+                        attempt, maxAttempts, node.modelName(), node.maskedApiKey(),
+                        hasMoreAttempts ? "Rotating key and retrying..." : "No more attempts.",
+                        e.getMessage());
+                if (hasMoreAttempts && chatModelProvider.size() <= 1) {
+                    sleepQuietly(SAME_KEY_BACKOFF_MS * attempt);
+                }
+            }
+        }
+        throw lastException;
+    }
+
     private <T, R> R execute(
             ChatModelNode node,
             String target,
@@ -106,17 +126,17 @@ public class AiCoreClient {
             Function<T, R> validator) {
 
         long startNs = System.nanoTime();
+        ResponseEntity<ChatResponse, T> result = call.get();
+        long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        logUsage(node, target, elapsedMs, result.response());
+        return validator.apply(result.entity());
+    }
+
+    private void sleepQuietly(long millis) {
         try {
-            ResponseEntity<ChatResponse, T> result = call.get();
-            long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
-            logUsage(node, target, elapsedMs, result.response());
-            return validator.apply(result.entity());
-        } catch (Exception e) {
-            long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
-            chatModelProvider.next();
-            log.warn("AI call or validation failed after {} ms (model: {}, key: {}). Rotating key and retrying... Error: {}",
-                    elapsedMs, node.modelName(), node.maskedApiKey(), e.getMessage());
-            throw e;
+            Thread.sleep(millis);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
         }
     }
 

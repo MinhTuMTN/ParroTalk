@@ -5,6 +5,7 @@ import com.parrotalk.backend.entity.Topic;
 import com.parrotalk.backend.entity.Vocabulary;
 import com.parrotalk.backend.repository.VocabularyRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,19 @@ import java.util.stream.Collectors;
 public class VocabularyService {
 
     private final VocabularyRepository vocabularyRepository;
+    private WritingTtsService writingTtsService;
+
+    @Autowired(required = false)
+    void setWritingTtsService(WritingTtsService writingTtsService) {
+        this.writingTtsService = writingTtsService;
+    }
+
+    private String resolveAudioUrl(String word, String accent, String storedAudioUrl) {
+        if (writingTtsService != null) {
+            return writingTtsService.resolvePronunciationAudioUrl(word, accent, storedAudioUrl);
+        }
+        return WritingTtsService.isBlockedExternalAudioUrl(storedAudioUrl) ? null : storedAudioUrl;
+    }
 
     @Transactional(readOnly = true)
     public VocabularyDetailDTO getVocabularyByWord(String word) {
@@ -42,7 +56,7 @@ public class VocabularyService {
                         .map(p -> VocabularyDetailDTO.PronunciationDTO.builder()
                                 .accent(p.getAccent())
                                 .ipa(p.getIpa())
-                                .audioUrl(p.getAudioUrl())
+                                .audioUrl(resolveAudioUrl(entity.getWord(), p.getAccent(), p.getAudioUrl()))
                                 .build())
                         .collect(Collectors.toList()))
                 .senses(entity.getSenses().stream()

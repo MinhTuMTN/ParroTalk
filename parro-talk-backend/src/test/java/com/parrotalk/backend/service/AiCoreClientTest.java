@@ -94,7 +94,40 @@ class AiCoreClientTest {
         );
 
         assertEquals("OpenAI rate limit exceeded", exception.getMessage());
-        verify(chatModelProvider, times(1)).current();
+        verify(chatModelProvider, times(3)).current();
+        verify(chatModelProvider, times(3)).markFailed(eq(chatModelNode), any(RuntimeException.class));
+    }
+
+    @Test
+    @DisplayName("callAndValidate should rotate past >3 restricted keys and succeed on healthy key")
+    void testCallAndValidate_RotatesPastMoreThanThreeRestrictedKeys() {
+        ChatClient badClient1 = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ChatClient badClient2 = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ChatClient badClient3 = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ChatClient goodClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+
+        ChatModelNode node1 = new ChatModelNode(badClient1, "qwen/qwen3.8-27b", "gsk_...0001");
+        ChatModelNode node2 = new ChatModelNode(badClient2, "qwen/qwen3.8-27b", "gsk_...0002");
+        ChatModelNode node3 = new ChatModelNode(badClient3, "qwen/qwen3.8-27b", "gsk_...0003");
+        ChatModelNode node4 = new ChatModelNode(goodClient, "qwen/qwen3.8-27b", "gsk_...0004");
+
+        when(chatModelProvider.size()).thenReturn(4);
+        when(chatModelProvider.current()).thenReturn(node1, node2, node3, node4);
+
+        RuntimeException restricted = new RuntimeException(
+                "400: Organization has been restricted. Please reach out to support if you believe this was in error.");
+        when(badClient1.prompt().system("sys").user("usr").call().responseEntity(String.class)).thenThrow(restricted);
+        when(badClient2.prompt().system("sys").user("usr").call().responseEntity(String.class)).thenThrow(restricted);
+        when(badClient3.prompt().system("sys").user("usr").call().responseEntity(String.class)).thenThrow(restricted);
+        when(goodClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenReturn(new ResponseEntity<>(null, "OK"));
+
+        String result = aiCoreClient.callAndValidate("sys", "usr", String.class, Function.identity());
+
+        assertEquals("OK", result);
+        verify(chatModelProvider).markFailed(node1, restricted);
+        verify(chatModelProvider).markFailed(node2, restricted);
+        verify(chatModelProvider).markFailed(node3, restricted);
     }
 
     @Test

@@ -578,4 +578,45 @@ class WritingTtsServiceTest {
             prewarm.shutdown();
         }
     }
+
+    @Test
+    @DisplayName("resolvePronunciationAudioUrl replaces blocked Cambridge URLs with Cloudinary cache or TTS endpoint")
+    void testResolvePronunciationAudioUrl_ReplacesCambridgeUrl() {
+        TtsAudioCacheRepository cacheRepo = mock(TtsAudioCacheRepository.class);
+        WritingTtsService service = new WritingTtsService("uploads/tts", "python", 8L, 2);
+        service.setTtsAudioCacheRepository(cacheRepo);
+
+        String cambridgeUrl = "https://dictionary.cambridge.org/media/english/us_pron/s/soc/socia/social.mp3";
+        assertTrue(WritingTtsService.isBlockedExternalAudioUrl(cambridgeUrl));
+        assertFalse(WritingTtsService.isBlockedExternalAudioUrl("https://res.cloudinary.com/demo/video/upload/social.mp3"));
+
+        // 1. When Cloudinary cache exists, return Cloudinary URL directly
+        String cacheKey = service.computeCacheKey("social", "US", WritingTtsService.VOICE_US);
+        when(cacheRepo.findById(cacheKey)).thenReturn(Optional.of(
+                TtsAudioCache.builder()
+                        .cacheKey(cacheKey)
+                        .cloudinaryUrl("https://res.cloudinary.com/demo/video/upload/social_us.mp3")
+                        .accent("US")
+                        .voice(WritingTtsService.VOICE_US)
+                        .build()
+        ));
+        assertEquals(
+                "https://res.cloudinary.com/demo/video/upload/social_us.mp3",
+                service.resolvePronunciationAudioUrl("social", "US", cambridgeUrl)
+        );
+
+        // 2. When not cached yet, fall back to /api/writing/tts endpoint
+        String ukKey = service.computeCacheKey("social", "UK", WritingTtsService.VOICE_UK);
+        when(cacheRepo.findById(ukKey)).thenReturn(Optional.empty());
+        assertEquals(
+                "/api/writing/tts?text=social&accent=UK",
+                service.resolvePronunciationAudioUrl("social", "UK", cambridgeUrl)
+        );
+
+        // 3. Valid non-blocked URLs (like Cloudinary) are preserved untouched
+        assertEquals(
+                "https://res.cloudinary.com/demo/video/upload/custom.mp3",
+                service.resolvePronunciationAudioUrl("social", "US", "https://res.cloudinary.com/demo/video/upload/custom.mp3")
+        );
+    }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { resolveWritingAudioUrl } from "@/features/writing/services/writingService";
 import { Volume2, Briefcase, Plane, Check, X, Clock, HelpCircle } from "lucide-react";
 
 export type McState = "UNANSWERED" | "ANSWERED" | "ADVANCING" | "COMPLETED";
@@ -87,8 +88,9 @@ export function MultipleChoiceCard({
     const textToRead = questionData.sentence || questionData.word;
     setIsPlaying(true);
 
-    if (questionData.audioUrl) {
-      const audio = new Audio(questionData.audioUrl);
+    const resolvedAudioUrl = resolveWritingAudioUrl(questionData.audioUrl, textToRead, "US");
+    if (resolvedAudioUrl) {
+      const audio = new Audio(resolvedAudioUrl);
       audio.onended = () => setIsPlaying(false);
       audio.onerror = () => fallbackSpeech(textToRead);
       audio.play().catch(() => fallbackSpeech(textToRead));

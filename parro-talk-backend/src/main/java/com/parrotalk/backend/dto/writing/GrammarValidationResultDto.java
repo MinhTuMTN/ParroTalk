@@ -25,5 +25,8 @@ public class GrammarValidationResultDto {
     private List<String> usedTerms;
     private List<String> missingTerms;
     private Integer score;
+    private List<WritingAssessmentCriterionDto> assessmentCriteria;
+    private Boolean aiReviewed;
+    private String reviewSource;
 }
 

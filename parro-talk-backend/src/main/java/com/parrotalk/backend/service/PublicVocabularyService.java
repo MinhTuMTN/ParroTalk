@@ -10,6 +10,7 @@ import com.parrotalk.backend.repository.TopicRepository;
 import com.parrotalk.backend.repository.VocabularyReportRepository;
 import com.parrotalk.backend.repository.VocabularyRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,19 @@ public class PublicVocabularyService {
     private final TopicRepository topicRepository;
     private final com.parrotalk.backend.repository.DictionaryEntryRepository dictionaryEntryRepository;
     private final VocabularyReportRepository vocabularyReportRepository;
+    private WritingTtsService writingTtsService;
+
+    @Autowired(required = false)
+    void setWritingTtsService(WritingTtsService writingTtsService) {
+        this.writingTtsService = writingTtsService;
+    }
+
+    private String resolveAudioUrl(String word, String accent, String storedAudioUrl) {
+        if (writingTtsService != null) {
+            return writingTtsService.resolvePronunciationAudioUrl(word, accent, storedAudioUrl);
+        }
+        return WritingTtsService.isBlockedExternalAudioUrl(storedAudioUrl) ? null : storedAudioUrl;
+    }
 
     @Cacheable(value = "vocabularyTopics")
     @Transactional(readOnly = true)
@@ -157,9 +171,11 @@ public class PublicVocabularyService {
         String audioUsUrl = null;
         String audioUkUrl = null;
         for (VocabularyPronunciation p : entry.getPronunciations()) {
-            if ("US".equalsIgnoreCase(p.getAccent())) audioUsUrl = p.getAudioUrl();
-            if ("UK".equalsIgnoreCase(p.getAccent())) audioUkUrl = p.getAudioUrl();
+            if ("US".equalsIgnoreCase(p.getAccent())) audioUsUrl = resolveAudioUrl(entry.getWord(), "US", p.getAudioUrl());
+            if ("UK".equalsIgnoreCase(p.getAccent())) audioUkUrl = resolveAudioUrl(entry.getWord(), "UK", p.getAudioUrl());
         }
+        if (audioUsUrl == null) audioUsUrl = resolveAudioUrl(entry.getWord(), "US", null);
+        if (audioUkUrl == null) audioUkUrl = resolveAudioUrl(entry.getWord(), "UK", null);
 
         return PublicVocabularySummaryDto.builder()
                 .id(entry.getId())
@@ -182,9 +198,11 @@ public class PublicVocabularyService {
         String audioUsUrl = null;
         String audioUkUrl = null;
         for (VocabularyPronunciation p : entry.getPronunciations()) {
-            if ("US".equalsIgnoreCase(p.getAccent())) audioUsUrl = p.getAudioUrl();
-            if ("UK".equalsIgnoreCase(p.getAccent())) audioUkUrl = p.getAudioUrl();
+            if ("US".equalsIgnoreCase(p.getAccent())) audioUsUrl = resolveAudioUrl(entry.getWord(), "US", p.getAudioUrl());
+            if ("UK".equalsIgnoreCase(p.getAccent())) audioUkUrl = resolveAudioUrl(entry.getWord(), "UK", p.getAudioUrl());
         }
+        if (audioUsUrl == null) audioUsUrl = resolveAudioUrl(entry.getWord(), "US", null);
+        if (audioUkUrl == null) audioUkUrl = resolveAudioUrl(entry.getWord(), "UK", null);
 
         List<PublicVocabularyDetailDto.SenseItemDto> senses = entry.getSenses().stream()
             .map(s -> PublicVocabularyDetailDto.SenseItemDto.builder()

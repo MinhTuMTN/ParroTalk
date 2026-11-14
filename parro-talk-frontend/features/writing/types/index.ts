@@ -31,12 +31,28 @@ export interface GrammarIssue {
   replacements?: string[];
 }
 
+export type WritingAssessmentCriterionKey =
+  | "TASK_FULFILLMENT"
+  | "COHERENCE_COHESION"
+  | "LEXICAL_RESOURCE"
+  | "GRAMMATICAL_RANGE_ACCURACY";
+
+export interface WritingAssessmentCriterion {
+  criterion: WritingAssessmentCriterionKey;
+  nameEn: string;
+  labelVn: string;
+  score: number;
+  weight?: number;
+  feedbackVn: string;
+}
+
 export interface GrammarValidationResult {
   valid: boolean;
   status: WritingItemValidationStatus;
   summaryVn: string;
   issues: GrammarIssue[];
   score?: number;
+  assessmentCriteria?: WritingAssessmentCriterion[] | null;
   correctedSentence?: string;
   usedTerms?: string[];
   missingTerms?: string[];

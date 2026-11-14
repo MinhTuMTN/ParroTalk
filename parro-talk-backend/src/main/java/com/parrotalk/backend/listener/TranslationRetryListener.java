@@ -28,6 +28,6 @@ public class TranslationRetryListener implements RetryListener {
                 current.maskedApiKey(),
                 context.getRetryCount(),
                 errorMessage);
-        chatModelProvider.next();
+        chatModelProvider.markFailed(current, lastThrowable != null ? lastThrowable : throwable);
     }
 }

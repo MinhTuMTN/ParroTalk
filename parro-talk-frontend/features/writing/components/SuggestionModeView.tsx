@@ -2,28 +2,24 @@
 
 import React, { useState } from "react";
 import {
+  ArrowRight,
   BookOpen,
   BookOpenCheck,
-  Check,
   CheckCircle2,
-  Copy,
   Eye,
-  Info,
   Layers,
   PenLine,
   PlusCircle,
   Sparkles,
-  AlertTriangle,
-  ArrowRight,
 } from "lucide-react";
 import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import type {
-  GrammarIssue,
   WritingLexicalItem,
   WritingSessionResponse,
 } from "../types";
 import { useWritingAudio } from "../hooks/useWritingAudio";
 import { AccentAudioButtons, PhoneticBadge } from "./WritingAudioControls";
+import { WritingAssessmentResult } from "./WritingAssessmentResult";
 
 interface SuggestionModeViewProps {
   session: WritingSessionResponse;
@@ -55,57 +51,6 @@ export function SuggestionModeView({
       setTimeout(() => setCopiedCorrected(false), 2000);
     } catch {
       // Ignore clipboard permission errors
-    }
-  };
-
-  const getIssueTypeMeta = (issue: GrammarIssue) => {
-    const normalized = (issue.type || issue.ruleId || "").toUpperCase();
-    switch (normalized) {
-      case "GRAMMAR":
-        return {
-          label: isEn ? "Grammar" : "Ngữ pháp",
-          className:
-            "bg-violet-100/80 dark:bg-violet-950/60 text-violet-800 dark:text-violet-200 border-violet-200 dark:border-violet-700/60",
-        };
-      case "SPELLING":
-        return {
-          label: isEn ? "Spelling" : "Chính tả",
-          className:
-            "bg-rose-100/80 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-700/60",
-        };
-      case "WORD_CHOICE":
-      case "REPEATED_WORD":
-        return {
-          label: isEn ? "Word choice" : "Dùng từ",
-          className:
-            "bg-sky-100/80 dark:bg-sky-950/60 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-700/60",
-        };
-      case "PUNCTUATION":
-      case "TERMINAL_PUNCTUATION":
-      case "UPPERCASE_START":
-      case "UNBALANCED_BRACKETS":
-      case "MULTIPLE_SPACES":
-        return {
-          label: isEn ? "Punctuation" : "Dấu câu",
-          className:
-            "bg-amber-100/80 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-700/60",
-        };
-      case "TOO_SHORT":
-        return {
-          label: isEn ? "Length" : "Độ dài",
-          className:
-            "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-        };
-      default:
-        return {
-          label: normalized
-            ? normalized.replace(/_/g, " ")
-            : isEn
-              ? "Issue"
-              : "Lưu ý",
-          className:
-            "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700",
-        };
     }
   };
 
@@ -371,19 +316,19 @@ export function SuggestionModeView({
         </div>
 
         <textarea
-          rows={2}
-          maxLength={1000}
+          rows={4}
+          maxLength={4000}
           value={draftText}
           onChange={(e) => setDraftText(e.target.value)}
           placeholder={
             isEn
-              ? "Write your own English sentence here..."
-              : "Nhập câu tiếng Anh bạn tự ghép tại đây..."
+              ? "Write your own English sentence or paragraph here..."
+              : "Nhập câu hoặc đoạn văn tiếng Anh bạn tự viết tại đây..."
           }
           aria-label={
             isEn
-              ? "Write your own English sentence"
-              : "Nhập câu tiếng Anh bạn tự xây dựng"
+              ? "Write your own English sentence or paragraph"
+              : "Nhập câu hoặc đoạn văn tiếng Anh bạn tự xây dựng"
           }
           className="w-full rounded-xl border border-ink-200 dark:border-slate-700 bg-ink-50/40 dark:bg-slate-800/80 px-3.5 py-2.5 text-sm sm:text-base font-medium text-ink-900 dark:text-slate-100 placeholder:text-ink-400 dark:placeholder:text-slate-500 focus:border-brand-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-3 focus:ring-brand-500/15 transition-all"
         />
@@ -396,272 +341,17 @@ export function SuggestionModeView({
           </p>
         )}
 
-        {session.draftValidation && (() => {
-          const validation = session.draftValidation;
-          const issues = Array.isArray(validation.issues) ? validation.issues : [];
-          const usedTerms = Array.isArray(validation.usedTerms)
-            ? validation.usedTerms.filter((t) => Boolean(t?.trim()))
-            : [];
-          const missingTerms = Array.isArray(validation.missingTerms)
-            ? validation.missingTerms.filter((t) => Boolean(t?.trim()))
-            : [];
-          const correctedSentence = validation.correctedSentence?.trim() || "";
-          const score =
-            typeof validation.score === "number" && Number.isFinite(validation.score)
-              ? Math.max(0, Math.min(100, Math.round(validation.score)))
-              : null;
-          const hasAiSignals = score !== null || Boolean(correctedSentence);
-          const isRuleOnlyFallback =
-            validation.aiReviewed === false ||
-            validation.reviewSource?.toUpperCase() === "RULE_ONLY" ||
-            (!hasAiSignals && validation.aiReviewed !== true);
-
-          const scoreBadgeClasses =
-            score === null
-              ? ""
-              : score >= 80
-                ? "border-emerald-300 dark:border-emerald-700/60 bg-emerald-100/90 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200"
-                : score >= 60
-                  ? "border-amber-300 dark:border-amber-700/60 bg-amber-100/90 dark:bg-amber-950/70 text-amber-800 dark:text-amber-200"
-                  : "border-rose-300 dark:border-rose-700/60 bg-rose-100/90 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200";
-
-          return (
-            <div
-              className={`rounded-xl border p-3.5 sm:p-4 space-y-3 ${
-                validation.valid
-                  ? "border-brand-200 dark:border-brand-500/40 bg-brand-50/70 dark:bg-emerald-950/40 text-brand-900 dark:text-emerald-200"
-                  : "border-honey-200 dark:border-amber-700/60 bg-honey-50/70 dark:bg-amber-950/35 text-ink-900 dark:text-amber-200"
-              }`}
-            >
-              {/* Header: validation status + optional AI score badge */}
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex items-start gap-2 text-xs sm:text-sm font-bold flex-1 min-w-0">
-                  {validation.valid ? (
-                    <CheckCircle2
-                      className="h-4 w-4 text-brand-600 dark:text-emerald-400 shrink-0 mt-0.5"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <AlertTriangle
-                      className="h-4 w-4 text-honey-600 dark:text-amber-300 shrink-0 mt-0.5"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span className="leading-snug">{validation.summaryVn}</span>
-                </div>
-
-                {score !== null && (
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-extrabold tabular-nums shrink-0 ${scoreBadgeClasses}`}
-                  >
-                    <span>{isEn ? "Score" : "Điểm"}:</span>
-                    <span>{score}/100</span>
-                  </span>
-                )}
-              </div>
-
-              {/* Informative note when AI review was unavailable (rule-only fallback / legacy session) */}
-              {isRuleOnlyFallback && (
-                <div className="flex items-center gap-2 rounded-lg border border-sky-200/80 dark:border-sky-800/60 bg-sky-50/80 dark:bg-sky-950/40 px-2.5 py-1.5 text-[11px] font-medium text-sky-800 dark:text-sky-200">
-                  <Info className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-300" aria-hidden="true" />
-                  <span>
-                    {isEn
-                      ? "Basic rule-based check only (AI grammar review was unavailable for this result)."
-                      : "Đang kiểm tra theo quy tắc cơ bản (đánh giá AI tạm thời chưa khả dụng)."}
-                  </span>
-                </div>
-              )}
-
-              {/* Suggested Corrected Sentence Card */}
-              {correctedSentence && (
-                <div className="rounded-xl border border-brand-200/90 dark:border-emerald-700/50 bg-white/95 dark:bg-slate-900/90 p-3 space-y-2 shadow-2xs">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-brand-700 dark:text-emerald-300">
-                      <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>
-                        {isEn ? "Suggested correction" : "Gợi ý câu sửa"}
-                      </span>
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => void handleCopyCorrected(correctedSentence)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-ink-200 dark:border-slate-700 bg-ink-50/80 dark:bg-slate-800 px-2 py-1 text-[11px] font-bold text-ink-700 dark:text-slate-200 hover:bg-ink-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                      >
-                        {copiedCorrected ? (
-                          <>
-                            <Check className="h-3 w-3 text-brand-600 dark:text-emerald-400" aria-hidden="true" />
-                            <span>{isEn ? "Copied" : "Đã chép"}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3 w-3" aria-hidden="true" />
-                            <span>{isEn ? "Copy" : "Sao chép"}</span>
-                          </>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDraftText(correctedSentence)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-brand-600 hover:bg-brand-700 px-2.5 py-1 text-[11px] font-bold text-white transition-colors cursor-pointer"
-                      >
-                        <PenLine className="h-3 w-3" aria-hidden="true" />
-                        <span>{isEn ? "Apply to draft" : "Áp dụng vào nháp"}</span>
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs sm:text-sm font-bold text-ink-900 dark:text-slate-100 leading-relaxed">
-                    &ldquo;{correctedSentence}&rdquo;
-                  </p>
-                </div>
-              )}
-
-              {/* Per-issue cards */}
-              {issues.length > 0 && (
-                <div className="space-y-2">
-                  {issues.map((issue, idx) => {
-                    const typeMeta = getIssueTypeMeta(issue);
-                    const baseDraft = session.userDraft ?? "";
-                    const isWholeDraftFallback =
-                      issue.ruleId === "TOO_SHORT" ||
-                      (issue.offset === 0 &&
-                        issue.length === baseDraft.length &&
-                        baseDraft.length > 20);
-                    const slicedOriginal =
-                      !isWholeDraftFallback &&
-                      typeof issue.offset === "number" &&
-                      typeof issue.length === "number" &&
-                      issue.offset >= 0 &&
-                      issue.length > 0 &&
-                      issue.offset + issue.length <= baseDraft.length
-                        ? baseDraft
-                            .slice(issue.offset, issue.offset + issue.length)
-                            .trim()
-                        : "";
-                    const isAiIssue = Boolean(issue.ruleId?.startsWith("AI_"));
-                    const aiMessageOriginal =
-                      isAiIssue &&
-                      issue.message?.trim() &&
-                      issue.message.trim() !== issue.messageVn?.trim()
-                        ? issue.message.trim()
-                        : "";
-                    const originalText =
-                      issue.original?.trim() || slicedOriginal || aiMessageOriginal;
-                    const suggestionText =
-                      issue.suggestion?.trim() ||
-                      issue.replacements?.[0]?.trim() ||
-                      "";
-                    const extraReplacements = (issue.replacements ?? []).filter(
-                      (rep) => Boolean(rep?.trim()) && rep.trim() !== suggestionText
-                    );
-                    const explanationText = isAiIssue
-                      ? issue.messageVn?.trim() ||
-                        (!aiMessageOriginal ? issue.message?.trim() : "") ||
-                        ""
-                      : isEn
-                        ? issue.message?.trim() || issue.messageVn?.trim() || ""
-                        : issue.messageVn?.trim() || issue.message?.trim() || "";
-
-                    return (
-                      <div
-                        key={idx}
-                        className="rounded-lg border border-ink-200/70 dark:border-slate-700/80 bg-white/90 dark:bg-slate-900/85 p-2.5 space-y-1.5 text-xs"
-                      >
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span
-                            className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${typeMeta.className}`}
-                          >
-                            {typeMeta.label}
-                          </span>
-
-                          {(originalText || suggestionText) && (
-                            <div className="inline-flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-                              {originalText && (
-                                <span className="rounded bg-rose-100/90 dark:bg-rose-950/60 px-1.5 py-0.5 text-rose-800 dark:text-rose-200 line-through">
-                                  {originalText}
-                                </span>
-                              )}
-                              {originalText && suggestionText && (
-                                <ArrowRight
-                                  className="h-3 w-3 text-ink-400 dark:text-slate-500 shrink-0"
-                                  aria-hidden="true"
-                                />
-                              )}
-                              {suggestionText && (
-                                <span className="rounded bg-emerald-100/90 dark:bg-emerald-950/60 px-1.5 py-0.5 font-bold text-emerald-800 dark:text-emerald-200">
-                                  {suggestionText}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {explanationText && (
-                          <p className="text-ink-700 dark:text-slate-300 leading-relaxed">
-                            {explanationText}
-                            {extraReplacements.length > 0 && (
-                              <span className="text-brand-700 dark:text-emerald-300 font-semibold">
-                                {" "}
-                                ({isEn ? "Also" : "Gợi ý khác"}:{" "}
-                                {extraReplacements.join(", ")})
-                              </span>
-                            )}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Used / Missing Suggested Term Chips */}
-              {(usedTerms.length > 0 || missingTerms.length > 0) && (
-                <div className="space-y-2 pt-1 border-t border-ink-200/60 dark:border-slate-700/60">
-                  {usedTerms.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 mr-1">
-                        {isEn ? "Used terms:" : "Từ đã dùng:"}
-                      </span>
-                      {usedTerms.map((term) => (
-                        <span
-                          key={term}
-                          className="inline-flex items-center gap-1 rounded-full border border-emerald-300/80 dark:border-emerald-700/60 bg-emerald-100/80 dark:bg-emerald-950/60 px-2 py-0.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-200"
-                        >
-                          <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>{term}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {missingTerms.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 mr-1">
-                        {isEn ? "Try adding:" : "Gợi ý bổ sung:"}
-                      </span>
-                      {missingTerms.map((term) => (
-                        <button
-                          key={term}
-                          type="button"
-                          onClick={() => insertTokenIntoDraft(term)}
-                          title={
-                            isEn
-                              ? `Insert "${term}" into draft`
-                              : `Chèn "${term}" vào câu nháp`
-                          }
-                          className="inline-flex items-center gap-1 rounded-full border border-amber-300/80 dark:border-amber-700/60 bg-amber-100/80 dark:bg-amber-950/60 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:text-amber-200 hover:bg-amber-200/80 dark:hover:bg-amber-900/70 transition-colors cursor-pointer"
-                        >
-                          <PlusCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
-                          <span>{term}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+        {session.draftValidation && (
+          <WritingAssessmentResult
+            validation={session.draftValidation}
+            userDraft={session.userDraft}
+            isEn={isEn}
+            copiedCorrected={copiedCorrected}
+            onCopyCorrected={(text) => void handleCopyCorrected(text)}
+            onApplyCorrected={(text) => setDraftText(text)}
+            onInsertTerm={insertTokenIntoDraft}
+          />
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-2.5">
           {session.completeSentences.length > 0 ? (

@@ -17,9 +17,11 @@ import com.parrotalk.backend.dto.ApiResponse;
 import com.parrotalk.backend.dto.admin.vocab.AdminVocabularyDetailDto;
 import com.parrotalk.backend.dto.admin.vocab.AdminVocabularyListDto;
 import com.parrotalk.backend.dto.admin.vocab.AdminVocabularyRequestDto;
+import com.parrotalk.backend.service.VocabularyTtsBackfillService;
 import com.parrotalk.backend.service.admin.AdminCoreVocabularyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/api/admin/vocabularies")
@@ -29,6 +31,12 @@ public class AdminVocabularyController {
 
     private final AdminCoreVocabularyService adminVocabularyService;
     private final com.parrotalk.backend.service.admin.AdminVocabularyAiService adminVocabularyAiService;
+    private VocabularyTtsBackfillService vocabularyTtsBackfillService;
+
+    @Autowired(required = false)
+    void setVocabularyTtsBackfillService(VocabularyTtsBackfillService vocabularyTtsBackfillService) {
+        this.vocabularyTtsBackfillService = vocabularyTtsBackfillService;
+    }
 
     @GetMapping
     public ApiResponse<Page<AdminVocabularyListDto>> getVocabularies(
@@ -87,6 +95,24 @@ public class AdminVocabularyController {
             @Valid @RequestBody com.parrotalk.backend.dto.admin.vocab.AdminVocabularyAiCommonMeaningRequestDto request) {
         return ApiResponse.<com.parrotalk.backend.dto.admin.vocab.AdminVocabularyAiCommonMeaningResponseDto>builder()
                 .result(adminVocabularyAiService.generateCommonMeaningVn(request))
+                .build();
+    }
+
+    @GetMapping("/tts-backfill/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<VocabularyTtsBackfillService.BackfillStatusDto> getTtsBackfillStatus() {
+        return ApiResponse.<VocabularyTtsBackfillService.BackfillStatusDto>builder()
+                .result(vocabularyTtsBackfillService.getStatus())
+                .build();
+    }
+
+    @PostMapping("/tts-backfill")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<VocabularyTtsBackfillService.BackfillTriggerResultDto> triggerTtsBackfill(
+            @RequestParam(defaultValue = "25") int batchSize,
+            @RequestParam(defaultValue = "500") int maxItems) {
+        return ApiResponse.<VocabularyTtsBackfillService.BackfillTriggerResultDto>builder()
+                .result(vocabularyTtsBackfillService.triggerBackfill(batchSize, maxItems))
                 .build();
     }
 }

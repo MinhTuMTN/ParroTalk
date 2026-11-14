@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 public class WritingDraftUpdateRequestDto {
 
     @NotBlank(message = "Draft sentence must not be blank.")
-    @Size(max = 1000, message = "Draft sentence must not exceed 1000 characters.")
+    @Size(max = 4000, message = "Draft must not exceed 4000 characters.")
     private String userDraft;
 }
 

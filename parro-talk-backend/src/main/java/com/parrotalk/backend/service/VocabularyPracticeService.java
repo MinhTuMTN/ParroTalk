@@ -22,6 +22,7 @@ import com.parrotalk.backend.repository.UserVocabularyRepository;
 import com.parrotalk.backend.repository.VocabularyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +60,19 @@ public class VocabularyPracticeService {
     private final TopicPracticeSentenceAiService aiService;
     private final AiCoreClient aiCoreClient;
     private final UserVocabularyRepository userVocabularyRepository;
+    private WritingTtsService writingTtsService;
+
+    @Autowired(required = false)
+    void setWritingTtsService(WritingTtsService writingTtsService) {
+        this.writingTtsService = writingTtsService;
+    }
+
+    private String resolveAudioUrl(String word, String accent, String storedAudioUrl) {
+        if (writingTtsService != null) {
+            return writingTtsService.resolvePronunciationAudioUrl(word, accent, storedAudioUrl);
+        }
+        return WritingTtsService.isBlockedExternalAudioUrl(storedAudioUrl) ? null : storedAudioUrl;
+    }
 
     private List<Vocabulary> fetchRandomVocabulariesWithExclusions(
             String topicName,
@@ -765,9 +779,10 @@ public class VocabularyPracticeService {
 
     private String extractAudioUrl(Vocabulary vocab) {
         if (vocab.getPronunciations() == null || vocab.getPronunciations().isEmpty()) {
-            return null;
+            return resolveAudioUrl(vocab.getWord(), "US", null);
         }
-        return vocab.getPronunciations().get(0).getAudioUrl();
+        VocabularyPronunciation first = vocab.getPronunciations().get(0);
+        return resolveAudioUrl(vocab.getWord(), first.getAccent(), first.getAudioUrl());
     }
 
     private PronunciationPair extractPronunciations(Vocabulary vocab) {
@@ -779,19 +794,25 @@ public class VocabularyPracticeService {
         if (vocab.getPronunciations() != null) {
             for (VocabularyPronunciation p : vocab.getPronunciations()) {
                 if ("US".equalsIgnoreCase(p.getAccent())) {
-                    usAudio = p.getAudioUrl();
+                    usAudio = resolveAudioUrl(vocab.getWord(), "US", p.getAudioUrl());
                     usIpa = p.getIpa();
                 } else if ("UK".equalsIgnoreCase(p.getAccent())) {
-                    ukAudio = p.getAudioUrl();
+                    ukAudio = resolveAudioUrl(vocab.getWord(), "UK", p.getAudioUrl());
                     ukIpa = p.getIpa();
                 }
             }
             if (usAudio == null && !vocab.getPronunciations().isEmpty()) {
-                usAudio = vocab.getPronunciations().get(0).getAudioUrl();
+                usAudio = resolveAudioUrl(vocab.getWord(), "US", vocab.getPronunciations().get(0).getAudioUrl());
             }
             if (usIpa == null && !vocab.getPronunciations().isEmpty()) {
                 usIpa = vocab.getPronunciations().get(0).getIpa();
             }
+        }
+        if (usAudio == null) {
+            usAudio = resolveAudioUrl(vocab.getWord(), "US", null);
+        }
+        if (ukAudio == null) {
+            ukAudio = resolveAudioUrl(vocab.getWord(), "UK", null);
         }
 
         String generalAudio = usAudio != null ? usAudio : ukAudio;

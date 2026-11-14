@@ -137,10 +137,36 @@ public class WritingAssistantAiServiceTest {
         ));
     }
 
+    private List<WritingAssistantAiService.AiCriterionAssessment> validCriteria(
+            int taskScore, int coherenceScore, int lexicalScore, int grammarScore) {
+        return List.of(
+                WritingAssistantAiService.AiCriterionAssessment.builder()
+                        .criterion("GRAMMATICAL_RANGE_ACCURACY")
+                        .score(grammarScore)
+                        .feedbackVn("Ngữ pháp và chính tả rõ ràng.")
+                        .build(),
+                WritingAssistantAiService.AiCriterionAssessment.builder()
+                        .criterion("TASK_FULFILLMENT")
+                        .score(taskScore)
+                        .feedbackVn("Đáp ứng đúng ý chính.")
+                        .build(),
+                WritingAssistantAiService.AiCriterionAssessment.builder()
+                        .criterion("LEXICAL_RESOURCE")
+                        .score(lexicalScore)
+                        .feedbackVn("Từ vựng phù hợp trình độ.")
+                        .build(),
+                WritingAssistantAiService.AiCriterionAssessment.builder()
+                        .criterion("COHERENCE_COHESION")
+                        .score(coherenceScore)
+                        .feedbackVn("Mạch lạc, dễ hiểu.")
+                        .build()
+        );
+    }
+
     @Test
-    @DisplayName("reviewDraft sends prompt via AiCoreClient, normalizes issue types, and clamps score")
+    @DisplayName("reviewDraft normalizes issue types, canonicalizes 4 criteria, and computes arithmetic mean score")
     @SuppressWarnings("unchecked")
-    void testReviewDraft_NormalizesIssuesAndClampsScore() {
+    void testReviewDraft_NormalizesIssuesAndComputesMeanScore() {
         WritingAssistantAiService.AiDraftReviewPayload mockReview =
                 WritingAssistantAiService.AiDraftReviewPayload.builder()
                         .correctedSentence("She went to school yesterday.")
@@ -158,7 +184,8 @@ public class WritingAssistantAiServiceTest {
                                         .explanationVn("Giu nguyen.")
                                         .build()
                         ))
-                        .score(120)
+                        .score(99) // Should be overridden by round((85 + 80 + 75 + 70) / 4.0) = 78
+                        .assessmentCriteria(validCriteria(85, 80, 75, 70))
                         .usedItems(List.of(
                                 WritingAssistantAiService.AiUsedItemEvaluation.builder()
                                         .text("go to school")
@@ -190,13 +217,96 @@ public class WritingAssistantAiServiceTest {
 
         assertNotNull(result);
         assertEquals("She went to school yesterday.", result.getCorrectedSentence());
-        assertEquals(100, result.getScore());
+        assertEquals(78, result.getScore());
+        assertEquals(4, result.getAssessmentCriteria().size());
+        assertEquals("TASK_FULFILLMENT", result.getAssessmentCriteria().get(0).getCriterion());
+        assertEquals("COHERENCE_COHESION", result.getAssessmentCriteria().get(1).getCriterion());
+        assertEquals("LEXICAL_RESOURCE", result.getAssessmentCriteria().get(2).getCriterion());
+        assertEquals("GRAMMATICAL_RANGE_ACCURACY", result.getAssessmentCriteria().get(3).getCriterion());
         assertEquals(2, result.getIssues().size());
         assertEquals("GRAMMAR", result.getIssues().get(0).getType());
         assertEquals("GRAMMAR", result.getIssues().get(1).getType());
         assertEquals(1, result.getUsedItems().size());
         assertTrue(userCaptor.getValue().contains("She go to school yesterday."));
-        assertTrue(systemCaptor.getValue().contains("US or UK"));
+        String sysPrompt = systemCaptor.getValue();
+        assertTrue(sysPrompt.contains("TASK_FULFILLMENT"));
+        assertTrue(sysPrompt.contains("COHERENCE_COHESION"));
+        assertTrue(sysPrompt.contains("LEXICAL_RESOURCE"));
+        assertTrue(sysPrompt.contains("GRAMMATICAL_RANGE_ACCURACY"));
+        assertTrue(sysPrompt.contains("US") && sysPrompt.contains("UK"));
+        assertTrue(sysPrompt.contains("single sentence"));
+        assertTrue(sysPrompt.contains("duplicate"));
+    }
+
+    @Test
+    @DisplayName("reviewDraft rejects missing, duplicate, or out-of-range assessment criteria")
+    @SuppressWarnings("unchecked")
+    void testReviewDraft_RejectsMalformedCriteria() {
+        when(aiCoreClient.callAndValidate(anyString(), anyString(),
+                eq(WritingAssistantAiService.AiDraftReviewPayload.class), any()))
+                .thenAnswer(inv -> {
+                    Function<WritingAssistantAiService.AiDraftReviewPayload, WritingAssistantAiService.AiDraftReviewPayload> validator =
+                            inv.getArgument(3);
+                    // 1. Missing criterion
+                    WritingAssistantAiService.AiDraftReviewPayload missing =
+                            WritingAssistantAiService.AiDraftReviewPayload.builder()
+                                    .correctedSentence("Test.")
+                                    .assessmentCriteria(List.of(
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("TASK_FULFILLMENT").score(80).feedbackVn("Ok").build()
+                                    ))
+                                    .overallVn("Ok")
+                                    .build();
+                    assertThrows(IllegalArgumentException.class, () -> validator.apply(missing));
+
+                    // 2. Out of range score
+                    WritingAssistantAiService.AiDraftReviewPayload outOfRange =
+                            WritingAssistantAiService.AiDraftReviewPayload.builder()
+                                    .correctedSentence("Test.")
+                                    .assessmentCriteria(validCriteria(105, 80, 80, 80))
+                                    .overallVn("Ok")
+                                    .build();
+                    assertThrows(IllegalArgumentException.class, () -> validator.apply(outOfRange));
+
+                    // 3. Duplicate criterion
+                    WritingAssistantAiService.AiDraftReviewPayload duplicate =
+                            WritingAssistantAiService.AiDraftReviewPayload.builder()
+                                    .correctedSentence("Test.")
+                                    .assessmentCriteria(List.of(
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("TASK_FULFILLMENT").score(80).feedbackVn("Ok").build(),
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("TASK_FULFILLMENT").score(80).feedbackVn("Ok").build(),
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("LEXICAL_RESOURCE").score(80).feedbackVn("Ok").build(),
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("GRAMMATICAL_RANGE_ACCURACY").score(80).feedbackVn("Ok").build()
+                                    ))
+                                    .overallVn("Ok")
+                                    .build();
+                    assertThrows(IllegalArgumentException.class, () -> validator.apply(duplicate));
+
+                    // 4. Blank feedback
+                    WritingAssistantAiService.AiDraftReviewPayload blankFeedback =
+                            WritingAssistantAiService.AiDraftReviewPayload.builder()
+                                    .correctedSentence("Test.")
+                                    .assessmentCriteria(List.of(
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("TASK_FULFILLMENT").score(80).feedbackVn("  ").build(),
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("COHERENCE_COHESION").score(80).feedbackVn("Ok").build(),
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("LEXICAL_RESOURCE").score(80).feedbackVn("Ok").build(),
+                                            WritingAssistantAiService.AiCriterionAssessment.builder()
+                                                    .criterion("GRAMMATICAL_RANGE_ACCURACY").score(80).feedbackVn("Ok").build()
+                                    ))
+                                    .overallVn("Ok")
+                                    .build();
+                    return validator.apply(blankFeedback);
+                });
+
+        assertThrows(IllegalArgumentException.class, () -> aiService.reviewDraft(
+                "Test sentence.", "Idea", DifficultyScale.CEFR, "B1", List.of()));
     }
 
     @Test

@@ -33,6 +33,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -214,6 +216,37 @@ public class WritingAssistantControllerTest {
                 .andExpect(jsonPath("$.code").value(1000))
                 .andExpect(jsonPath("$.result.userDraft").value("Drunk people must not drive because alcohol impairs their vision."))
                 .andExpect(jsonPath("$.result.draftValidation.valid").value(true));
+    }
+
+    @Test
+    @DisplayName("PATCH /api/writing/sessions/{id}/draft accepts longer writing over 1000 characters up to 4000 characters")
+    void testUpdateDraft_LongerWritingAccepted() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        String longDraft = "Technology has transformed modern education in numerous ways. ".repeat(25).trim();
+        assertTrue(longDraft.length() > 1000 && longDraft.length() <= 4000);
+
+        WritingSessionResponseDto updatedDto = WritingSessionResponseDto.builder()
+                .id(sessionId)
+                .userDraft(longDraft)
+                .draftValidation(GrammarValidationResultDto.builder()
+                        .valid(true)
+                        .status(WritingItemValidationStatus.APPROVED)
+                        .score(88)
+                        .summaryVn("Bài viết mạch lạc và đúng ngữ pháp.")
+                        .aiReviewed(true)
+                        .reviewSource("AI")
+                        .build())
+                .build();
+
+        when(writingService.updateUserDraft(eq(sessionId), eq(longDraft), eq(testUser)))
+                .thenReturn(updatedDto);
+
+        mockMvc.perform(patch("/api/writing/sessions/" + sessionId + "/draft")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userDraft\": \"" + longDraft + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(1000))
+                .andExpect(jsonPath("$.result.draftValidation.score").value(88));
     }
 
     @Test

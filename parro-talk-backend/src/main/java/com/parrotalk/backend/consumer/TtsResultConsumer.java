@@ -3,10 +3,12 @@ package com.parrotalk.backend.consumer;
 import com.parrotalk.backend.config.RabbitMQConfig;
 import com.parrotalk.backend.entity.TtsAudioCache;
 import com.parrotalk.backend.repository.TtsAudioCacheRepository;
+import com.parrotalk.backend.service.VocabularyTtsBackfillService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -26,6 +28,12 @@ public class TtsResultConsumer {
 
     private final TtsAudioCacheRepository ttsAudioCacheRepository;
     private final ObjectMapper mapper = new ObjectMapper();
+    private VocabularyTtsBackfillService vocabularyTtsBackfillService;
+
+    @Autowired(required = false)
+    void setVocabularyTtsBackfillService(VocabularyTtsBackfillService vocabularyTtsBackfillService) {
+        this.vocabularyTtsBackfillService = vocabularyTtsBackfillService;
+    }
 
     @RabbitListener(queues = RabbitMQConfig.TTS_RESULT_QUEUE)
     @Transactional
@@ -58,7 +66,12 @@ public class TtsResultConsumer {
 
         if (!toSave.isEmpty()) {
             ttsAudioCacheRepository.saveAll(toSave);
-            log.debug("Saved {} Cloudinary TTS cache entries from RabbitMQ", toSave.size());
+            log.info("Saved {} Cloudinary TTS cache entries from RabbitMQ", toSave.size());
+            if (vocabularyTtsBackfillService != null) {
+                for (TtsAudioCache saved : toSave) {
+                    vocabularyTtsBackfillService.onTtsResult(saved.getCacheKey(), saved.getCloudinaryUrl());
+                }
+            }
         }
     }
 

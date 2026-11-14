@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { resolveWritingAudioUrl } from "@/features/writing/services/writingService";
 import {
   Volume2,
   Briefcase,
@@ -137,8 +138,9 @@ export function TypeWordCard({
       if (typeof window === "undefined") return;
       setPlayingAccent(accent);
 
-      if (accent === "US" && questionData.audioUrl) {
-        const audio = new Audio(questionData.audioUrl);
+      const resolvedAudioUrl = resolveWritingAudioUrl(questionData.audioUrl, questionData.targetWord, accent);
+      if (accent === "US" && resolvedAudioUrl) {
+        const audio = new Audio(resolvedAudioUrl);
         audio.onended = () => setPlayingAccent(null);
         audio.onerror = () => fallbackSpeech(questionData.targetWord, accent);
         audio.play().catch(() => fallbackSpeech(questionData.targetWord, accent));

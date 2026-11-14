@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { resolveWritingAudioUrl } from "@/features/writing/services/writingService";
 import {
   Volume2,
   Briefcase,
@@ -96,8 +97,9 @@ export function ListenTypeCard({
     if (typeof window === "undefined") return;
     setIsPlayingAudio(true);
 
-    if (questionData.audioUrl && difficulty === "easy") {
-      const audio = new Audio(questionData.audioUrl);
+    const resolvedAudioUrl = resolveWritingAudioUrl(questionData.audioUrl, textToRead, "US");
+    if (resolvedAudioUrl && difficulty === "easy") {
+      const audio = new Audio(resolvedAudioUrl);
       audio.onended = () => {
         setIsPlayingAudio(false);
         setAudioPlayed(true);

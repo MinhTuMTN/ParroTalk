@@ -499,6 +499,16 @@ public class WritingAssistantServiceTest {
         )).thenReturn(WritingAssistantAiService.AiDraftReviewPayload.builder()
                 .correctedSentence("She went to school yesterday.")
                 .score(68)
+                .assessmentCriteria(List.of(
+                        WritingAssistantAiService.AiCriterionAssessment.builder()
+                                .criterion("TASK_FULFILLMENT").score(85).feedbackVn("Đúng ý chính.").build(),
+                        WritingAssistantAiService.AiCriterionAssessment.builder()
+                                .criterion("COHERENCE_COHESION").score(80).feedbackVn("Mạch lạc.").build(),
+                        WritingAssistantAiService.AiCriterionAssessment.builder()
+                                .criterion("LEXICAL_RESOURCE").score(75).feedbackVn("Từ vựng ổn.").build(),
+                        WritingAssistantAiService.AiCriterionAssessment.builder()
+                                .criterion("GRAMMATICAL_RANGE_ACCURACY").score(52).feedbackVn("Sai thì quá khứ.").build()
+                ))
                 .overallVn("Động từ 'go' cần chia quá khứ thành 'went'.")
                 .issues(List.of(
                         WritingAssistantAiService.AiDraftIssue.builder()
@@ -528,7 +538,16 @@ public class WritingAssistantServiceTest {
         assertFalse(updated.getDraftValidation().isValid());
         assertEquals(WritingItemValidationStatus.NEEDS_REVIEW, updated.getDraftValidation().getStatus());
         assertEquals("She went to school yesterday.", updated.getDraftValidation().getCorrectedSentence());
-        assertEquals(68, updated.getDraftValidation().getScore());
+        assertEquals(73, updated.getDraftValidation().getScore()); // round((85+80+75+52)/4.0) = 73
+        assertEquals(Boolean.TRUE, updated.getDraftValidation().getAiReviewed());
+        assertEquals("AI", updated.getDraftValidation().getReviewSource());
+        assertNotNull(updated.getDraftValidation().getAssessmentCriteria());
+        assertEquals(4, updated.getDraftValidation().getAssessmentCriteria().size());
+        assertEquals("Task Fulfillment & Idea Development",
+                updated.getDraftValidation().getAssessmentCriteria().get(0).getNameEn());
+        assertEquals("Hoàn thành yêu cầu và phát triển ý",
+                updated.getDraftValidation().getAssessmentCriteria().get(0).getLabelVn());
+        assertEquals(0.25, updated.getDraftValidation().getAssessmentCriteria().get(0).getWeight());
         assertTrue(updated.getDraftValidation().getUsedTerms().contains("yesterday"));
         assertTrue(updated.getDraftValidation().getUsedTerms().contains("[Subject] + go to school + [Time]."));
         assertTrue(updated.getDraftValidation().getMissingTerms().contains("public transport"));
@@ -569,6 +588,9 @@ public class WritingAssistantServiceTest {
         assertTrue(updated.getDraftValidation().isValid());
         assertEquals(WritingItemValidationStatus.APPROVED, updated.getDraftValidation().getStatus());
         assertTrue(updated.getDraftValidation().getSummaryVn().contains("AI review unavailable"));
+        assertEquals(Boolean.FALSE, updated.getDraftValidation().getAiReviewed());
+        assertEquals("RULE_ONLY", updated.getDraftValidation().getReviewSource());
+        assertNull(updated.getDraftValidation().getAssessmentCriteria());
     }
 
     @Test
@@ -607,6 +629,7 @@ public class WritingAssistantServiceTest {
         assertEquals(72, detail.getDraftValidation().getScore());
         assertEquals("She went to school yesterday.", detail.getDraftValidation().getCorrectedSentence());
         assertFalse(detail.getDraftValidation().isValid());
+        assertNull(detail.getDraftValidation().getAssessmentCriteria());
 
         WritingSessionResponseDto cached = writingService.analyzeAndSave(
                 WritingAnalyzeRequestDto.builder()

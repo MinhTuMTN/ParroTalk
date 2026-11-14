@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -42,6 +43,19 @@ public class VocabularyTopicService {
     private final TopicRepository topicRepository;
     private final VocabularyRepository vocabularyRepository;
     private final UserVocabularyRepository userVocabularyRepository;
+    private WritingTtsService writingTtsService;
+
+    @Autowired(required = false)
+    void setWritingTtsService(WritingTtsService writingTtsService) {
+        this.writingTtsService = writingTtsService;
+    }
+
+    private String resolveAudioUrl(String word, String accent, String storedAudioUrl) {
+        if (writingTtsService != null) {
+            return writingTtsService.resolvePronunciationAudioUrl(word, accent, storedAudioUrl);
+        }
+        return WritingTtsService.isBlockedExternalAudioUrl(storedAudioUrl) ? null : storedAudioUrl;
+    }
     private final PublicVocabularyService publicVocabularyService;
 
     @Transactional(readOnly = true)
@@ -165,9 +179,11 @@ public class VocabularyTopicService {
         String uk = null;
         for (VocabularyPronunciation p : v.getPronunciations()) {
             if (phonetic == null) phonetic = p.getIpa();
-            if ("US".equalsIgnoreCase(p.getAccent())) us = p.getAudioUrl();
-            if ("UK".equalsIgnoreCase(p.getAccent())) uk = p.getAudioUrl();
+            if ("US".equalsIgnoreCase(p.getAccent())) us = resolveAudioUrl(v.getWord(), "US", p.getAudioUrl());
+            if ("UK".equalsIgnoreCase(p.getAccent())) uk = resolveAudioUrl(v.getWord(), "UK", p.getAudioUrl());
         }
+        if (us == null) us = resolveAudioUrl(v.getWord(), "US", null);
+        if (uk == null) uk = resolveAudioUrl(v.getWord(), "UK", null);
 
         return TopicWordDto.builder()
                 .id(v.getId())

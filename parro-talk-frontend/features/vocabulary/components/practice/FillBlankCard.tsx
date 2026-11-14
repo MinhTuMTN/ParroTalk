@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { resolveWritingAudioUrl } from "@/features/writing/services/writingService";
 import {
   Volume2,
   Briefcase,
@@ -108,9 +109,10 @@ export function FillBlankCard({
   const playSentenceAudio = () => {
     if (typeof window === "undefined") return;
 
-    if (questionData.audioUrl) {
+    const resolvedAudioUrl = resolveWritingAudioUrl(questionData.audioUrl, questionData.completedSentence, "US");
+    if (resolvedAudioUrl) {
       setIsPlayingAudio(true);
-      const audio = new Audio(questionData.audioUrl);
+      const audio = new Audio(resolvedAudioUrl);
       audio.onended = () => setIsPlayingAudio(false);
       audio.onerror = () => setIsPlayingAudio(false);
       audio.play().catch(() => setIsPlayingAudio(false));

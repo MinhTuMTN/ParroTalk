@@ -3,6 +3,7 @@ package com.parrotalk.backend.service;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.parrotalk.backend.constant.DifficultyScale;
+import com.parrotalk.backend.constant.WritingAssessmentCriterion;
 import com.parrotalk.backend.constant.WritingMode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,7 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * AI service for analyzing a learner's Vietnamese or English idea and generating
@@ -55,24 +58,43 @@ public class WritingAssistantAiService {
             """;
 
     private static final String DRAFT_REVIEW_SYSTEM_PROMPT = """
-            You are an expert English grammar checker and writing coach for Vietnamese learners.
-            Task: Strictly review a learner's English draft sentence/paragraph against their core idea, proficiency level, and suggested target items.
+            You are an expert English writing assessor and coach for Vietnamese learners.
+            Task: Evaluate a learner's English draft (single sentence, short paragraph, or longer writing) using a strict four-criteria Writing Assessment rubric, calibrated to their core idea and proficiency level.
+
+            FOUR ASSESSMENT CRITERIA (each scored independently from 0 to 100):
+            1. TASK_FULFILLMENT (Task Fulfillment & Idea Development):
+               - Relevance to the core idea and task, completeness, clarity, idea development, and supporting details.
+            2. COHERENCE_COHESION (Coherence & Cohesion):
+               - Logical flow and organization, sentence and paragraph connections, transitions, and clear references.
+               - LENGTH ADAPTATION: For a single sentence, do NOT penalize for lacking paragraph or multi-sentence transitions; evaluate intra-sentence logical flow and clarity instead. For short paragraphs and longer writing, evaluate sentence/paragraph connections, transitions, and overall organization.
+            3. LEXICAL_RESOURCE (Lexical Resource):
+               - Vocabulary range and precision, word choice, word forms, collocations, natural expressions, and appropriate variety.
+            4. GRAMMATICAL_RANGE_ACCURACY (Grammatical Range & Accuracy):
+               - Grammatical correctness, sentence structure and complexity, grammar range and accuracy, spelling, and punctuation.
 
             STRICT EVALUATION RULES:
-            1. Judge grammar, spelling, word choice, and punctuation accurately and strictly. Catch real errors such as subject-verb disagreement ("She go" -> "She went"), wrong tense ("go ... yesterday"), missing/wrong articles or prepositions, fragment/run-on clauses, and misspellings.
-            2. Do NOT flag valid US or UK spelling/grammar variants (e.g., color/colour, organize/organise, canceled/cancelled, gotten/got, optional Oxford comma) and do NOT invent errors if the draft is already grammatical and natural.
-            3. If the draft has no errors, return "issues": [] and set "score" high (90-100).
-            4. Evaluate each item in "suggestedItems" (including vocabulary words, collocations, expressions, and bracketed sentence patterns like "[Subject] + should not + [V-inf]") in ANY valid grammatical inflection, tense, plural, or filled-slot form.
-            5. Keep all "explanationVn", "note", and "overallVn" concise and natural in Vietnamese.
+            1. Preserve the original core idea in "correctedSentence" and keep all Vietnamese feedback concise and natural.
+            2. Strictly distinguish actual errors from optional stylistic improvements:
+               - Put ONLY real errors (grammar, spelling, incorrect word choice/collocation, punctuation) in "issues".
+               - Mention optional stylistic improvements in the relevant criterion "feedbackVn" instead of flagging them as errors in "issues".
+            3. Support both US and UK English variants (e.g., color/colour, organize/organise, canceled/cancelled, gotten/got, learned/learnt, optional Oxford comma). Do NOT flag valid US or UK variants as errors.
+            4. Avoid duplicate deductions for a single error: do not report the same error twice in "issues" and do not penalize a single localized slip excessively across unrelated criteria.
+            5. If the draft is grammatical, natural, and fulfills the core idea, return "issues": [] and award high criterion scores (90-100).
+            6. Evaluate each item in "suggestedItems" (including vocabulary words, collocations, expressions, and bracketed sentence patterns like "[Subject] + should not + [V-inf]") in ANY valid grammatical inflection, tense, plural, or filled-slot form.
+            7. Keep "suggestedItems" evaluation independent from the four assessment scores unless using them is explicitly required by the task.
 
             OUTPUT REQUIREMENTS (Single compact JSON Object, no markdown fences):
-            - correctedSentence: string (the grammatically corrected natural version of the learner's draft)
+            - correctedSentence: string (corrected natural version preserving the learner's original core idea)
             - issues: array of objects, each with:
               - type: "GRAMMAR" | "SPELLING" | "WORD_CHOICE" | "PUNCTUATION"
               - original: string (exact problematic substring from the learner's draft)
               - suggestion: string (recommended replacement)
-              - explanationVn: string (clear concise explanation in Vietnamese)
-            - score: integer 0-100 (overall quality score based on accuracy, naturalness, and idea clarity)
+              - explanationVn: string (concise explanation in Vietnamese)
+            - assessmentCriteria: array of EXACTLY 4 objects, one for each criterion ("TASK_FULFILLMENT", "COHERENCE_COHESION", "LEXICAL_RESOURCE", "GRAMMATICAL_RANGE_ACCURACY"), each with:
+              - criterion: "TASK_FULFILLMENT" | "COHERENCE_COHESION" | "LEXICAL_RESOURCE" | "GRAMMATICAL_RANGE_ACCURACY"
+              - score: integer 0-100
+              - feedbackVn: string (concise Vietnamese feedback explaining strengths and weaknesses for this criterion)
+            - score: integer 0-100 (must equal round((TASK_FULFILLMENT + COHERENCE_COHESION + LEXICAL_RESOURCE + GRAMMATICAL_RANGE_ACCURACY) / 4))
             - usedItems: array of objects matching suggestedItems, each with:
               - text: string (suggested item text)
               - used: boolean (true if used in the draft, including inflections or filled pattern slots)
@@ -459,7 +481,7 @@ public class WritingAssistantAiService {
                 Target Proficiency Level: %s
                 Suggested Items to Check: [%s]
 
-                Strictly evaluate grammar, spelling, word choice, punctuation, overall score (0-100), correctedSentence, and usage of each suggested item. Return ONLY the JSON object.
+                Strictly evaluate all four writing assessment criteria (TASK_FULFILLMENT, COHERENCE_COHESION, LEXICAL_RESOURCE, GRAMMATICAL_RANGE_ACCURACY), issues, correctedSentence, and usage of each suggested item. Return ONLY the JSON object.
                 """,
                 draft.trim(),
                 coreIdea,
@@ -474,6 +496,15 @@ public class WritingAssistantAiService {
                     if (raw == null) {
                         throw new IllegalArgumentException("AI returned null draft review payload");
                     }
+
+                    List<AiCriterionAssessment> validatedCriteria = validateAndCanonicalizeCriteria(raw.getAssessmentCriteria());
+                    raw.setAssessmentCriteria(validatedCriteria);
+
+                    int sum = validatedCriteria.stream()
+                            .mapToInt(AiCriterionAssessment::getScore)
+                            .sum();
+                    raw.setScore((int) Math.round(sum / 4.0));
+
                     List<AiDraftIssue> normalizedIssues = new ArrayList<>();
                     if (raw.getIssues() != null) {
                         for (AiDraftIssue issue : raw.getIssues()) {
@@ -496,9 +527,6 @@ public class WritingAssistantAiService {
                     }
                     raw.setUsedItems(normalizedUsed);
 
-                    if (raw.getScore() != null) {
-                        raw.setScore(Math.max(0, Math.min(100, raw.getScore())));
-                    }
                     if ((raw.getCorrectedSentence() == null || raw.getCorrectedSentence().isBlank())
                             && normalizedIssues.isEmpty()) {
                         raw.setCorrectedSentence(draft.trim());
@@ -509,6 +537,46 @@ public class WritingAssistantAiService {
                     return raw;
                 }
         );
+    }
+
+    private List<AiCriterionAssessment> validateAndCanonicalizeCriteria(List<AiCriterionAssessment> rawCriteria) {
+        if (rawCriteria == null || rawCriteria.size() != WritingAssessmentCriterion.values().length) {
+            throw new IllegalArgumentException("AI draft review must return exactly 4 assessmentCriteria");
+        }
+        Map<WritingAssessmentCriterion, AiCriterionAssessment> byCriterion =
+                new EnumMap<>(WritingAssessmentCriterion.class);
+        for (AiCriterionAssessment item : rawCriteria) {
+            if (item == null) {
+                throw new IllegalArgumentException("AI assessment criterion item cannot be null");
+            }
+            WritingAssessmentCriterion criterion = WritingAssessmentCriterion.fromString(item.getCriterion());
+            if (byCriterion.containsKey(criterion)) {
+                throw new IllegalArgumentException("Duplicate AI assessment criterion: " + criterion);
+            }
+            Integer score = item.getScore();
+            if (score == null || score < 0 || score > 100) {
+                throw new IllegalArgumentException(
+                        "Invalid score for criterion " + criterion + ": " + score);
+            }
+            if (item.getFeedbackVn() == null || item.getFeedbackVn().isBlank()) {
+                throw new IllegalArgumentException(
+                        "Blank Vietnamese feedback for criterion " + criterion);
+            }
+            byCriterion.put(criterion, AiCriterionAssessment.builder()
+                    .criterion(criterion.name())
+                    .score(score)
+                    .feedbackVn(item.getFeedbackVn().trim())
+                    .build());
+        }
+        List<AiCriterionAssessment> canonical = new ArrayList<>(WritingAssessmentCriterion.values().length);
+        for (WritingAssessmentCriterion criterion : WritingAssessmentCriterion.values()) {
+            AiCriterionAssessment resolved = byCriterion.get(criterion);
+            if (resolved == null) {
+                throw new IllegalArgumentException("Missing AI assessment criterion: " + criterion);
+            }
+            canonical.add(resolved);
+        }
+        return canonical;
     }
 
     private String normalizeIssueType(String type) {
@@ -538,12 +606,32 @@ public class WritingAssistantAiService {
         @JsonProperty("score")
         private Integer score;
 
+        @JsonProperty("assessmentCriteria")
+        @Builder.Default
+        private List<AiCriterionAssessment> assessmentCriteria = new ArrayList<>();
+
         @JsonProperty("usedItems")
         @Builder.Default
         private List<AiUsedItemEvaluation> usedItems = new ArrayList<>();
 
         @JsonProperty("overallVn")
         private String overallVn;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AiCriterionAssessment {
+        @JsonProperty("criterion")
+        private String criterion;
+
+        @JsonProperty("score")
+        private Integer score;
+
+        @JsonProperty("feedbackVn")
+        private String feedbackVn;
     }
 
     @Data
