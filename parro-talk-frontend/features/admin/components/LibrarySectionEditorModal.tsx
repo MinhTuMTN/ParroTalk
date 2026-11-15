@@ -52,20 +52,6 @@ const SECTION_TYPES: {
     icon: Clock,
     badgeColor: "bg-amber-50 text-amber-700 border-amber-200",
   },
-  {
-    type: "USER_PROCESSING",
-    label: "Processing Lessons",
-    description: "Personal user shelf displaying audio undergoing transcription.",
-    icon: Loader2,
-    badgeColor: "bg-purple-50 text-purple-700 border-purple-200",
-  },
-  {
-    type: "USER_UPLOADED",
-    label: "Uploaded Lessons",
-    description: "Personal user shelf of custom lessons uploaded by the user.",
-    icon: UploadCloud,
-    badgeColor: "bg-sky-50 text-sky-700 border-sky-200",
-  },
 ];
 
 const PROGRAM_SUGGESTIONS = [

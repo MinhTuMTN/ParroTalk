@@ -12,10 +12,6 @@ const getSectionIcon = (type: string) => {
   switch (type) {
     case "IN_PROGRESS":
       return <PlayCircle className="w-5 h-5 text-green-500" />;
-    case "USER_PROCESSING":
-      return <Clock className="w-5 h-5 text-amber-500" />;
-    case "USER_UPLOADED":
-      return <UploadCloud className="w-5 h-5 text-blue-500" />;
     case "CATEGORY":
       return <Folder className="w-5 h-5 text-purple-500" />;
     case "PROGRAM":

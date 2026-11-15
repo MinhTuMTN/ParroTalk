@@ -60,7 +60,7 @@ class LibraryControllerTest {
                 .items(List.of(new LessonWithProgressDTO(UUID.randomUUID(), "Lesson 1", 50.0, "thumb.jpg", "url.mp3", 300)))
                 .build();
 
-        when(libraryService.getLibrarySections(mockUser.getId())).thenReturn(List.of(section));
+        when(libraryService.getLibrarySections(mockUser)).thenReturn(List.of(section));
 
         ResponseEntity<ApiResponse<List<LibrarySectionDTO>>> response = libraryController.getLibrarySections(mockUser);
 
@@ -69,7 +69,7 @@ class LibraryControllerTest {
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().getResult().size());
         assertEquals("Featured Topics", response.getBody().getResult().get(0).getTitle());
-        verify(libraryService).getLibrarySections(mockUser.getId());
+        verify(libraryService).getLibrarySections(mockUser);
     }
 
     @Test

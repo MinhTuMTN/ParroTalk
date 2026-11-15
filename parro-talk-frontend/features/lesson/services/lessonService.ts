@@ -137,8 +137,6 @@ export interface LessonWithProgressDTO {
 
 export type LibrarySectionType =
   | "IN_PROGRESS"
-  | "USER_PROCESSING"
-  | "USER_UPLOADED"
   | "CATEGORY"
   | "PROGRAM";
 

@@ -318,17 +318,13 @@ public class LibraryRepositoryTest {
         assertThat(progProjections.get(0).getTitle()).isEqualTo("Batch Program Lesson");
         assertThat(progProjections.get(0).getSectionKey()).isEqualTo("TED Talks");
 
-        // Test User Batch
+        // Test User Batch (only IN_PROGRESS)
         var userProjections = lessonRepository.findBatchUserLessons(userA.getId(), 10);
-        assertThat(userProjections).hasSize(2);
+        assertThat(userProjections).hasSize(1);
         var inProg = userProjections.stream().filter(p -> "IN_PROGRESS".equals(p.getSectionKey())).findFirst();
         assertThat(inProg).isPresent();
         assertThat(inProg.get().getTitle()).isEqualTo("Batch In-Progress Lesson");
         assertThat(inProg.get().getProgress()).isEqualTo(70.0);
-
-        var uploaded = userProjections.stream().filter(p -> "USER_UPLOADED".equals(p.getSectionKey())).findFirst();
-        assertThat(uploaded).isPresent();
-        assertThat(uploaded.get().getTitle()).isEqualTo("Batch Uploaded Lesson");
     }
 }
 

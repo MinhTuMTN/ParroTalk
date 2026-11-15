@@ -540,106 +540,46 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
      * Batch query user-specific lessons (IN_PROGRESS).
      */
     @Query(value = """
-            WITH in_progress_lessons AS (
-                SELECT 
-                    'IN_PROGRESS' AS section_key,
-                    CAST(l.id AS VARCHAR) AS id,
-                    l.title AS title,
-                    ulp.last_progress * 100.0 AS progress,
-                    CASE
-                        WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
-                        THEN COALESCE(
-                            (SELECT lc.image_url
-                             FROM lesson_category_lesson lcl
-                             JOIN lesson_categories lc ON lc.id = lcl.category_id
-                             WHERE lcl.lesson_id = l.id
-                               AND lc.is_deleted = false
-                               AND lc.image_url IS NOT NULL
-                               AND lc.image_url <> ''
-                             ORDER BY lc.sort_order ASC, lc.name ASC
-                             LIMIT 1),
-                            l.thumbnail_url
-                        )
-                        ELSE l.thumbnail_url
-                    END AS thumbnail_url,
-                    l.file_url AS file_url,
-                    l.duration AS duration,
-                    ROW_NUMBER() OVER (ORDER BY ulp.updated_at DESC) AS rank
-                FROM user_lesson_progress ulp
-                JOIN lessons l ON ulp.lesson_id = l.id
-                WHERE ulp.user_id = :userId
-                  AND ulp.last_progress > 0 
-                  AND ulp.last_progress < 1.0
-                  AND l.is_deleted = false
-            ),
-            user_processing AS (
-                SELECT 
-                    'USER_PROCESSING' AS section_key,
-                    CAST(l.id AS VARCHAR) AS id,
-                    l.title AS title,
-                    COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
-                    CASE
-                        WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
-                        THEN COALESCE(
-                            (SELECT lc.image_url
-                             FROM lesson_category_lesson lcl
-                             JOIN lesson_categories lc ON lc.id = lcl.category_id
-                             WHERE lcl.lesson_id = l.id
-                               AND lc.is_deleted = false
-                               AND lc.image_url IS NOT NULL
-                               AND lc.image_url <> ''
-                             ORDER BY lc.sort_order ASC, lc.name ASC
-                             LIMIT 1),
-                            l.thumbnail_url
-                        )
-                        ELSE l.thumbnail_url
-                    END AS thumbnail_url,
-                    l.file_url AS file_url,
-                    l.duration AS duration,
-                    ROW_NUMBER() OVER (ORDER BY l.created_at DESC) AS rank
-                FROM lessons l
-                LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = :userId
-                WHERE l.owner_id = :userId
-                  AND l.status IN ('PENDING', 'PROCESSING')
-                  AND l.is_deleted = false
-            ),
-            user_uploaded AS (
-                SELECT 
-                    'USER_UPLOADED' AS section_key,
-                    CAST(l.id AS VARCHAR) AS id,
-                    l.title AS title,
-                    COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
-                    CASE
-                        WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
-                        THEN COALESCE(
-                            (SELECT lc.image_url
-                             FROM lesson_category_lesson lcl
-                             JOIN lesson_categories lc ON lc.id = lcl.category_id
-                             WHERE lcl.lesson_id = l.id
-                               AND lc.is_deleted = false
-                               AND lc.image_url IS NOT NULL
-                               AND lc.image_url <> ''
-                             ORDER BY lc.sort_order ASC, lc.name ASC
-                             LIMIT 1),
-                            l.thumbnail_url
-                        )
-                        ELSE l.thumbnail_url
-                    END AS thumbnail_url,
-                    l.file_url AS file_url,
-                    l.duration AS duration,
-                    ROW_NUMBER() OVER (ORDER BY l.created_at DESC) AS rank
-                FROM lessons l
-                LEFT JOIN user_lesson_progress ulp ON ulp.lesson_id = l.id AND ulp.user_id = :userId
-                WHERE l.owner_id = :userId
-                  AND l.status = 'DONE'
-                  AND l.is_deleted = false
-            )
-            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration FROM in_progress_lessons WHERE rank <= :maxItems
-            UNION ALL
-            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration FROM user_processing WHERE rank <= :maxItems
-            UNION ALL
-            SELECT section_key, id, title, progress, thumbnail_url, file_url, duration FROM user_uploaded WHERE rank <= :maxItems
-            """, nativeQuery = true)
+            SELECT
+                'IN_PROGRESS' AS section_key,
+                CAST(l.id AS VARCHAR) AS id,
+                l.title,
+                ulp.last_progress * 100.0 AS progress,
+                CASE
+                    WHEN l.thumbnail_url IS NULL
+                        OR l.thumbnail_url = ''
+                        OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(category_thumbnail.image_url, l.thumbnail_url)
+                    ELSE l.thumbnail_url
+                END AS thumbnail_url,
+                l.file_url,
+                l.duration
+            FROM user_lesson_progress ulp
+            JOIN lessons l ON l.id = ulp.lesson_id
+            LEFT JOIN LATERAL (
+                SELECT lc.image_url
+                FROM lesson_category_lesson lcl
+                JOIN lesson_categories lc
+                    ON lc.id = lcl.category_id
+                WHERE lcl.lesson_id = l.id
+                AND (
+                    l.thumbnail_url IS NULL
+                    OR l.thumbnail_url = ''
+                    OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
+                )
+                AND lc.is_deleted = false
+                AND lc.image_url IS NOT NULL
+                AND lc.image_url <> ''
+                ORDER BY lc.sort_order ASC, lc.name ASC
+                LIMIT 1
+            ) category_thumbnail ON true
+            WHERE ulp.user_id = :userId
+            AND ulp.last_progress > 0
+            AND ulp.last_progress < 1.0
+            AND l.is_deleted = false
+            ORDER BY ulp.updated_at DESC
+            LIMIT :maxItems
+        """, nativeQuery = true)
     List<SectionLessonProjection> findBatchUserLessons(
             @Param("userId") UUID userId,
             @Param("maxItems") int maxItems);

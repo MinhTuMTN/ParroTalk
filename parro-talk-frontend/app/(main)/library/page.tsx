@@ -102,13 +102,6 @@ function getSourceFromTitle(title?: string | null): string {
 type RenderableSection =
   | { kind: "IN_PROGRESS"; key: string; title: string; items: ContinueLearningItem[] }
   | {
-      kind: "USER_UPLOADED";
-      key: string;
-      title: string;
-      seeAllHref: string;
-      items: UploadedLessonItem[];
-    }
-  | {
       kind: "SHELF";
       key: string;
       shelfId: string;
@@ -273,21 +266,7 @@ function LibraryContent() {
           const fetchedSections = (tabData as LibrarySectionDTO[]) || [];
           cacheRef.current.library = fetchedSections;
           setSections(fetchedSections);
-
-          // Extract processing items if USER_PROCESSING section returned
-          const processingSec = fetchedSections.find((s) => s.type === "USER_PROCESSING");
-          if (processingSec && processingSec.items.length > 0) {
-            const jobs: ProcessingJobItem[] = processingSec.items.map((item) => ({
-              id: item.id,
-              title: item.title || "Tệp âm thanh tải lên",
-              progressPercent: item.progress || 50,
-              status: "PROCESSING",
-              duration: item.duration ?? undefined,
-            }));
-            setProcessingJobs(jobs);
-          } else {
-            setProcessingJobs([]); // Clear if none found
-          }
+          setProcessingJobs([]);
         }
       } catch (err) {
         console.error("Error fetching library data:", err);
@@ -612,26 +591,6 @@ function LibraryContent() {
           break;
         }
 
-        case "USER_UPLOADED": {
-          if (!isProOrAdmin) return;
-          result.push({
-            kind: "USER_UPLOADED",
-            key: section.id || `uploaded-${idx}`,
-            title: section.title || "Bài học tải lên của bạn",
-            seeAllHref: "?tab=my-lessons",
-            items: section.items.map((item) => ({
-              id: item.id,
-              title: item.title || "Bài học tải lên",
-              status: "READY",
-              durationMinutes: item.duration ? Math.ceil(item.duration / 60) : 5,
-              createdAt: new Date().toISOString(),
-              thumbnailUrl: item.thumbnailUrl || undefined,
-              progress: item.progress,
-            })),
-          });
-          break;
-        }
-
         case "CATEGORY": {
           const theme = getGradientTheme(section.categorySlug || section.title, idx);
           const seeAllHref = section.categorySlug
@@ -861,19 +820,6 @@ function LibraryContent() {
                       items={section.items}
                       title={section.title}
                       onSelectLesson={handleSelectContinueLesson}
-                    />
-                  );
-
-                case "USER_UPLOADED":
-                  return (
-                    <UploadedLessonsSection
-                      key={section.key}
-                      items={section.items}
-                      title={section.title}
-                      uploadHref="/upload"
-                      seeAllHref={section.seeAllHref}
-                      onPractice={handlePracticeUploaded}
-                      onDelete={handleDeleteUploaded}
                     />
                   );
 

@@ -2,21 +2,15 @@ package com.parrotalk.backend.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -24,21 +18,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.parrotalk.backend.constant.CacheNames;
 import com.parrotalk.backend.constant.SectionType;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.dto.LibrarySectionDTO;
 import com.parrotalk.backend.dto.PageResponse;
-import com.parrotalk.backend.dto.SectionLessonProjection;
 import com.parrotalk.backend.entity.LibrarySection;
 import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.exception.ParroTalkException;
 import com.parrotalk.backend.repository.CategoryRepository;
 import com.parrotalk.backend.repository.LessonRepository;
-import com.parrotalk.backend.repository.LibrarySectionRepository;
-
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -48,14 +36,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class LibraryService {
-
-    public static final int MAX_ITEMS_PER_SECTION = 10;
-
-    /** Library Section Repository */
-    private final LibrarySectionRepository librarySectionRepository;
 
     /** Lesson Repository */
     private final LessonRepository lessonRepository;
@@ -63,33 +45,57 @@ public class LibraryService {
     /** Category Repository */
     private final CategoryRepository categoryRepository;
 
-    /** Library Service (self-reference for caching methods) */
-    @Lazy
-    @Autowired
-    private LibraryService self;
+    /** Library Cache Service */
+    private final LibraryCacheService libraryCacheService;
 
     /** Dedicated executor for DB queries */
-    @Autowired
-    @Qualifier("dbQueryExecutor")
-    private Executor dbQueryExecutor;
+    private final Executor dbQueryExecutor;
 
-    public List<LibrarySectionDTO> getLibrarySections(UUID userId) {
+    /**
+     * Constructor.
+     *
+     * @param lessonRepository      Lesson Repository
+     * @param categoryRepository    Category Repository
+     * @param libraryCacheService   Library Cache Service
+     * @param dbQueryExecutor       Dedicated executor for DB queries
+     */
+    public LibraryService(
+            LessonRepository lessonRepository,
+            CategoryRepository categoryRepository,
+            LibraryCacheService libraryCacheService,
+            @Qualifier("dbQueryExecutor") Executor dbQueryExecutor) {
+        this.lessonRepository = lessonRepository;
+        this.categoryRepository = categoryRepository;
+        this.libraryCacheService = libraryCacheService;
+        this.dbQueryExecutor = dbQueryExecutor;
+    }
+
+    /**
+     * Get library sections.
+     * <br> (Using in library page, fetch all sections and their lessons in one go)
+     * 
+     * @param user User
+     * @return List of library sections
+     */
+    public List<LibrarySectionDTO> getLibrarySections(User user) {
         // Step 1: Get all sections in DB (cached)
-        List<LibrarySection> allSections = self.getAllSectionsCached();
+        List<LibrarySection> allSections = libraryCacheService.getAllSectionsCached();
 
-        if (userId == null) {
-            // Step 2: Get all lessons by library sections (Public sections)
-            return self.getGuestLibrarySections(allSections);
-        }
+        Set<SectionType> activeTypes = allSections.stream()
+                .map(LibrarySection::getType)
+                .collect(Collectors.toSet());
 
-        // Step 3: Fetch user-specific sections (USER_PROCESSING) in parallel
-        CompletableFuture<List<LibrarySectionDTO>> userSectionsFuture = CompletableFuture.supplyAsync(
-                () -> self.getUserProcessingSections(userId, allSections),
-                dbQueryExecutor
-        );
+        // Step 2: Fetch user-specific sections in parallel only when authenticated and IN_PROGRESS is active
+        CompletableFuture<List<LibrarySectionDTO>> userSectionsFuture =
+                (user != null && activeTypes.contains(SectionType.IN_PROGRESS))
+                        ? CompletableFuture.supplyAsync(
+                                () -> libraryCacheService.getUserProcessingSections(user, allSections),
+                                dbQueryExecutor
+                        )
+                        : CompletableFuture.completedFuture(Collections.emptyList());
 
-        // Fetch guestSections on the main thread
-        List<LibrarySectionDTO> guestSections = self.getGuestLibrarySections(allSections);
+        // Step 3: Fetch guestSections on the main thread
+        List<LibrarySectionDTO> guestSections = libraryCacheService.getGuestLibrarySections(allSections);
 
         List<LibrarySectionDTO> userSections = userSectionsFuture.join();
         if (userSections.isEmpty()) {
@@ -98,50 +104,6 @@ public class LibraryService {
 
         return mergeSections(allSections, guestSections, userSections);
     }
-
-    /**
-     * Get all library sections.
-     * 
-     * @return List of all library sections.
-     */
-    @Cacheable(value = CacheNames.LIBRARY_SECTIONS_CACHE, key = "'active_sections'")
-    public List<LibrarySection> getAllSectionsCached() {
-        return librarySectionRepository.findByIsActiveTrueOrderByOrderIndexAsc();
-    }
-
-    /**
-     * Fetch user-specific sections (USER_PROCESSING)
-     * by joining UserLessonProgress with Lesson directly at SQL level with limit.
-     */
-    @Cacheable(value = CacheNames.LIBRARY_SECTIONS_CACHE, key = "'user:' + #userId")
-    public List<LibrarySectionDTO> getUserProcessingSections(UUID userId, List<LibrarySection> allSections) {
-        if (userId == null) {
-            return Collections.emptyList();
-        }
-
-        List<LibrarySection> userSectionConfigs = allSections.stream()
-                .filter(s -> s.getType() == SectionType.IN_PROGRESS || 
-                             s.getType() == SectionType.USER_PROCESSING || 
-                             s.getType() == SectionType.USER_UPLOADED)
-                .toList();
-
-        if (userSectionConfigs.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<SectionLessonProjection> userLessons = lessonRepository.findBatchUserLessons(userId, MAX_ITEMS_PER_SECTION);
-        if (userLessons.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Map<String, List<LessonWithProgressDTO>> itemsBySectionKey = groupProjectionsBySection(userLessons);
-
-        return userSectionConfigs.stream()
-                .map(section -> buildLibrarySectionDTO(section, itemsBySectionKey.get(getSectionKey(section))))
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
 
     private List<LibrarySectionDTO> mergeSections(
             List<LibrarySection> allSections,
@@ -160,95 +122,6 @@ public class LibraryService {
                 .map(section -> dtoMap.get(section.getId()))
                 .filter(dto -> dto != null && dto.getItems() != null && !dto.getItems().isEmpty())
                 .toList();
-    }
-
-    @Cacheable(value = CacheNames.LIBRARY_SECTIONS_CACHE, key = "'guest'")
-    public List<LibrarySectionDTO> getGuestLibrarySections(List<LibrarySection> sections) {
-        if (sections == null || sections.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        List<UUID> categoryIds = new ArrayList<>();
-        List<String> programs = new ArrayList<>();
-
-        for (LibrarySection section : sections) {
-            if (section.getType() == SectionType.CATEGORY
-                    && section.getCategory() != null) {
-                categoryIds.add(section.getCategory().getId());
-            } else if (section.getType() == SectionType.PROGRAM
-                    && section.getProgram() != null
-                    && !section.getProgram().isBlank()) {
-                programs.add(section.getProgram());
-            }
-        }
-        CompletableFuture<List<SectionLessonProjection>> catFuture = categoryIds.isEmpty()
-                ? CompletableFuture.completedFuture(Collections.emptyList())
-                : CompletableFuture.supplyAsync(() -> lessonRepository.findBatchCategoryLessons(categoryIds, MAX_ITEMS_PER_SECTION), dbQueryExecutor);
-
-        CompletableFuture<List<SectionLessonProjection>> progFuture = programs.isEmpty()
-                ? CompletableFuture.completedFuture(Collections.emptyList())
-                : CompletableFuture.supplyAsync(() -> lessonRepository.findBatchProgramLessons(programs, MAX_ITEMS_PER_SECTION), dbQueryExecutor);
-
-        List<SectionLessonProjection> catLessons = catFuture.join();
-        List<SectionLessonProjection> progLessons = progFuture.join();
-
-        Map<String, List<LessonWithProgressDTO>> itemsBySectionKey = groupProjectionsBySection(
-                Stream.concat(catLessons.stream(), progLessons.stream()).toList()
-        );
-
-        return sections.stream()
-                .filter(s -> s.getType() == SectionType.CATEGORY || s.getType() == SectionType.PROGRAM)
-                .map(section -> buildLibrarySectionDTO(section, itemsBySectionKey.get(getSectionKey(section))))
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
-    private String getSectionKey(LibrarySection section) {
-        return switch (section.getType()) {
-            case CATEGORY -> section.getCategory() != null ? section.getCategory().getId().toString() : null;
-            case PROGRAM -> section.getProgram();
-            case IN_PROGRESS -> "IN_PROGRESS";
-            case USER_PROCESSING -> "USER_PROCESSING";
-            case USER_UPLOADED -> "USER_UPLOADED";
-        };
-    }
-
-    private Map<String, List<LessonWithProgressDTO>> groupProjectionsBySection(List<SectionLessonProjection> projections) {
-        if (projections == null || projections.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return projections.stream()
-                .filter(p -> p.getSectionKey() != null && p.getId() != null)
-                .collect(Collectors.groupingBy(
-                        SectionLessonProjection::getSectionKey,
-                        Collectors.mapping(
-                                p -> new LessonWithProgressDTO(
-                                        UUID.fromString(p.getId()),
-                                        p.getTitle(),
-                                        p.getProgress() != null ? p.getProgress() : 0.0,
-                                        p.getThumbnailUrl(),
-                                        p.getFileUrl(),
-                                        p.getDuration()
-                                ),
-                                Collectors.toList()
-                        )
-                ));
-    }
-
-    private LibrarySectionDTO buildLibrarySectionDTO(LibrarySection section, List<LessonWithProgressDTO> items) {
-        if (items == null || items.isEmpty()) {
-            return null;
-        }
-        return LibrarySectionDTO.builder()
-                .id(section.getId())
-                .title(section.getTitle())
-                .type(section.getType())
-                .categoryId(section.getCategory() != null ? section.getCategory().getId().toString() : null)
-                .categoryName(section.getCategory() != null ? section.getCategory().getName() : null)
-                .categorySlug(section.getCategory() != null ? section.getCategory().getSlug() : null)
-                .program(section.getProgram())
-                .items(items)
-                .build();
     }
 
     public PageResponse<LessonWithProgressDTO> getCategoryLessons(

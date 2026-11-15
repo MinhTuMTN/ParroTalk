@@ -229,9 +229,7 @@ export default function LibrarySectionListPage() {
       if (selectedTypeFilter === "PROGRAM" && section.type !== "PROGRAM") return false;
       if (
         selectedTypeFilter === "PERSONAL" &&
-        section.type !== "IN_PROGRESS" &&
-        section.type !== "USER_PROCESSING" &&
-        section.type !== "USER_UPLOADED"
+        section.type !== "IN_PROGRESS"
       ) {
         return false;
       }
@@ -257,10 +255,7 @@ export default function LibrarySectionListPage() {
     const categoriesCount = sections.filter((s) => s.type === "CATEGORY").length;
     const programsCount = sections.filter((s) => s.type === "PROGRAM").length;
     const personalCount = sections.filter(
-      (s) =>
-        s.type === "IN_PROGRESS" ||
-        s.type === "USER_PROCESSING" ||
-        s.type === "USER_UPLOADED"
+      (s) => s.type === "IN_PROGRESS"
     ).length;
     return { total, active, categoriesCount, programsCount, personalCount };
   }, [sections]);
@@ -287,20 +282,6 @@ export default function LibrarySectionListPage() {
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
             <Clock className="w-3.5 h-3.5" />
             Continue Learning
-          </span>
-        );
-      case "USER_PROCESSING":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
-            <Loader2 className="w-3.5 h-3.5" />
-            Processing
-          </span>
-        );
-      case "USER_UPLOADED":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
-            <UploadCloud className="w-3.5 h-3.5" />
-            Uploaded
           </span>
         );
       default:

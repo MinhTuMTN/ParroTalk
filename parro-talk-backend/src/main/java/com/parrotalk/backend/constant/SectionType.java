@@ -6,12 +6,8 @@ package com.parrotalk.backend.constant;
  * @author MinhTuMTN
  */
 public enum SectionType {
-    /** The lesson is being uploaded. */
+    /** The lesson which user is currently learning */
     IN_PROGRESS,
-    /** The lesson which user is currently learing */
-    USER_PROCESSING,
-    /** Lesson uploaded by user */
-    USER_UPLOADED,
     /** Lesson by category */
     CATEGORY,
     /** Lesson by program */

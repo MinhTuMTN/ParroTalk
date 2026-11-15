@@ -42,8 +42,7 @@ public class LibraryController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<LibrarySectionDTO>>> getLibrarySections(
             @AuthenticationPrincipal User user) {
-        UUID userId = user != null ? user.getId() : null;
-        List<LibrarySectionDTO> sections = libraryService.getLibrarySections(userId);
+        List<LibrarySectionDTO> sections = libraryService.getLibrarySections(user);
         return ResponseEntity.ok(ApiResponse.<List<LibrarySectionDTO>>builder()
                 .result(sections)
                 .build());
@@ -77,6 +76,19 @@ public class LibraryController {
                 .build());
     }
 
+    /**
+     * Search lessons.
+     * 
+     * @param query Search query
+     * @param category Category
+     * @param program Program
+     * @param source Source
+     * @param sort Sort
+     * @param page Page
+     * @param size Size
+     * @param user User
+     * @return List of lessons
+     */
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<LessonWithProgressDTO>>> searchPublicLessons(
             @RequestParam(name = "q", required = false) String query,

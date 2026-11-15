@@ -257,27 +257,11 @@ public class LibraryAdversarialSecurityTest {
                 .maxItems(10)
                 .build());
 
-        librarySectionRepository.save(LibrarySection.builder()
-                .title("Processing Audio")
-                .type(SectionType.USER_PROCESSING)
-                .orderIndex(1)
-                .isActive(true)
-                .maxItems(10)
-                .build());
-
-        librarySectionRepository.save(LibrarySection.builder()
-                .title("Uploaded Lessons")
-                .type(SectionType.USER_UPLOADED)
-                .orderIndex(2)
-                .isActive(true)
-                .maxItems(10)
-                .build());
-
         activeCategorySection = librarySectionRepository.save(LibrarySection.builder()
                 .title("Science Discovery Shelf")
                 .type(SectionType.CATEGORY)
                 .category(scienceCategory)
-                .orderIndex(3)
+                .orderIndex(1)
                 .isActive(true)
                 .maxItems(10)
                 .build());
@@ -440,7 +424,7 @@ public class LibraryAdversarialSecurityTest {
 
         for (JsonNode section : sections) {
             String type = section.get("type").asText();
-            assertThat(type).isNotIn("IN_PROGRESS", "USER_PROCESSING", "USER_UPLOADED");
+            assertThat(type).isNotIn("IN_PROGRESS");
 
             JsonNode items = section.get("items");
             for (JsonNode item : items) {

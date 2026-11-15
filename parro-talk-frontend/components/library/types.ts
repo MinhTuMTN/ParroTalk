@@ -88,6 +88,6 @@ export interface CuratedShelf {
 export interface LibrarySection {
   id: string;
   title: string;
-  type: "IN_PROGRESS" | "USER_PROCESSING" | "USER_UPLOADED" | "CATEGORY" | "PROGRAM" | string;
+  type: "IN_PROGRESS" | "CATEGORY" | "PROGRAM" | string;
   items: Lesson[];
 }

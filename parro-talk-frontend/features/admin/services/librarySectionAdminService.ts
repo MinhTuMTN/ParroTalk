@@ -4,9 +4,7 @@ import type { ApiResponse } from "@/types/api";
 export type SectionType =
   | "CATEGORY"
   | "PROGRAM"
-  | "IN_PROGRESS"
-  | "USER_PROCESSING"
-  | "USER_UPLOADED";
+  | "IN_PROGRESS";
 
 export interface AdminLibrarySection {
   id: string;

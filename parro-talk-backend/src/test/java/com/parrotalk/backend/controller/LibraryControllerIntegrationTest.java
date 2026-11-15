@@ -296,14 +296,6 @@ public class LibraryControllerIntegrationTest {
                 .isActive(false) // Disabled!
                 .maxItems(6)
                 .build());
-
-        librarySectionRepository.save(LibrarySection.builder()
-                .title("Your Processing Audio")
-                .type(SectionType.USER_PROCESSING)
-                .orderIndex(4)
-                .isActive(true)
-                .maxItems(6)
-                .build());
     }
 
     @Test
@@ -321,7 +313,7 @@ public class LibraryControllerIntegrationTest {
         // Check types: must ONLY contain CATEGORY and PROGRAM, NO personal sections
         List<SectionType> sectionTypes = sections.stream().map(LibrarySectionDTO::getType).toList();
         assertThat(sectionTypes).contains(SectionType.CATEGORY, SectionType.PROGRAM);
-        assertThat(sectionTypes).doesNotContain(SectionType.IN_PROGRESS, SectionType.USER_PROCESSING, SectionType.USER_UPLOADED);
+        assertThat(sectionTypes).doesNotContain(SectionType.IN_PROGRESS);
 
         // Check that disabled section is not present
         assertThat(sections.stream().map(LibrarySectionDTO::getTitle))
@@ -357,16 +349,6 @@ public class LibraryControllerIntegrationTest {
         assertEquals(1, inProgressSec.getItems().size());
         assertEquals(publishedLesson1.getId(), inProgressSec.getItems().get(0).getId());
         assertEquals(50, inProgressSec.getItems().get(0).getProgress());
-
-        // Verify USER_PROCESSING section includes User A's pending upload
-        LibrarySectionDTO processingSec = sections.stream()
-                .filter(s -> s.getType() == SectionType.USER_PROCESSING)
-                .findFirst()
-                .orElse(null);
-
-        assertNotNull(processingSec);
-        assertEquals(1, processingSec.getItems().size());
-        assertEquals(userAPendingLesson.getId(), processingSec.getItems().get(0).getId());
 
         // Verify private lessons of other users (User B) never leak to User A
         for (LibrarySectionDTO sec : sections) {
