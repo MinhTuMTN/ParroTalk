@@ -10,6 +10,7 @@ import {
 } from "../../services/customVocabularyListService";
 import { SectionHeader } from "../shared";
 import { CreateCustomListModal } from "../custom-lists/CreateCustomListModal";
+import { resolveIsOwner } from "../custom-lists/customListUtils";
 
 interface Props {
   className?: string;
@@ -107,7 +108,7 @@ export function CustomListsSection({ className = "" }: Props) {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {lists.slice(0, 3).map((list) => {
-              const isShared = !list.owner;
+              const isShared = !resolveIsOwner(list);
               return (
                 <div
                   key={list.id}

@@ -248,11 +248,60 @@ def test_merge_crawl_results_sets_correct_data_source_flags():
     assert not_found.data_source == "NOT_FOUND"
 
 
-def test_fastapi_health_endpoint():
-    client = TestClient(app)
-    resp = client.get("/health")
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "ok"
+def test_fastapi_health_endpoint(monkeypatch):
+    monkeypatch.setenv("DISABLE_RABBITMQ_WORKER", "true")
+    with TestClient(app) as client:
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+
+
+def test_crawl_endpoint_rejects_path_traversal(monkeypatch):
+    monkeypatch.setenv("DISABLE_RABBITMQ_WORKER", "true")
+    with TestClient(app) as client:
+        resp = client.post("/api/v1/crawl", json={"word": "../etc/passwd"})
+        assert resp.status_code == 400
+
+
+def test_worker_process_crawl_message_success_and_failure():
+    import json
+    from unittest.mock import MagicMock, patch
+    from app import worker
+    from app.models import CrawlJobResult, MergedCrawlPayload
+
+    ch = MagicMock()
+    ch.is_open = True
+    ch.connection = None
+    method = MagicMock()
+    method.delivery_tag = 1
+
+    # 1. Invalid word publishes FAILED and acks
+    body = json.dumps({"jobId": "j1", "listId": "l1", "listItemId": "i1", "userId": "u1", "word": "../bad"}).encode("utf-8")
+    worker.process_crawl_message(ch, method, None, body)
+    ch.basic_publish.assert_called_once()
+    pub_payload = json.loads(ch.basic_publish.call_args.kwargs["body"])
+    assert pub_payload["status"] == "FAILED"
+    assert pub_payload["listItemId"] == "i1"
+    ch.basic_ack.assert_called_once_with(delivery_tag=1)
+
+    # 2. Exception during crawl publishes FAILED and acks
+    ch.reset_mock()
+    body2 = json.dumps({"jobId": "j2", "listId": "l1", "listItemId": "i2", "userId": "u1", "word": "serendipity"}).encode("utf-8")
+    with patch.object(worker.crawl_service, "crawl_word", side_effect=RuntimeError("boom")):
+        worker.process_crawl_message(ch, method, None, body2)
+    pub_payload2 = json.loads(ch.basic_publish.call_args.kwargs["body"])
+    assert pub_payload2["status"] == "FAILED"
+    assert "boom" in pub_payload2["error"]
+    ch.basic_ack.assert_called_once_with(delivery_tag=1)
+
+    # 3. Success publishes SUCCESS and acks
+    ch.reset_mock()
+    ok_res = CrawlJobResult(word="serendipity", status="SUCCESS", data_source="OXFORD_MW_HYBRID", payload=MergedCrawlPayload(word="serendipity"))
+    with patch.object(worker.crawl_service, "crawl_word", return_value=ok_res):
+        worker.process_crawl_message(ch, method, None, body2)
+    pub_payload3 = json.loads(ch.basic_publish.call_args.kwargs["body"])
+    assert pub_payload3["status"] == "SUCCESS"
+    ch.basic_ack.assert_called_once_with(delivery_tag=1)
 
 
 def test_crawl_service_enriches_word_forms_via_datamuse_and_preserves_oxford_senses():

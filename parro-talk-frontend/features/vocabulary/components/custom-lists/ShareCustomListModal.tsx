@@ -21,6 +21,7 @@ export function ShareCustomListModal({
   onClose: () => void;
   onShareSubmit: (payload: {
     recipientEmailOrUsername?: string;
+    emailOrUsername?: string;
     enableShareLink?: boolean;
   }) => Promise<void>;
 }) {
@@ -48,8 +49,9 @@ export function ShareCustomListModal({
       });
       setRecipient("");
     } catch (err: unknown) {
+      const axiosMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       const msg =
-        err instanceof Error ? err.message : "Không tìm thấy người dùng này";
+        axiosMsg || (err instanceof Error ? err.message : "Không tìm thấy người dùng này");
       setError(msg);
     } finally {
       setLoading(false);

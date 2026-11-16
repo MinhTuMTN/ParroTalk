@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function CreateCustomListModal({
@@ -20,13 +21,24 @@ export function CreateCustomListModal({
   const [description, setDescription] = useState("");
   const [targetCefr, setTargetCefr] = useState("B2");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
     setSubmitting(true);
+    setError(null);
     try {
       await onSubmit({
         title: title.trim(),
@@ -36,13 +48,21 @@ export function CreateCustomListModal({
       setTitle("");
       setDescription("");
       onClose();
+    } catch (err: unknown) {
+      const axiosMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(axiosMsg || (err instanceof Error ? err.message : "Không thể tạo danh sách."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4 backdrop-blur-xs">
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Tạo danh sách từ vựng cá nhân"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 p-4 backdrop-blur-xs"
+    >
       <div className="w-full max-w-md rounded-2xl border border-ink-200 bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-900">
@@ -50,6 +70,7 @@ export function CreateCustomListModal({
           </h2>
           <button
             type="button"
+            aria-label="Đóng"
             onClick={onClose}
             className="rounded-lg p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
           >
@@ -58,6 +79,11 @@ export function CreateCustomListModal({
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          {error && (
+            <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+              {error}
+            </p>
+          )}
           <div>
             <label className="block text-xs font-semibold text-ink-700">
               Tên danh sách *
@@ -125,6 +151,7 @@ export function CreateCustomListModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

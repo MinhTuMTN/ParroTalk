@@ -14,28 +14,31 @@ export type QuestionGenerationSource =
 
 export type McqQuestionCategory =
   | "CONTEXTUAL_CLOZE"
+  | "CONFUSING_NUANCE"
   | "SYNONYM_IN_CONTEXT"
   | "ANTONYM_IN_CONTEXT"
-  | "DEFINITION_MATCH"
   | "COLLOCATION_PREPOSITION"
   | "WORD_FORM"
   | "IDIOM_PHRASAL_VERB"
+  | "GRAMMAR_PATTERN"
+  | "DEFINITION_MATCH"
   | "USAGE_ERROR_DETECTION";
 
-export type VocabularyListVisibility = "PRIVATE" | "SHARED_LINK";
+export type VocabularyListVisibility = "PRIVATE" | "SHARED_LINK" | "PUBLIC";
 
 export type VocabularyListStatus =
   | "DRAFT"
+  | "CRAWLING"
+  | "READY_TO_FINALIZE"
   | "GENERATING_QUESTIONS"
   | "ACTIVE"
+  | "PARTIAL_ERROR"
   | "ERROR";
 
 export type VocabularyCrawlStatus =
-  | "RESOLVED_FROM_DB"
-  | "PENDING"
-  | "PROCESSING"
   | "COMPLETED"
-  | "NOT_FOUND"
+  | "PENDING_CRAWL"
+  | "ENRICHING_AI"
   | "FAILED";
 
 export interface SenseItemDto {
@@ -44,6 +47,8 @@ export interface SenseItemDto {
   cefrLevel?: string;
   definitionEn: string;
   definitionVn?: string;
+  exampleEn?: string;
+  exampleVn?: string;
   examplesEn?: string[];
   examplesVn?: string[];
   synonyms?: string[];
@@ -105,10 +110,23 @@ export interface VocabularyListItemResponse {
 
 export interface ShareEntryDto {
   id: string;
+  userId?: string;
   sharedWithEmail: string;
   sharedWithName?: string;
   permission: string;
-  createdAt: string;
+  createdAt?: string;
+}
+
+export interface FinalizeListResponse {
+  listId: string;
+  status: VocabularyListStatus;
+  message: string;
+}
+
+export interface ShareListResponse {
+  listId: string;
+  visibility: VocabularyListVisibility;
+  shareToken: string;
 }
 
 export interface VocabularyListSummaryResponse {
@@ -166,6 +184,8 @@ export interface CustomListMcqResponse {
 export interface UserNotificationDto {
   id: string;
   type:
+    | "VOCAB_CRAWL_COMPLETED"
+    | "VOCAB_CRAWL_FAILED"
     | "CRAWL_COMPLETED"
     | "CRAWL_NOT_FOUND"
     | "LIST_QUESTIONS_READY"

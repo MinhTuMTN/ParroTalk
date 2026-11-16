@@ -31,13 +31,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -47,6 +52,11 @@ public class CustomListQuestionBatchService {
 
     private static final int MIN_QUESTIONS_PER_SENSE = 5;
     private static final int MIN_QUESTIONS_PER_PHRASE = 2;
+    private static final ExecutorService BATCH_EXECUTOR = Executors.newFixedThreadPool(3);
+
+    @Lazy
+    @Autowired
+    private CustomListQuestionBatchService self;
 
     private static final String MCQ_SYSTEM_PROMPT = """
             You are a senior Cambridge English assessment designer creating high-quality 4-option multiple-choice questions for Vietnamese learners.
@@ -123,17 +133,67 @@ public class CustomListQuestionBatchService {
         return categories;
     }
 
+    private CustomListQuestionBatchService proxy() {
+        return self != null ? self : this;
+    }
+
     public void triggerFinalizeBatchAsync(UUID listId, UUID userId) {
-        CompletableFuture.runAsync(() -> runFinalizeBatchSync(listId, userId));
+        CompletableFuture.runAsync(() -> runFinalizeBatchSync(listId, userId), BATCH_EXECUTOR)
+                .exceptionally(ex -> {
+                    log.error("Unhandled async error finalizing custom list {}: {}", listId, ex.getMessage(), ex);
+                    return null;
+                });
+    }
+
+    public int runFinalizeBatchSync(UUID listId, UUID userId) {
+        List<Set<UUID>> targets = proxy().loadFinalizeTargetsAndMarkGenerating(listId);
+        if (targets == null) {
+            return 0;
+        }
+        Set<UUID> selectedSenseIds = targets.get(0);
+        Set<UUID> selectedIdiomIds = targets.get(1);
+        Set<UUID> selectedPvIds = targets.get(2);
+
+        int totalGenerated = 0;
+        boolean hadError = false;
+
+        for (UUID senseId : selectedSenseIds) {
+            try {
+                totalGenerated += proxy().processSenseFinalize(listId, userId, senseId);
+            } catch (Exception ex) {
+                hadError = true;
+                log.error("Failed finalizing sense {} for list {}: {}", senseId, listId, ex.getMessage(), ex);
+            }
+        }
+
+        for (UUID idiomId : selectedIdiomIds) {
+            try {
+                totalGenerated += proxy().processIdiomFinalize(listId, userId, idiomId);
+            } catch (Exception ex) {
+                hadError = true;
+                log.error("Failed finalizing idiom {} for list {}: {}", idiomId, listId, ex.getMessage(), ex);
+            }
+        }
+
+        for (UUID pvId : selectedPvIds) {
+            try {
+                totalGenerated += proxy().processPhrasalVerbFinalize(listId, userId, pvId);
+            } catch (Exception ex) {
+                hadError = true;
+                log.error("Failed finalizing phrasal verb {} for list {}: {}", pvId, listId, ex.getMessage(), ex);
+            }
+        }
+
+        proxy().completeFinalizeStatusAndNotify(listId, totalGenerated, hadError);
+        return totalGenerated;
     }
 
     @Transactional
-    public int runFinalizeBatchSync(UUID listId, UUID userId) {
+    public List<Set<UUID>> loadFinalizeTargetsAndMarkGenerating(UUID listId) {
         VocabularyList list = listRepository.findById(listId).orElse(null);
         if (list == null) {
-            return 0;
+            return null;
         }
-
         list.setStatus(VocabularyListStatus.GENERATING_QUESTIONS);
         listRepository.save(list);
 
@@ -147,64 +207,58 @@ public class CustomListQuestionBatchService {
             selectedIdiomIds.addAll(item.getSelectedIdiomIds());
             selectedPvIds.addAll(item.getSelectedPhrasalVerbIds());
         }
+        return List.of(selectedSenseIds, selectedIdiomIds, selectedPvIds);
+    }
 
-        int totalGenerated = 0;
-
-        for (UUID senseId : selectedSenseIds) {
-            long existingCount = mcqRepository.countBySenseId(senseId);
-            if (existingCount >= MIN_QUESTIONS_PER_SENSE) {
-                continue;
-            }
-            VocabularySense sense = senseRepository.findById(senseId).orElse(null);
-            if (sense != null) {
-                int needed = (int) Math.max(1, MIN_QUESTIONS_PER_SENSE - existingCount);
-                totalGenerated += generateForSenseInternal(
-                        sense,
-                        needed,
-                        QuestionGenerationSource.USER_LIST_FINALIZE_AI,
-                        listId,
-                        userId
-                );
-            }
+    @Transactional
+    public int processSenseFinalize(UUID listId, UUID userId, UUID senseId) {
+        long existingCount = mcqRepository.countBySenseId(senseId);
+        if (existingCount >= MIN_QUESTIONS_PER_SENSE) {
+            return 0;
         }
-
-        for (UUID idiomId : selectedIdiomIds) {
-            long existingCount = mcqRepository.countByIdiomId(idiomId);
-            if (existingCount >= MIN_QUESTIONS_PER_PHRASE) {
-                continue;
-            }
-            Idiom idiom = idiomRepository.findById(idiomId).orElse(null);
-            if (idiom != null) {
-                int needed = (int) Math.max(1, MIN_QUESTIONS_PER_PHRASE - existingCount);
-                totalGenerated += generateForIdiomInternal(
-                        idiom,
-                        needed,
-                        QuestionGenerationSource.USER_LIST_FINALIZE_AI,
-                        listId,
-                        userId
-                );
-            }
+        VocabularySense sense = senseRepository.findById(senseId).orElse(null);
+        if (sense == null) {
+            return 0;
         }
+        int needed = (int) Math.max(1, MIN_QUESTIONS_PER_SENSE - existingCount);
+        return generateForSenseInternal(sense, needed, QuestionGenerationSource.USER_LIST_FINALIZE_AI, listId, userId);
+    }
 
-        for (UUID pvId : selectedPvIds) {
-            long existingCount = mcqRepository.countByPhrasalVerbId(pvId);
-            if (existingCount >= MIN_QUESTIONS_PER_PHRASE) {
-                continue;
-            }
-            PhrasalVerb pv = phrasalVerbRepository.findById(pvId).orElse(null);
-            if (pv != null) {
-                int needed = (int) Math.max(1, MIN_QUESTIONS_PER_PHRASE - existingCount);
-                totalGenerated += generateForPhrasalVerbInternal(
-                        pv,
-                        needed,
-                        QuestionGenerationSource.USER_LIST_FINALIZE_AI,
-                        listId,
-                        userId
-                );
-            }
+    @Transactional
+    public int processIdiomFinalize(UUID listId, UUID userId, UUID idiomId) {
+        long existingCount = mcqRepository.countByIdiomId(idiomId);
+        if (existingCount >= MIN_QUESTIONS_PER_PHRASE) {
+            return 0;
         }
+        Idiom idiom = idiomRepository.findById(idiomId).orElse(null);
+        if (idiom == null) {
+            return 0;
+        }
+        int needed = (int) Math.max(1, MIN_QUESTIONS_PER_PHRASE - existingCount);
+        return generateForIdiomInternal(idiom, needed, QuestionGenerationSource.USER_LIST_FINALIZE_AI, listId, userId);
+    }
 
-        list.setStatus(VocabularyListStatus.ACTIVE);
+    @Transactional
+    public int processPhrasalVerbFinalize(UUID listId, UUID userId, UUID pvId) {
+        long existingCount = mcqRepository.countByPhrasalVerbId(pvId);
+        if (existingCount >= MIN_QUESTIONS_PER_PHRASE) {
+            return 0;
+        }
+        PhrasalVerb pv = phrasalVerbRepository.findById(pvId).orElse(null);
+        if (pv == null) {
+            return 0;
+        }
+        int needed = (int) Math.max(1, MIN_QUESTIONS_PER_PHRASE - existingCount);
+        return generateForPhrasalVerbInternal(pv, needed, QuestionGenerationSource.USER_LIST_FINALIZE_AI, listId, userId);
+    }
+
+    @Transactional
+    public void completeFinalizeStatusAndNotify(UUID listId, int totalGenerated, boolean hadError) {
+        VocabularyList list = listRepository.findById(listId).orElse(null);
+        if (list == null) {
+            return;
+        }
+        list.setStatus(hadError && totalGenerated == 0 ? VocabularyListStatus.PARTIAL_ERROR : VocabularyListStatus.ACTIVE);
         listRepository.save(list);
 
         if (list.getOwner() != null) {
@@ -217,12 +271,11 @@ public class CustomListQuestionBatchService {
                     Map.of(
                             "listId", list.getId().toString(),
                             "generatedCount", totalGenerated,
+                            "hadError", hadError,
                             "generationSource", QuestionGenerationSource.USER_LIST_FINALIZE_AI.name()
                     )
             );
         }
-
-        return totalGenerated;
     }
 
     @Transactional
@@ -542,13 +595,18 @@ public class CustomListQuestionBatchService {
                         .createdByUserId(userId)
                         .build();
 
-                mcqRepository.save(entity);
+                proxy().saveSingleMcq(entity);
                 savedCount++;
             } catch (Exception ex) {
                 log.warn("Skipping invalid or duplicate MCQ item: {}", ex.getMessage());
             }
         }
         return savedCount;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveSingleMcq(GrammarMultipleChoiceQuestion entity) {
+        mcqRepository.save(entity);
     }
 
     private static McqQuestionCategory resolveCategory(String raw, boolean isPhrase) {

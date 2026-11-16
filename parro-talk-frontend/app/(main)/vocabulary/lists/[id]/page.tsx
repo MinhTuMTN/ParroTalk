@@ -55,21 +55,27 @@ export default function CustomVocabularyListDetailPage() {
   );
   const isOwner = resolveIsOwner(detail);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<
     VocabularyListItemResponse[]
   >([]);
-  const [activeItem, setActiveItem] =
-    useState<VocabularyListItemResponse | null>(null);
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const activeItem =
+    detail?.items.find((it) => it.id === activeItemId) ?? null;
   const [shareOpen, setShareOpen] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [cloning, setCloning] = useState(false);
 
   const loadDetail = useCallback(async () => {
     try {
+      setLoadError(null);
       const data = await fetchCustomVocabularyListDetail(listId, shareToken);
       setDetail(data);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setLoadError(msg || "Không thể tải danh sách từ vựng này.");
     } finally {
       setLoading(false);
     }
@@ -116,8 +122,8 @@ export default function CustomVocabularyListDetailPage() {
   const handleFinalize = async () => {
     setFinalizing(true);
     try {
-      const updated = await finalizeCustomListAndGenerateQuestions(listId);
-      setDetail(updated);
+      await finalizeCustomListAndGenerateQuestions(listId);
+      await loadDetail();
     } finally {
       setFinalizing(false);
     }
@@ -138,10 +144,26 @@ export default function CustomVocabularyListDetailPage() {
     new Audio(url).play().catch(() => {});
   };
 
-  if (loading || !detail) {
+  if (loading) {
     return (
       <div className="mx-auto max-w-[1100px] p-8 text-center text-sm text-ink-500">
         Đang tải chi tiết danh sách từ vựng...
+      </div>
+    );
+  }
+
+  if (loadError || !detail) {
+    return (
+      <div className="mx-auto max-w-[600px] p-8 text-center">
+        <p className="text-sm font-semibold text-rose-600">
+          {loadError || "Không tìm thấy danh sách từ vựng."}
+        </p>
+        <Link
+          href="/vocabulary/lists"
+          className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline"
+        >
+          Quay lại danh sách
+        </Link>
       </div>
     );
   }
@@ -356,14 +378,13 @@ export default function CustomVocabularyListDetailPage() {
                             {formatDataSourceBadge(item.dataSource)}
                           </span>
                         )}
-                        {item.crawlStatus === "PENDING" ||
-                        item.crawlStatus === "PROCESSING" ? (
+                        {item.crawlStatus === "PENDING_CRAWL" ||
+                        item.crawlStatus === "ENRICHING_AI" ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
                             <Loader2 className="h-3 w-3 animate-spin" /> Đang
                             cào dữ liệu ngầm từ Oxford...
                           </span>
-                        ) : item.crawlStatus === "NOT_FOUND" ||
-                          item.crawlStatus === "FAILED" ? (
+                        ) : item.crawlStatus === "FAILED" ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">
                             <AlertCircle className="h-3 w-3" />{" "}
                             {item.crawlErrorMessage || "Không tìm thấy từ"}
@@ -382,7 +403,7 @@ export default function CustomVocabularyListDetailPage() {
                       {item.availableSenses.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => setActiveItem(item)}
+                          onClick={() => setActiveItemId(item.id)}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                         >
                           <Settings2 className="h-3.5 w-3.5" /> Chọn nghĩa CEFR
@@ -447,7 +468,7 @@ export default function CustomVocabularyListDetailPage() {
       <SenseSelectionDrawer
         item={activeItem}
         isOwner={isOwner}
-        onClose={() => setActiveItem(null)}
+        onClose={() => setActiveItemId(null)}
         onSaveSelection={async (itemId, payload) => {
           await updateCustomListItemSelection(listId, itemId, payload);
           await loadDetail();
@@ -466,8 +487,8 @@ export default function CustomVocabularyListDetailPage() {
         shares={detail.shares}
         onClose={() => setShareOpen(false)}
         onShareSubmit={async (payload) => {
-          const updated = await shareCustomVocabularyList(detail.id, payload);
-          setDetail(updated);
+          await shareCustomVocabularyList(detail.id, payload);
+          await loadDetail();
         }}
       />
     </div>

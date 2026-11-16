@@ -30,6 +30,8 @@ export function formatQuestionCategoryLabel(category?: string): string {
       return "Từ đồng nghĩa";
     case "ANTONYM_IN_CONTEXT":
       return "Từ trái nghĩa";
+    case "CONFUSING_NUANCE":
+      return "Phân biệt sắc thái";
     case "DEFINITION_MATCH":
       return "Định nghĩa";
     case "COLLOCATION_PREPOSITION":
@@ -38,6 +40,8 @@ export function formatQuestionCategoryLabel(category?: string): string {
       return "Word Family / Từ loại";
     case "IDIOM_PHRASAL_VERB":
       return "Idiom & Phrasal Verb";
+    case "GRAMMAR_PATTERN":
+      return "Ngữ pháp & Cấu trúc";
     case "USAGE_ERROR_DETECTION":
       return "Ứng dụng câu chuẩn";
     default:

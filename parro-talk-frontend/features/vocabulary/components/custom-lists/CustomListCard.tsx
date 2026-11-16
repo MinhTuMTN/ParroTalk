@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { VocabularyListSummaryResponse } from "../../types/customList";
+import { resolveIsOwner } from "./customListUtils";
 
 export function CustomListCard({
   list,
@@ -33,6 +34,25 @@ export function CustomListCard({
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 border border-amber-200">
             <Sparkles className="h-3 w-3 animate-spin" /> AI đang tạo câu hỏi...
+          </span>
+        );
+      case "CRAWLING":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700 border border-sky-200">
+            <Clock className="h-3 w-3 animate-spin" /> Đang thu thập từ vựng...
+          </span>
+        );
+      case "READY_TO_FINALIZE":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700 border border-indigo-200">
+            <Clock className="h-3 w-3" /> Sẵn sàng chốt
+          </span>
+        );
+      case "PARTIAL_ERROR":
+      case "ERROR":
+        return (
+          <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-[11px] font-semibold text-rose-700 border border-rose-200">
+            <Clock className="h-3 w-3" /> Có lỗi khi xử lý
           </span>
         );
       default:
@@ -67,7 +87,7 @@ export function CustomListCard({
               )}
             </span>
           </div>
-          {list.owner && onShare && (
+          {resolveIsOwner(list) && onShare && (
             <button
               type="button"
               onClick={() => onShare(list)}

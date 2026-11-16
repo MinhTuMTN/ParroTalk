@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
@@ -40,12 +42,20 @@ public class UserNotificationController {
             LocalDateTime createdAt
     ) {}
 
+    private UUID requireUserId(User user) {
+        if (user == null || user.getId() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required");
+        }
+        return user.getId();
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, Object>>> getNotifications(@AuthenticationPrincipal User user) {
-        List<NotificationDto> items = notificationService.getRecentNotifications(user.getId()).stream()
+        UUID userId = requireUserId(user);
+        List<NotificationDto> items = notificationService.getRecentNotifications(userId).stream()
                 .map(this::toDto)
                 .toList();
-        long unreadCount = notificationService.getUnreadCount(user.getId());
+        long unreadCount = notificationService.getUnreadCount(userId);
         return ResponseEntity.ok(ApiResponse.<Map<String, Object>>builder()
                 .result(Map.of(
                         "items", items,
@@ -56,7 +66,7 @@ public class UserNotificationController {
 
     @GetMapping("/unread-count")
     public ResponseEntity<ApiResponse<Long>> getUnreadCount(@AuthenticationPrincipal User user) {
-        long unreadCount = notificationService.getUnreadCount(user.getId());
+        long unreadCount = notificationService.getUnreadCount(requireUserId(user));
         return ResponseEntity.ok(ApiResponse.<Long>builder()
                 .result(unreadCount)
                 .build());
@@ -66,19 +76,19 @@ public class UserNotificationController {
     public ResponseEntity<ApiResponse<Void>> markRead(
             @AuthenticationPrincipal User user,
             @PathVariable UUID notificationId) {
-        notificationService.markAsRead(user.getId(), notificationId);
+        notificationService.markAsRead(requireUserId(user), notificationId);
         return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 
     @RequestMapping(value = "/read-all", method = {RequestMethod.POST, RequestMethod.PATCH})
     public ResponseEntity<ApiResponse<Void>> markAllRead(@AuthenticationPrincipal User user) {
-        notificationService.markAllAsRead(user.getId());
+        notificationService.markAllAsRead(requireUserId(user));
         return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamNotifications(@AuthenticationPrincipal User user) {
-        return sseService.connect(user.getId());
+        return sseService.connect(requireUserId(user));
     }
 
     private NotificationDto toDto(UserNotification n) {

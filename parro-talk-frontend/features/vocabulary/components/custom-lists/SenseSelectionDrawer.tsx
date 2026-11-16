@@ -248,10 +248,13 @@ export function SenseSelectionDrawer({
                       </p>
                     )}
 
-                    {sense.examplesEn && sense.examplesEn.length > 0 && (
-                      <p className="mt-2 border-l-2 border-ink-200 pl-2.5 text-xs italic text-ink-600">
-                        &ldquo;{sense.examplesEn[0]}&rdquo;
-                      </p>
+                    {(sense.exampleEn || (sense.examplesEn && sense.examplesEn.length > 0)) && (
+                      <div className="mt-2 border-l-2 border-ink-200 pl-2.5 text-xs italic text-ink-600">
+                        <p>&ldquo;{sense.exampleEn || sense.examplesEn?.[0]}&rdquo;</p>
+                        {sense.exampleVn && (
+                          <p className="mt-0.5 not-italic text-ink-500">{sense.exampleVn}</p>
+                        )}
+                      </div>
                     )}
 
                     <div className="mt-2.5 flex flex-wrap gap-1.5">

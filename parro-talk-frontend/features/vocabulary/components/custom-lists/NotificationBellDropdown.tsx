@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, CheckCheck } from "lucide-react";
 import type { UserNotificationDto } from "../../types/customList";
@@ -18,10 +18,23 @@ export function NotificationBellDropdown({
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<UserNotificationDto[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const onRealtimeEventRef = useRef(onRealtimeEvent);
+  const lastLatestIdRef = useRef<string | null>(null);
 
-  const loadNotifications = async () => {
+  useEffect(() => {
+    onRealtimeEventRef.current = onRealtimeEvent;
+  }, [onRealtimeEvent]);
+
+  const loadNotifications = async (notifyOnNew: boolean = false) => {
     try {
       const data = await fetchUserNotifications();
+      const latestId = data.notifications[0]?.id ?? null;
+      if (notifyOnNew && latestId && latestId !== lastLatestIdRef.current) {
+        onRealtimeEventRef.current?.();
+      }
+      if (latestId) {
+        lastLatestIdRef.current = latestId;
+      }
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);
     } catch {
@@ -30,10 +43,9 @@ export function NotificationBellDropdown({
   };
 
   useEffect(() => {
-    loadNotifications();
+    loadNotifications(false);
     const interval = setInterval(() => {
-      loadNotifications();
-      onRealtimeEvent?.();
+      loadNotifications(true);
     }, 12000);
     return () => clearInterval(interval);
   }, []);

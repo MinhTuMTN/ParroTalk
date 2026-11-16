@@ -29,14 +29,20 @@ export default function CustomListMcqPracticePage() {
 
   const [questions, setQuestions] = useState<CustomListMcqResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
+    setLoadError(null);
     fetchCustomListPracticeQuestions(listId, shareToken)
       .then((res) => setQuestions(res))
+      .catch((err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        setLoadError(msg || "Không thể tải câu hỏi luyện tập.");
+      })
       .finally(() => setLoading(false));
   }, [listId, shareToken]);
 
@@ -44,6 +50,20 @@ export default function CustomListMcqPracticePage() {
     return (
       <div className="mx-auto max-w-3xl p-8 text-center text-sm text-ink-500">
         Đang tải bộ câu hỏi Multiple Choice 8 dạng...
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 p-8 text-center">
+        <p className="text-base font-bold text-rose-600">{loadError}</p>
+        <Link
+          href={`/vocabulary/lists/${listId}`}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-xs font-bold text-white"
+        >
+          <ArrowLeft className="h-4 w-4" /> Quay lại danh sách
+        </Link>
       </div>
     );
   }

@@ -11,8 +11,8 @@ else:
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
-RABBITMQ_USER = os.getenv("RABBITMQ_USER", "admin")
-RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "MinhTu@3005")
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
+RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "")
 
 VOCAB_CRAWL_QUEUE = os.getenv("VOCAB_CRAWL_QUEUE", "vocab-crawl-queue")
 VOCAB_CRAWL_RESULT_QUEUE = os.getenv("VOCAB_CRAWL_RESULT_QUEUE", "vocab-crawl-result-queue")

@@ -159,7 +159,7 @@ public class CustomVocabularyListController {
             @PathVariable UUID listId,
             @RequestBody GenerateMoreQuestionsRequest request) {
         Map<String, Object> result = listService.generateMoreQuestions(user, listId, request);
-        int generated = (result.get("generated") instanceof Number n) ? n.intValue() : 0;
+        int generated = (result.get("generatedCount") instanceof Number n) ? n.intValue() : 0;
         return ResponseEntity.ok(ApiResponse.<Integer>builder()
                 .result(generated)
                 .build());
@@ -192,8 +192,9 @@ public class CustomVocabularyListController {
     public ResponseEntity<ApiResponse<Void>> recordAnswer(
             @AuthenticationPrincipal User user,
             @PathVariable UUID listId,
+            @RequestParam(required = false) String shareToken,
             @RequestBody SubmitCustomListAnswerRequest request) {
-        listService.recordAnswerProgress(user, listId, request);
+        listService.recordAnswerProgress(user, listId, shareToken, request);
         return ResponseEntity.ok(ApiResponse.<Void>builder().build());
     }
 }

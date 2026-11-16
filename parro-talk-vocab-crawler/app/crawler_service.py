@@ -48,8 +48,8 @@ def merge_crawl_results(
     pronunciations = list(oxford_data.pronunciations) if oxford_data and oxford_data.pronunciations else (
         list(mw_dict_data.pronunciations) if mw_dict_data else []
     )
-    word_forms = list(oxford_data.word_forms) if oxford_data and oxford_data.word_forms else (
-        list(mw_dict_data.word_forms) if mw_dict_data else []
+    word_forms = list(mw_dict_data.word_forms) if mw_dict_data and mw_dict_data.word_forms else (
+        list(oxford_data.word_forms) if oxford_data else []
     )
 
     if has_oxford and oxford_data:

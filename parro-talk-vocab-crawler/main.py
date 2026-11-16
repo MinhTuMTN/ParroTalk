@@ -40,8 +40,8 @@ def health_check():
 @app.post("/api/v1/crawl")
 def crawl_word_endpoint(req: CrawlRequest):
     word = (req.word or "").strip()
-    if not word:
-        raise HTTPException(status_code=400, detail="word must not be blank")
+    if not word or len(word) > 100 or any(c in word for c in ("/", "\\")) or any(ord(c) < 32 for c in word):
+        raise HTTPException(status_code=400, detail="word must be a non-blank string up to 100 chars without slashes")
     result = crawl_service.crawl_word(word)
     return result.to_message_dict()
 

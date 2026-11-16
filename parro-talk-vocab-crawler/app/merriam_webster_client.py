@@ -240,7 +240,7 @@ def fetch_merriam_webster_data(
 ) -> tuple[list[MwSenseSynAntGroup], MwDictionaryData | None]:
     t_key = (thesaurus_key if thesaurus_key is not None else MW_THESAURUS_API_KEY).strip()
     d_key = (dictionary_key if dictionary_key is not None else MW_DICTIONARY_API_KEY).strip()
-    encoded = urllib.parse.quote(word.strip().lower())
+    encoded = urllib.parse.quote(word.strip().lower(), safe="")
 
     thes_groups: list[MwSenseSynAntGroup] = []
     dict_data: MwDictionaryData | None = None

@@ -17,15 +17,25 @@ public record AddVocabularyListItemRequest(
 
     public List<String> resolveWords() {
         List<String> result = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.LinkedHashSet<>();
         if (words != null && !words.isEmpty()) {
             for (String w : words) {
                 if (w != null && !w.isBlank()) {
-                    result.add(w.trim());
+                    String trimmed = w.trim();
+                    if (seen.add(trimmed.toLowerCase())) {
+                        result.add(trimmed);
+                    }
                 }
             }
         }
         if (rawWord != null && !rawWord.isBlank()) {
-            result.add(rawWord.trim());
+            String trimmed = rawWord.trim();
+            if (seen.add(trimmed.toLowerCase())) {
+                result.add(trimmed);
+            }
+        }
+        if (result.size() > 100) {
+            return result.subList(0, 100);
         }
         return result;
     }

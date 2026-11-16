@@ -88,13 +88,7 @@ public class UserNotificationService {
 
     @Transactional
     public void markAllAsRead(UUID userId) {
-        List<UserNotification> list = notificationRepository.findTop50ByUserIdOrderByCreatedAtDesc(userId);
-        for (UserNotification n : list) {
-            if (!Boolean.TRUE.equals(n.getIsRead())) {
-                n.setIsRead(true);
-            }
-        }
-        notificationRepository.saveAll(list);
+        notificationRepository.markAllAsReadByUserId(userId);
     }
 }
 

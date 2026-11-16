@@ -186,6 +186,7 @@ public class VocabularyEnrichmentAiService {
             }
         } catch (Exception ex) {
             log.error("Failed to process crawl result message: {}", ex.getMessage(), ex);
+            throw new IllegalStateException("Failed to process crawl result message", ex);
         }
     }
 
@@ -304,8 +305,11 @@ public class VocabularyEnrichmentAiService {
 
         vocab.setWord(word.trim());
         vocab.setNormalizedWord(normalizedWord);
-        vocab.setDataSource(resolvedSource);
-        if (enriched.getCommonMeaningVn() != null && !enriched.getCommonMeaningVn().isBlank()) {
+        if (vocab.getId() == null || vocab.getDataSource() == null) {
+            vocab.setDataSource(resolvedSource);
+        }
+        if ((vocab.getCommonMeaningVn() == null || vocab.getCommonMeaningVn().isBlank())
+                && enriched.getCommonMeaningVn() != null && !enriched.getCommonMeaningVn().isBlank()) {
             vocab.setCommonMeaningVn(enriched.getCommonMeaningVn().trim());
         }
 
@@ -317,27 +321,54 @@ public class VocabularyEnrichmentAiService {
             vocab.setWordFormsJson(objectMapper.writeValueAsString(wordForms));
         }
 
-        // Pronunciations
+        // Pronunciations (merge by accent without clearing existing rows)
         JsonNode rawProns = payload.path("pronunciations");
         if (rawProns.isArray() && !rawProns.isEmpty()) {
-            vocab.getPronunciations().clear();
+            Map<String, VocabularyPronunciation> existingByAccent = new java.util.HashMap<>();
+            for (VocabularyPronunciation existing : vocab.getPronunciations()) {
+                if (existing.getAccent() != null) {
+                    existingByAccent.put(existing.getAccent().toUpperCase(), existing);
+                }
+            }
             for (JsonNode p : rawProns) {
-                VocabularyPronunciation pron = VocabularyPronunciation.builder()
-                        .vocabulary(vocab)
-                        .accent(p.path("accent").asText("US"))
-                        .ipa(p.path("ipa").asText(""))
-                        .audioUrl(p.path("audioUrl").asText(""))
-                        .build();
-                vocab.getPronunciations().add(pron);
+                String accent = p.path("accent").asText("US").trim();
+                String ipa = p.path("ipa").asText("");
+                String audioUrl = p.path("audioUrl").asText("");
+                VocabularyPronunciation existing = existingByAccent.get(accent.toUpperCase());
+                if (existing != null) {
+                    if (!ipa.isBlank()) existing.setIpa(ipa);
+                    if (!audioUrl.isBlank()) existing.setAudioUrl(audioUrl);
+                } else {
+                    VocabularyPronunciation pron = VocabularyPronunciation.builder()
+                            .vocabulary(vocab)
+                            .accent(accent)
+                            .ipa(ipa)
+                            .audioUrl(audioUrl)
+                            .build();
+                    vocab.getPronunciations().add(pron);
+                    existingByAccent.put(accent.toUpperCase(), pron);
+                }
             }
         }
 
-        // Senses
+        // Senses (append only non-duplicate senses so existing IDs stay intact)
         JsonNode rawSenses = payload.path("senses");
         if (enriched.getSenses() != null && !enriched.getSenses().isEmpty()) {
-            vocab.getSenses().clear();
+            Set<String> existingDefs = new java.util.HashSet<>();
+            for (VocabularySense existingSense : vocab.getSenses()) {
+                if (existingSense.getDefinitionEn() != null) {
+                    existingDefs.add(existingSense.getDefinitionEn().trim().toLowerCase());
+                }
+            }
             for (int i = 0; i < enriched.getSenses().size(); i++) {
                 AiEnrichedSenseItem item = enriched.getSenses().get(i);
+                String defKey = item.getDefinitionEn() != null ? item.getDefinitionEn().trim().toLowerCase() : "";
+                if (!defKey.isEmpty() && existingDefs.contains(defKey)) {
+                    continue;
+                }
+                if (!defKey.isEmpty()) {
+                    existingDefs.add(defKey);
+                }
                 JsonNode rawSenseNode = (rawSenses.isArray() && i < rawSenses.size()) ? rawSenses.get(i) : null;
                 boolean hadCefrInRaw = rawSenseNode != null && !rawSenseNode.path("cefrLevel").asText("").isBlank();
 
@@ -411,11 +442,20 @@ public class VocabularyEnrichmentAiService {
             }
         }
 
-        // Idioms
+        // Idioms (append only new phrases)
         if (enriched.getIdioms() != null && !enriched.getIdioms().isEmpty()) {
-            vocab.getIdioms().clear();
+            Set<String> existingIdioms = new java.util.HashSet<>();
+            for (Idiom existingIdm : vocab.getIdioms()) {
+                if (existingIdm.getPhrase() != null) {
+                    existingIdioms.add(existingIdm.getPhrase().trim().toLowerCase());
+                }
+            }
             for (AiEnrichedPhraseItem idm : enriched.getIdioms()) {
                 if (idm.getPhrase() == null || idm.getPhrase().isBlank()) {
+                    continue;
+                }
+                String phraseKey = idm.getPhrase().trim().toLowerCase();
+                if (!existingIdioms.add(phraseKey)) {
                     continue;
                 }
                 vocab.getIdioms().add(Idiom.builder()
@@ -430,11 +470,20 @@ public class VocabularyEnrichmentAiService {
             }
         }
 
-        // Phrasal Verbs
+        // Phrasal Verbs (append only new phrases)
         if (enriched.getPhrasalVerbs() != null && !enriched.getPhrasalVerbs().isEmpty()) {
-            vocab.getPhrasalVerbs().clear();
+            Set<String> existingPvs = new java.util.HashSet<>();
+            for (PhrasalVerb existingPv : vocab.getPhrasalVerbs()) {
+                if (existingPv.getPhrase() != null) {
+                    existingPvs.add(existingPv.getPhrase().trim().toLowerCase());
+                }
+            }
             for (AiEnrichedPhraseItem pv : enriched.getPhrasalVerbs()) {
                 if (pv.getPhrase() == null || pv.getPhrase().isBlank()) {
+                    continue;
+                }
+                String phraseKey = pv.getPhrase().trim().toLowerCase();
+                if (!existingPvs.add(phraseKey)) {
                     continue;
                 }
                 vocab.getPhrasalVerbs().add(PhrasalVerb.builder()

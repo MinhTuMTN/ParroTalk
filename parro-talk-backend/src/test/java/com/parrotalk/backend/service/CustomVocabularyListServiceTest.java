@@ -125,7 +125,7 @@ class CustomVocabularyListServiceTest {
                 .id(listId)
                 .owner(owner)
                 .title("Shared IELTS List")
-                .visibility(VocabularyListVisibility.PRIVATE)
+                .visibility(VocabularyListVisibility.SHARED_LINK)
                 .shareToken("valid_share_token")
                 .build();
 
@@ -231,7 +231,7 @@ class CustomVocabularyListServiceTest {
     void recordAnswerProgress_withQuestionIdOnly_shouldFindItemAndRecordProgress() {
         UUID listId = UUID.randomUUID();
         User user = User.builder().id(UUID.randomUUID()).email("learner@test.com").build();
-        VocabularyList list = VocabularyList.builder().id(listId).build();
+        VocabularyList list = VocabularyList.builder().id(listId).owner(user).build();
 
         UUID questionId = UUID.randomUUID();
         UUID senseId = UUID.randomUUID();

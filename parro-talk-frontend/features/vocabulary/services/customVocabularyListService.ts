@@ -1,6 +1,9 @@
 import axiosInstance from "@/lib/axios";
 import type {
   CustomListMcqResponse,
+  FinalizeListResponse,
+  ShareEntryDto,
+  ShareListResponse,
   UserNotificationDto,
   VocabularyListDetailResponse,
   VocabularyListItemResponse,
@@ -11,6 +14,15 @@ interface ApiResponse<T> {
   code: number;
   message?: string;
   result: T;
+}
+
+function normalizeSummary(raw: VocabularyListSummaryResponse): VocabularyListSummaryResponse {
+  const isOwner = Boolean((raw as any).isOwner ?? raw.owner);
+  return {
+    ...raw,
+    isOwner,
+    owner: isOwner,
+  };
 }
 
 export async function fetchCustomVocabularyLists(): Promise<{
@@ -25,8 +37,8 @@ export async function fetchCustomVocabularyLists(): Promise<{
   >("/vocabulary/lists");
 
   return {
-    myLists: res.data?.result?.myLists ?? [],
-    sharedWithMe: res.data?.result?.sharedWithMe ?? [],
+    myLists: (res.data?.result?.myLists ?? []).map(normalizeSummary),
+    sharedWithMe: (res.data?.result?.sharedWithMe ?? []).map(normalizeSummary),
   };
 }
 
@@ -34,11 +46,11 @@ export async function createCustomVocabularyList(payload: {
   title: string;
   description?: string;
   targetCefr?: string;
-}): Promise<VocabularyListDetailResponse> {
+}): Promise<VocabularyListSummaryResponse> {
   const res = await axiosInstance.post<
-    ApiResponse<VocabularyListDetailResponse>
+    ApiResponse<VocabularyListSummaryResponse>
   >("/vocabulary/lists", payload);
-  return res.data.result;
+  return normalizeSummary(res.data.result);
 }
 
 export async function fetchCustomVocabularyListDetail(
@@ -50,19 +62,29 @@ export async function fetchCustomVocabularyListDetail(
   >(`/vocabulary/lists/${listId}`, {
     params: shareToken ? { shareToken } : undefined,
   });
-  const raw = res.data.result;
-  const isOwner = Boolean((raw as any).isOwner ?? raw.owner);
-  const items = (raw.items ?? []).map((it) => ({
+  const raw = res.data.result as any;
+  const isOwner = Boolean(raw.isOwner ?? raw.owner);
+  const items = (raw.items ?? []).map((it: VocabularyListItemResponse) => ({
     ...it,
     word: it.word || it.normalizedWord || it.rawWord || it.rawInputWord || "",
     rawInputWord: it.rawInputWord || it.rawWord || it.normalizedWord || it.word || "",
     rawWord: it.rawWord || it.rawInputWord || it.word || "",
     normalizedWord: it.normalizedWord || it.word?.toLowerCase() || "",
   }));
+  const rawShares: any[] = raw.shares ?? raw.sharedUsers ?? [];
+  const shares: ShareEntryDto[] = rawShares.map((s) => ({
+    id: s.id ?? s.userId ?? s.email ?? "",
+    userId: s.userId,
+    sharedWithEmail: s.sharedWithEmail ?? s.email ?? s.username ?? "",
+    sharedWithName: s.sharedWithName ?? s.fullName ?? s.username ?? "",
+    permission: s.permission ?? s.role ?? "VIEWER",
+    createdAt: s.createdAt,
+  }));
   return {
     ...raw,
     isOwner,
     owner: isOwner,
+    shares,
     items,
   };
 }
@@ -130,7 +152,14 @@ export async function updateCustomListItemSelection(
   const res = await axiosInstance.patch<
     ApiResponse<VocabularyListItemResponse>
   >(`/vocabulary/lists/${listId}/items/${itemId}`, payload);
-  return res.data.result;
+  const item = res.data.result;
+  return {
+    ...item,
+    word: item.word || item.normalizedWord || item.rawWord || item.rawInputWord || "",
+    rawInputWord: item.rawInputWord || item.rawWord || item.normalizedWord || item.word || "",
+    rawWord: item.rawWord || item.rawInputWord || item.word || "",
+    normalizedWord: item.normalizedWord || item.word?.toLowerCase() || "",
+  };
 }
 
 export async function removeWordFromCustomList(
@@ -142,10 +171,10 @@ export async function removeWordFromCustomList(
 
 export async function finalizeCustomListAndGenerateQuestions(
   listId: string
-): Promise<VocabularyListDetailResponse> {
-  const res = await axiosInstance.post<
-    ApiResponse<VocabularyListDetailResponse>
-  >(`/vocabulary/lists/${listId}/finalize`);
+): Promise<FinalizeListResponse> {
+  const res = await axiosInstance.post<ApiResponse<FinalizeListResponse>>(
+    `/vocabulary/lists/${listId}/finalize`
+  );
   return res.data.result;
 }
 
@@ -181,15 +210,16 @@ export async function shareCustomVocabularyList(
     emailOrUsername?: string;
     enableShareLink?: boolean;
   }
-): Promise<VocabularyListDetailResponse> {
+): Promise<ShareListResponse> {
   const body = {
     emailOrUsername: payload.emailOrUsername || payload.recipientEmailOrUsername,
     recipientEmailOrUsername: payload.recipientEmailOrUsername || payload.emailOrUsername,
     enableShareLink: payload.enableShareLink,
   };
-  const res = await axiosInstance.post<
-    ApiResponse<VocabularyListDetailResponse>
-  >(`/vocabulary/lists/${listId}/share`, body);
+  const res = await axiosInstance.post<ApiResponse<ShareListResponse>>(
+    `/vocabulary/lists/${listId}/share`,
+    body
+  );
   return res.data.result;
 }
 

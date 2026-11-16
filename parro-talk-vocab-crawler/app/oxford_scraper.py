@@ -160,8 +160,33 @@ def parse_oxford_html(html: str, fallback_word: str) -> OxfordEntryData | None:
     )
 
 
+_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+]
+
+
+def _get_with_retries(client: httpx.Client, url: str, retries: int = 2) -> httpx.Response:
+    last_exc: Exception | None = None
+    for attempt in range(retries + 1):
+        headers = {"User-Agent": _USER_AGENTS[attempt % len(_USER_AGENTS)]}
+        try:
+            resp = client.get(url, headers=headers)
+            if resp.status_code in (429, 500, 502, 503, 504) and attempt < retries:
+                continue
+            return resp
+        except httpx.TimeoutException as exc:
+            last_exc = exc
+            if attempt >= retries:
+                raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("Unexpected retry exit")
+
+
 def fetch_oxford_word(word: str) -> OxfordEntryData | None:
-    slug = urllib.parse.quote(word.strip().lower().replace(" ", "-"))
+    slug = urllib.parse.quote(word.strip().lower().replace(" ", "-"), safe="")
     merged: OxfordEntryData | None = None
 
     with httpx.Client(timeout=HTTP_TIMEOUT_SECONDS, headers=DEFAULT_HEADERS, follow_redirects=True) as client:
@@ -169,9 +194,9 @@ def fetch_oxford_word(word: str) -> OxfordEntryData | None:
             suffix = f"_{idx}" if idx > 1 else "_1"
             url = f"{OXFORD_BASE_URL}/{slug}{suffix}"
             try:
-                resp = client.get(url)
+                resp = _get_with_retries(client, url)
                 if resp.status_code == 404 and idx == 1:
-                    resp = client.get(f"{OXFORD_BASE_URL}/{slug}")
+                    resp = _get_with_retries(client, f"{OXFORD_BASE_URL}/{slug}")
                 if resp.status_code != 200:
                     break
                 parsed = parse_oxford_html(resp.text, word)
