@@ -52,7 +52,7 @@ public class CustomListQuestionBatchService {
 
     private static final int MIN_QUESTIONS_PER_SENSE = 5;
     private static final int MIN_QUESTIONS_PER_PHRASE = 2;
-    private static final ExecutorService BATCH_EXECUTOR = Executors.newFixedThreadPool(3);
+    private static final ExecutorService BATCH_EXECUTOR = Executors.newFixedThreadPool(1);
 
     @Lazy
     @Autowired
@@ -159,7 +159,9 @@ public class CustomListQuestionBatchService {
 
         for (UUID senseId : selectedSenseIds) {
             try {
-                totalGenerated += proxy().processSenseFinalize(listId, userId, senseId);
+                int generated = proxy().processSenseFinalize(listId, userId, senseId);
+                totalGenerated += generated;
+                pauseBetweenBatchCalls(generated);
             } catch (Exception ex) {
                 hadError = true;
                 log.error("Failed finalizing sense {} for list {}: {}", senseId, listId, ex.getMessage(), ex);
@@ -168,7 +170,9 @@ public class CustomListQuestionBatchService {
 
         for (UUID idiomId : selectedIdiomIds) {
             try {
-                totalGenerated += proxy().processIdiomFinalize(listId, userId, idiomId);
+                int generated = proxy().processIdiomFinalize(listId, userId, idiomId);
+                totalGenerated += generated;
+                pauseBetweenBatchCalls(generated);
             } catch (Exception ex) {
                 hadError = true;
                 log.error("Failed finalizing idiom {} for list {}: {}", idiomId, listId, ex.getMessage(), ex);
@@ -177,7 +181,9 @@ public class CustomListQuestionBatchService {
 
         for (UUID pvId : selectedPvIds) {
             try {
-                totalGenerated += proxy().processPhrasalVerbFinalize(listId, userId, pvId);
+                int generated = proxy().processPhrasalVerbFinalize(listId, userId, pvId);
+                totalGenerated += generated;
+                pauseBetweenBatchCalls(generated);
             } catch (Exception ex) {
                 hadError = true;
                 log.error("Failed finalizing phrasal verb {} for list {}: {}", pvId, listId, ex.getMessage(), ex);
@@ -186,6 +192,17 @@ public class CustomListQuestionBatchService {
 
         proxy().completeFinalizeStatusAndNotify(listId, totalGenerated, hadError);
         return totalGenerated;
+    }
+
+    private void pauseBetweenBatchCalls(int generated) {
+        if (generated <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(500L);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Transactional

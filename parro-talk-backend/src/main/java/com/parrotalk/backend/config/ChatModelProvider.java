@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -31,6 +32,11 @@ public class ChatModelProvider {
     private final List<ChatModelNode> nodes;
     private final AtomicInteger current = new AtomicInteger();
     private final Map<String, Instant> quarantinedKeys = new ConcurrentHashMap<>();
+    private final Set<String> disabledKeys = ConcurrentHashMap.newKeySet();
+    private final Map<String, String> lastErrors = new ConcurrentHashMap<>();
+    private final Map<String, Instant> lastErrorTimes = new ConcurrentHashMap<>();
+    private final Map<String, Instant> lastCheckedTimes = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastLatencyMs = new ConcurrentHashMap<>();
     private final Clock clock;
 
     @Autowired
@@ -45,24 +51,38 @@ public class ChatModelProvider {
 
     private static List<ChatModelNode> buildNodes(OpenAIProperties properties) {
         List<ChatModelNode> result = new ArrayList<>();
-        // Iterate model outer, apiKey inner so next() always switches API key first.
-        for (String modelName : properties.getModel()) {
-            if (modelName == null || modelName.isBlank()) {
-                continue;
-            }
-            String trimmedModel = modelName.trim();
+        if (properties.isExhaustModelsPerKey()) {
+            // Iterate apiKey outer, model inner so one key exhausts its models before rotating keys.
             for (String apiKey : properties.getApiKeys()) {
-                if (apiKey == null || apiKey.isBlank()) {
-                    continue;
+                for (String modelName : properties.getModel()) {
+                    addNodeIfValid(result, properties, apiKey, modelName);
                 }
-                String trimmedKey = apiKey.trim();
-                result.add(new ChatModelNode(
-                        ChatClient.builder(createChatModel(properties, trimmedKey, trimmedModel)).build(),
-                        trimmedModel,
-                        maskedApiKey(trimmedKey)));
+            }
+        } else {
+            // Iterate model outer, apiKey inner so next() switches API key first.
+            for (String modelName : properties.getModel()) {
+                for (String apiKey : properties.getApiKeys()) {
+                    addNodeIfValid(result, properties, apiKey, modelName);
+                }
             }
         }
         return result;
+    }
+
+    private static void addNodeIfValid(
+            List<ChatModelNode> target,
+            OpenAIProperties properties,
+            String apiKey,
+            String modelName) {
+        if (modelName == null || modelName.isBlank() || apiKey == null || apiKey.isBlank()) {
+            return;
+        }
+        String trimmedModel = modelName.trim();
+        String trimmedKey = apiKey.trim();
+        target.add(new ChatModelNode(
+                ChatClient.builder(createChatModel(properties, trimmedKey, trimmedModel)).build(),
+                trimmedModel,
+                maskedApiKey(trimmedKey)));
     }
 
     private static OpenAiChatModel createChatModel(OpenAIProperties properties, String apiKey, String modelName) {
@@ -130,12 +150,17 @@ public class ChatModelProvider {
      */
     public ChatModelNode markFailed(ChatModelNode node, Throwable error) {
         if (node != null && node.maskedApiKey() != null) {
+            String maskedKey = node.maskedApiKey();
+            String msg = rootMessage(error);
+            lastErrors.put(maskedKey, msg);
+            lastErrorTimes.put(maskedKey, clock.instant());
+
             Duration quarantine = classifyQuarantineDuration(error);
             if (!quarantine.isZero()) {
                 Instant until = clock.instant().plus(quarantine);
-                quarantinedKeys.put(node.maskedApiKey(), until);
+                quarantinedKeys.put(maskedKey, until);
                 log.warn("Quarantined AI key {} for {} due to error: {}",
-                        node.maskedApiKey(), quarantine, rootMessage(error));
+                        maskedKey, quarantine, msg);
             }
         }
         return next();
@@ -144,6 +169,9 @@ public class ChatModelProvider {
     public boolean isQuarantined(ChatModelNode node) {
         if (node == null || node.maskedApiKey() == null) {
             return false;
+        }
+        if (disabledKeys.contains(node.maskedApiKey())) {
+            return true;
         }
         Instant until = quarantinedKeys.get(node.maskedApiKey());
         if (until == null) {
@@ -154,6 +182,108 @@ public class ChatModelProvider {
         }
         quarantinedKeys.remove(node.maskedApiKey(), until);
         return false;
+    }
+
+    public List<ChatModelNode> getNodes() {
+        return nodes;
+    }
+
+    public int getCurrentIndex() {
+        return current.get();
+    }
+
+    public boolean isDisabled(String maskedApiKey) {
+        return maskedApiKey != null && disabledKeys.contains(maskedApiKey);
+    }
+
+    public void setDisabled(String maskedApiKey, boolean disabled) {
+        if (maskedApiKey == null || maskedApiKey.isBlank()) {
+            return;
+        }
+        if (disabled) {
+            disabledKeys.add(maskedApiKey);
+            ChatModelNode active = nodes.isEmpty() ? null : nodes.get(current.get());
+            if (active != null && maskedApiKey.equals(active.maskedApiKey())) {
+                next();
+            }
+        } else {
+            disabledKeys.remove(maskedApiKey);
+        }
+    }
+
+    public void resetKey(String maskedApiKey) {
+        if (maskedApiKey == null || maskedApiKey.isBlank()) {
+            return;
+        }
+        quarantinedKeys.remove(maskedApiKey);
+        disabledKeys.remove(maskedApiKey);
+        lastErrors.remove(maskedApiKey);
+        lastErrorTimes.remove(maskedApiKey);
+    }
+
+    public void resetAll() {
+        quarantinedKeys.clear();
+        disabledKeys.clear();
+        lastErrors.clear();
+        lastErrorTimes.clear();
+    }
+
+    public Instant getQuarantinedUntil(String maskedApiKey) {
+        if (maskedApiKey == null) {
+            return null;
+        }
+        Instant until = quarantinedKeys.get(maskedApiKey);
+        if (until != null && !clock.instant().isBefore(until)) {
+            quarantinedKeys.remove(maskedApiKey, until);
+            return null;
+        }
+        return until;
+    }
+
+    public String getLastError(String maskedApiKey) {
+        return maskedApiKey != null ? lastErrors.get(maskedApiKey) : null;
+    }
+
+    public Instant getLastErrorAt(String maskedApiKey) {
+        return maskedApiKey != null ? lastErrorTimes.get(maskedApiKey) : null;
+    }
+
+    public Instant getLastCheckedAt(String maskedApiKey) {
+        return maskedApiKey != null ? lastCheckedTimes.get(maskedApiKey) : null;
+    }
+
+    public Long getLastLatencyMs(String maskedApiKey) {
+        return maskedApiKey != null ? lastLatencyMs.get(maskedApiKey) : null;
+    }
+
+    public void recordCheckSuccess(String maskedApiKey, long latencyMs) {
+        if (maskedApiKey == null) {
+            return;
+        }
+        Instant now = clock.instant();
+        quarantinedKeys.remove(maskedApiKey);
+        lastErrors.remove(maskedApiKey);
+        lastErrorTimes.remove(maskedApiKey);
+        lastCheckedTimes.put(maskedApiKey, now);
+        lastLatencyMs.put(maskedApiKey, latencyMs);
+    }
+
+    public void recordCheckFailure(ChatModelNode node, Throwable error, long latencyMs) {
+        if (node == null || node.maskedApiKey() == null) {
+            return;
+        }
+        String maskedKey = node.maskedApiKey();
+        Instant now = clock.instant();
+        String msg = rootMessage(error);
+        lastCheckedTimes.put(maskedKey, now);
+        lastLatencyMs.put(maskedKey, latencyMs);
+        lastErrors.put(maskedKey, msg);
+        lastErrorTimes.put(maskedKey, now);
+
+        Duration quarantine = classifyQuarantineDuration(error);
+        if (!quarantine.isZero()) {
+            quarantinedKeys.put(maskedKey, now.plus(quarantine));
+        }
     }
 
     public int healthyCount() {

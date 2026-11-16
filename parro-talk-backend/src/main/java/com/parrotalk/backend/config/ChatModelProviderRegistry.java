@@ -62,6 +62,14 @@ public class ChatModelProviderRegistry {
         return defaultProvider;
     }
 
+    public String getDefaultProviderName() {
+        return defaultProviderName;
+    }
+
+    public Map<String, ChatModelProvider> getAllProviders() {
+        return providers;
+    }
+
     public Optional<ChatModelProvider> getProvider(String providerName) {
         if (providerName == null || providerName.isBlank()) {
             return Optional.empty();

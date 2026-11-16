@@ -356,4 +356,34 @@ class AiCoreClientTest {
         assertEquals("groq-ok", result);
         verify(emptyGeminiProvider, never()).current();
     }
+
+    @Test
+    @DisplayName("4-arg callAndValidate should auto-fallback across providers when registry has multiple providers")
+    void testCallAndValidate_DefaultChainFallsBackAcrossProviders() {
+        ChatModelProvider geminiVocabProvider = mock(ChatModelProvider.class);
+        ChatModelProvider groqProvider = mock(ChatModelProvider.class);
+        ChatClient geminiClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+        ChatClient groqClient = mock(ChatClient.class, Answers.RETURNS_DEEP_STUBS);
+
+        ChatModelNode geminiNode = new ChatModelNode(geminiClient, "gemini-3.1-flash-lite", "AIza...1111");
+        ChatModelNode groqNode = new ChatModelNode(groqClient, "openai/gpt-oss-120b", "gsk_...1111");
+
+        when(geminiVocabProvider.size()).thenReturn(1);
+        when(geminiVocabProvider.healthyCount()).thenReturn(0);
+        when(geminiVocabProvider.current()).thenReturn(geminiNode);
+        when(geminiClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenThrow(new RuntimeException("429 rate limit"));
+
+        when(groqProvider.size()).thenReturn(1);
+        when(groqProvider.current()).thenReturn(groqNode);
+        when(groqClient.prompt().system("sys").user("usr").call().responseEntity(String.class))
+                .thenReturn(new ResponseEntity<>(null, "groq-auto-fallback-ok"));
+
+        ChatModelProviderRegistry registry = new ChatModelProviderRegistry(
+                Map.of("gemini-vocab", geminiVocabProvider, "groq", groqProvider), "gemini-vocab");
+        AiCoreClient multiClient = new AiCoreClient(geminiVocabProvider, registry);
+
+        String result = multiClient.callAndValidate("sys", "usr", String.class, Function.identity());
+        assertEquals("groq-auto-fallback-ok", result);
+    }
 }

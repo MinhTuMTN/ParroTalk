@@ -22,6 +22,7 @@ public enum ErrorCode {
     RESET_TOKEN_USED(1013, "This reset link has already been used.", HttpStatus.BAD_REQUEST),
     PASSWORD_MISMATCH(1014, "Passwords do not match.", HttpStatus.BAD_REQUEST),
     RATE_LIMIT_EXCEEDED(1015, "Too many requests. Please try again later.", HttpStatus.TOO_MANY_REQUESTS),
+    REGISTRATION_DISABLED(1016, "New user registration is currently disabled.", HttpStatus.FORBIDDEN),
 
     // AI & Classification
     LESSON_NOT_FOUND(2001, "Lesson not found.", HttpStatus.NOT_FOUND),

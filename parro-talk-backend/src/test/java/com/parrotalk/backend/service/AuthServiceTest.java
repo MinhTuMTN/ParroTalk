@@ -58,6 +58,7 @@ class AuthServiceTest {
                 userMapper,
                 tokenService,
                 emailVerificationService);
+        authService.setRegistrationEnabled(true);
     }
 
     @Test
@@ -109,6 +110,20 @@ class AuthServiceTest {
         AuthException exception = assertThrows(AuthException.class, () -> authService.register(request));
         org.junit.jupiter.api.Assertions.assertEquals(ErrorCode.DUPLICATE_EMAIL, exception.getErrorCode());
         verifyNoInteractions(passwordEncoder, emailVerificationService);
+    }
+
+    @Test
+    void registerThrowsRegistrationDisabledWhenDisabled() {
+        authService.setRegistrationEnabled(false);
+        RegisterRequest request = RegisterRequest.builder()
+                .email("test@example.com")
+                .password("secret123")
+                .fullName("Test User")
+                .build();
+
+        AuthException exception = assertThrows(AuthException.class, () -> authService.register(request));
+        org.junit.jupiter.api.Assertions.assertEquals(ErrorCode.REGISTRATION_DISABLED, exception.getErrorCode());
+        verifyNoInteractions(userService, passwordEncoder, emailVerificationService);
     }
 
     @Test
@@ -215,6 +230,7 @@ class AuthServiceTest {
                 new UserMapperImpl(),
                 tokenService,
                 emailVerificationService);
+        authServiceWithRealMapper.setRegistrationEnabled(true);
 
         User passwordUser = User.builder()
                 .id(UUID.randomUUID())

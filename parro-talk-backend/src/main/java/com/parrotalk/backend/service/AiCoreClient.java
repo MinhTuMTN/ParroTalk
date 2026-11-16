@@ -67,6 +67,13 @@ public class AiCoreClient {
             Class<T> responseType,
             Function<T, R> validator) {
 
+        if (hasMultiProviderRegistry()) {
+            return executeWithProviderFallback(
+                    buildDefaultProviderChain(),
+                    responseType.getSimpleName(),
+                    node -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
+                    validator);
+        }
         return executeWithRotation(
                 chatModelProvider,
                 responseType.getSimpleName(),
@@ -103,11 +110,33 @@ public class AiCoreClient {
             ParameterizedTypeReference<T> responseType,
             Function<T, R> validator) {
 
+        if (hasMultiProviderRegistry()) {
+            return executeWithProviderFallback(
+                    buildDefaultProviderChain(),
+                    responseType.getType().getTypeName(),
+                    node -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
+                    validator);
+        }
         return executeWithRotation(
                 chatModelProvider,
                 responseType.getType().getTypeName(),
                 node -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
                 validator);
+    }
+
+    private boolean hasMultiProviderRegistry() {
+        return providerRegistry != null && providerRegistry.getAllProviders().size() > 1;
+    }
+
+    private List<String> buildDefaultProviderChain() {
+        java.util.LinkedHashSet<String> chain = new java.util.LinkedHashSet<>();
+        if (providerRegistry != null && providerRegistry.getDefaultProviderName() != null) {
+            chain.add(providerRegistry.getDefaultProviderName());
+        }
+        chain.add("gemini-vocab");
+        chain.add("groq");
+        chain.add("gemini");
+        return List.copyOf(chain);
     }
 
     /**

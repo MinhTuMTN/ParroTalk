@@ -25,6 +25,7 @@ import com.parrotalk.backend.security.JwtUtils;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * Auth Service.
@@ -35,6 +36,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
+
+    @Value("${application.auth.registration-enabled:false}")
+    private boolean registrationEnabled = false;
+
+    public void setRegistrationEnabled(boolean registrationEnabled) {
+        this.registrationEnabled = registrationEnabled;
+    }
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
@@ -52,6 +60,10 @@ public class AuthService {
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        if (!registrationEnabled) {
+            throw new AuthException(ErrorCode.REGISTRATION_DISABLED);
+        }
+
         Optional<User> existingUserOpt = userService.findByEmailIncludeDeleted(request.getEmail());
 
         if (existingUserOpt.isPresent()) {

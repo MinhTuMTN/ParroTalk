@@ -19,6 +19,7 @@ public class OpenAIProperties {
     private List<String> apiKeys = new ArrayList<>();
     private String baseUrl;
     private List<String> model = new ArrayList<>();
+    private boolean exhaustModelsPerKey = false;
     private Map<String, ProviderProperties> providers = new LinkedHashMap<>();
 
     /**
@@ -39,6 +40,7 @@ public class OpenAIProperties {
         private List<String> apiKeys = new ArrayList<>();
         private String baseUrl;
         private List<String> model = new ArrayList<>();
+        private Boolean exhaustModelsPerKey;
         private Integer timeoutSeconds;
         private Integer sdkMaxRetries;
     }
@@ -53,6 +55,7 @@ public class OpenAIProperties {
         resolved.setDefaultProvider(defaultProvider);
         resolved.setTimeoutSeconds(timeoutSeconds);
         resolved.setSdkMaxRetries(sdkMaxRetries);
+        resolved.setExhaustModelsPerKey(exhaustModelsPerKey);
 
         if (providerName == null || providerName.isBlank()) {
             return resolved;
@@ -63,6 +66,9 @@ public class OpenAIProperties {
             resolved.setApiKeys(matched.getApiKeys() != null ? new ArrayList<>(matched.getApiKeys()) : new ArrayList<>());
             resolved.setBaseUrl(matched.getBaseUrl());
             resolved.setModel(matched.getModel() != null ? new ArrayList<>(matched.getModel()) : new ArrayList<>());
+            if (matched.getExhaustModelsPerKey() != null) {
+                resolved.setExhaustModelsPerKey(matched.getExhaustModelsPerKey());
+            }
             if (matched.getTimeoutSeconds() != null) {
                 resolved.setTimeoutSeconds(matched.getTimeoutSeconds());
             }

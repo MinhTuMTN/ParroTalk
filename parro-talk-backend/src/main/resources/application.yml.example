@@ -78,6 +78,8 @@ email:
     base-url: ${RESEND_BASE_URL:https://api.resend.com}
 
 application:
+  auth:
+    registration-enabled: ${AUTH_REGISTRATION_ENABLED:false}
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
     allowed-origins: ${FRONTEND_ALLOWED_ORIGINS:http://localhost:3000}

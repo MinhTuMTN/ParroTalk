@@ -7,6 +7,7 @@ import {
   BarChart3,
   Boxes,
   FileText,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   PanelLeftClose,
@@ -92,6 +93,12 @@ export default function Sidebar({
       label: "Vocabularies",
       path: "/admin/vocabularies",
       active: pathname.startsWith("/admin/vocabularies"),
+    },
+    {
+      icon: KeyRound,
+      label: "AI API Keys",
+      path: "/admin/ai-keys",
+      active: pathname.startsWith("/admin/ai-keys"),
     },
     {
       icon: BarChart3,

@@ -114,6 +114,8 @@ app:
       mode: ${TTS_PREWARM_MODE:rabbitmq}
 
 application:
+  auth:
+    registration-enabled: ${AUTH_REGISTRATION_ENABLED:false}
   frontend:
     base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
     allowed-origins:
@@ -142,20 +144,32 @@ application:
   settings:
     default-audio-thumbnail: https://res.cloudinary.com/dgrjyts1r/image/upload/v1778946072/default-audio-thumbnail.png
   ai:
-    default-provider: groq
+    default-provider: ${AI_DEFAULT_PROVIDER:gemini-vocab}
     timeout-seconds: ${AI_TIMEOUT_SECONDS:30}
     sdk-max-retries: ${AI_SDK_MAX_RETRIES:0}
     providers:
-      groq:
-        api-keys: ${GROQ_API_KEYS:}
-        base-url: https://api.groq.com/openai/v1
-        model:
-          - qwen/qwen3.8-27b
       gemini:
         api-keys: ${GEMINI_API_KEYS:}
         base-url: https://generativelanguage.googleapis.com/v1beta/openai
+        exhaust-models-per-key: true
         model:
           - gemini-3.5-flash-lite
+          - gemini-3.8-flash
+      gemini-vocab:
+        api-keys: ${GEMINI_API_KEYS:}
+        base-url: https://generativelanguage.googleapis.com/v1beta/openai
+        exhaust-models-per-key: true
+        model:
+          - gemini-3.1-flash-lite
+          - gemma-4-31b-it
+          - gemma-4-26b-a4b-it
+      groq:
+        api-keys: ${GROQ_API_KEYS:}
+        base-url: https://api.groq.com/openai/v1
+        exhaust-models-per-key: false
+        model:
+          - openai/gpt-oss-120b
+          - qwen/qwen3.8-27b
 
 email:
   provider: ${EMAIL_PROVIDER:resend}

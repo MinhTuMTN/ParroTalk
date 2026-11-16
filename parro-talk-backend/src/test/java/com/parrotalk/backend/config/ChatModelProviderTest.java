@@ -227,4 +227,56 @@ class ChatModelProviderTest {
         assertEquals(15, resolvedGemini.getTimeoutSeconds());
         assertEquals(2, resolvedGemini.getSdkMaxRetries());
     }
+
+    @Test
+    @DisplayName("exhaustModelsPerKey should exhaust all models on key1 before moving to key2")
+    void constructor_ExhaustModelsPerKey_OrdersKeyOuterModelInner() {
+        OpenAIProperties props = new OpenAIProperties();
+        props.setBaseUrl("https://generativelanguage.googleapis.com/v1beta/openai");
+        props.setApiKeys(List.of("AIza_key_1111", "AIza_key_2222"));
+        props.setModel(List.of("gemini-3.1-flash-lite", "gemma-4-31b-it"));
+        props.setExhaustModelsPerKey(true);
+
+        ChatModelProvider provider = new ChatModelProvider(props);
+        assertEquals(4, provider.size());
+        assertEquals("AIza...1111", provider.current().maskedApiKey());
+        assertEquals("gemini-3.1-flash-lite", provider.current().modelName());
+
+        ChatModelNode second = provider.next();
+        assertEquals("AIza...1111", second.maskedApiKey());
+        assertEquals("gemma-4-31b-it", second.modelName());
+
+        ChatModelNode third = provider.next();
+        assertEquals("AIza...2222", third.maskedApiKey());
+        assertEquals("gemini-3.1-flash-lite", third.modelName());
+    }
+
+    @Test
+    @DisplayName("setDisabled, recordCheckFailure, recordCheckSuccess, and resetKey manage runtime key states")
+    void runtimeMonitoringAndToggleControls() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-11-17T00:00:00Z"));
+        ChatModelNode node1 = new ChatModelNode(mock(ChatClient.class), "gemini-3.1-flash-lite", "AIza...1111");
+        ChatModelNode node2 = new ChatModelNode(mock(ChatClient.class), "gemini-3.1-flash-lite", "AIza...2222");
+
+        ChatModelProvider provider = new ChatModelProvider(List.of(node1, node2), clock);
+
+        provider.setDisabled("AIza...1111", true);
+        assertTrue(provider.isDisabled("AIza...1111"));
+        assertTrue(provider.isQuarantined(node1));
+        assertEquals(node2, provider.current());
+
+        provider.resetKey("AIza...1111");
+        assertFalse(provider.isDisabled("AIza...1111"));
+        assertFalse(provider.isQuarantined(node1));
+
+        provider.recordCheckFailure(node1, new RuntimeException("429 rate limit exceeded"), 120L);
+        assertEquals("429 rate limit exceeded", provider.getLastError("AIza...1111"));
+        assertEquals(120L, provider.getLastLatencyMs("AIza...1111"));
+        assertNotNull(provider.getQuarantinedUntil("AIza...1111"));
+
+        provider.recordCheckSuccess("AIza...1111", 85L);
+        assertNull(provider.getLastError("AIza...1111"));
+        assertNull(provider.getQuarantinedUntil("AIza...1111"));
+        assertEquals(85L, provider.getLastLatencyMs("AIza...1111"));
+    }
 }
