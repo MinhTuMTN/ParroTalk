@@ -8,10 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -21,12 +18,11 @@ import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.dto.PageResponse;
-import com.parrotalk.backend.dto.SubmitLessonRequest;
-import com.parrotalk.backend.dto.SubmitLessonResponse;
 import com.parrotalk.backend.entity.User;
-import com.parrotalk.backend.service.LearningService;
 import com.parrotalk.backend.service.LessonService;
 import com.parrotalk.backend.service.SseService;
+
+import org.springframework.web.bind.annotation.ModelAttribute;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,9 +44,6 @@ public class LessonController {
     /** SSE Service */
     private final SseService sseService;
 
-    /** Learning Service */
-    private final LearningService learningService;
-
     /** Temporary fixed limit for featured lessons */
     private static final int FEATURED_LESSONS_LIMIT = 2;
 
@@ -65,21 +58,6 @@ public class LessonController {
     }
 
     /**
-     * Get list published lessons.
-     * 
-     * @param request Lesson search request
-     * @param user    User
-     * @return Page of lessons
-     */
-    @GetMapping
-    public ResponseEntity<PageResponse<LessonWithProgressDTO>> listLessons(
-            @ModelAttribute LessonSearchRequest request,
-            @AuthenticationPrincipal User user) {
-        PageResponse<LessonWithProgressDTO> response = lessonService.searchLessons(request, user);
-        return ResponseEntity.ok(response);
-    }
-
-    /**
      * Get list own lessons.
      * 
      * @param request Lesson search request
@@ -91,23 +69,6 @@ public class LessonController {
             @ModelAttribute LessonSearchRequest request,
             @AuthenticationPrincipal User user) {
         return ResponseEntity.ok(lessonService.searchMyLessons(request, user));
-    }
-
-    /**
-     * Submit lesson.
-     * 
-     * @param lessonId Lesson ID
-     * @param request  Submit lesson request
-     * @param user     User
-     * @return Submit lesson response
-     */
-    @PostMapping("/{lessonId}/submit")
-    public ResponseEntity<SubmitLessonResponse> submitLesson(
-            @PathVariable UUID lessonId,
-            @RequestBody SubmitLessonRequest request,
-            @AuthenticationPrincipal User user) {
-        SubmitLessonResponse response = learningService.submitLessonProgress(user.getId(), lessonId, request);
-        return ResponseEntity.ok(response);
     }
 
     /**

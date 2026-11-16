@@ -15,8 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.parrotalk.backend.constant.LessonVisibilityStatus;
-import com.parrotalk.backend.dto.AdminCreateLessonRequest;
-import com.parrotalk.backend.dto.LessonCategoryAnalysisResponse;
 import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.SegmentTranslationResponse;
@@ -24,10 +22,8 @@ import com.parrotalk.backend.dto.TranslationSummaryResponse;
 import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
 import com.parrotalk.backend.dto.UpdateLessonSegmentsRequest;
 import com.parrotalk.backend.dto.UpdateLessonStatusRequest;
-import com.parrotalk.backend.service.LessonCategoryClassificationService;
 import com.parrotalk.backend.service.LessonService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -44,9 +40,6 @@ public class AdminLessonController {
 
     /** Lesson Service */
     private final LessonService lessonService;
-
-    /** Lesson Category Classification Service */
-    private final LessonCategoryClassificationService lessonCategoryClassificationService;
 
     /**
      * Get list lessons.
@@ -73,17 +66,6 @@ public class AdminLessonController {
         int effectiveLimit = (size != null && size > 0) ? size : limit;
         return ResponseEntity
                 .ok(lessonService.searchAdminLessons(effectiveQuery, status, categoryId, page, effectiveLimit));
-    }
-
-    /**
-     * Create lesson. (TODO: Create lesson, segment and user lesson progress together)
-     * 
-     * @param request Create lesson request
-     * @return Lesson
-     */
-    @PostMapping
-    public ResponseEntity<LessonResponse> createLesson(@Valid @RequestBody AdminCreateLessonRequest request) {
-        return ResponseEntity.ok(lessonService.createAdminLesson(request));
     }
 
     /**
@@ -120,17 +102,6 @@ public class AdminLessonController {
     @GetMapping("/{id}")
     public ResponseEntity<LessonResponse> getLessonDetail(@PathVariable UUID id) {
         return ResponseEntity.ok(lessonService.getAdminLessonDetail(id));
-    }
-
-    /**
-     * Analyze and classify categories for a specific lesson using AI.
-     *
-     * @param id Lesson ID
-     * @return Result of categorized lesson
-     */
-    @PostMapping("/{id}/analyze-categories")
-    public ResponseEntity<LessonCategoryAnalysisResponse> analyzeCategories(@Valid @NotNull @PathVariable UUID id) {
-        return ResponseEntity.ok(lessonCategoryClassificationService.classifyLessonCategories(id));
     }
 
     /**

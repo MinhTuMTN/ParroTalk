@@ -133,7 +133,7 @@ application:
     app-name: ${APP_MAIL_NAME:ParroTalk}
     support-email: ${APP_SUPPORT_EMAIL:}
   security:
-    public-endpoints: /api/auth/**, /api/lessons/featured, /api/lessons/sse/**, /api/health/**, /api/vocabulary/featured, /api/vocabulary/topics/**, /api/vocabulary, /api/library/**, /api/admin/vocabulary-sys/**
+    public-endpoints: /api/auth/**, /api/lessons/featured, /api/lessons/sse/**, /api/vocabulary/topics/**, /api/vocabulary, /api/library/**
     jwt:
       secret-key: ${JWT_SECRET_KEY:YOUR_JWT_SECRET_KEY_REPLACE_THIS_IN_PRODUCTION}
       expiration: 86400000 # 1 day

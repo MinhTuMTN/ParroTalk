@@ -254,20 +254,6 @@ export const lessonService = {
     return response.data;
   },
 
-  async getAllLessons(
-    page = 0,
-    size = 10,
-    query?: string,
-    categoryId?: string,
-  ) {
-    let url = `/lessons?page=${page}&size=${size}`;
-    if (query) url += `&query=${encodeURIComponent(query)}`;
-    if (categoryId) url += `&categoryId=${categoryId}`;
-    const response = await axiosInstance.get<PageResponse<Lesson>>(url);
-
-    return response.data;
-  },
-
   async getMyLessons(page = 0, size = 10, query?: string) {
     let url = `/lessons/mine?page=${page}&size=${size}`;
     if (query) url += `&query=${encodeURIComponent(query)}`;

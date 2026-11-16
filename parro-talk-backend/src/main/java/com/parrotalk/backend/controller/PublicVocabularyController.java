@@ -79,16 +79,6 @@ public class PublicVocabularyController {
     }
 
     /**
-     * Get featured vocabulary list.
-     *
-     * @return List of featured words.
-     */
-    @GetMapping("/featured")
-    public ResponseEntity<List<PublicVocabularySummaryDto>> getFeatured() {
-        return ResponseEntity.ok(publicVocabularyService.getFeatured());
-    }
-
-    /**
      * Get detailed vocabulary item by ID or normalized word.
      *
      * @param id Vocabulary entry ID or word slug

@@ -129,12 +129,6 @@ public class PublicVocabularyService {
     }
 
     @Transactional(readOnly = true)
-    public List<PublicVocabularySummaryDto> getFeatured() {
-        List<Vocabulary> entries = vocabularyRepository.findRandomVocabularies(null, "B2", 10);
-        return entries.stream().map(this::mapToSummaryDto).collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
     public PublicVocabularyDetailDto getDetail(UUID id, User user) {
         Vocabulary entry = vocabularyRepository.findByIdWithGraph(id)
                 .orElseThrow(() -> new RuntimeException("Vocabulary entry not found with id: " + id));

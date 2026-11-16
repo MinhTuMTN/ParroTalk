@@ -1,9 +1,7 @@
 package com.parrotalk.backend.service;
 
 import com.parrotalk.backend.constant.VocabularyStatus;
-import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.dto.dictionary.SaveVocabularyRequest;
-import com.parrotalk.backend.dto.dictionary.UpdateVocabularyRequest;
 import com.parrotalk.backend.dto.dictionary.UserVocabularyResponse;
 import com.parrotalk.backend.dto.dictionary.VocabularyOccurrenceResponse;
 import com.parrotalk.backend.entity.DictionaryEntry;
@@ -62,52 +60,6 @@ public class UserVocabularyService {
 
         maybeAddOccurrence(vocabulary, request);
         return toResponse(vocabulary, true);
-    }
-
-    @Transactional(readOnly = true)
-    public PageResponse<UserVocabularyResponse> list(User user, VocabularyStatus status, int page, int size) {
-        requireUser(user);
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100));
-        Page<UserVocabulary> result = status == null
-                ? userVocabularyRepository.findByUserId(user.getId(), pageable)
-                : userVocabularyRepository.findByUserIdAndStatus(user.getId(), status, pageable);
-
-        return PageResponse.<UserVocabularyResponse>builder()
-                .content(result.getContent().stream().map(vocabulary -> toResponse(vocabulary, false)).toList())
-                .page(result.getNumber())
-                .size(result.getSize())
-                .totalElements(result.getTotalElements())
-                .totalPages(result.getTotalPages())
-                .build();
-    }
-
-    @Transactional
-    public UserVocabularyResponse update(User user, UUID vocabularyId, UpdateVocabularyRequest request) {
-        requireUser(user);
-        UserVocabulary vocabulary = findOwnedVocabulary(user, vocabularyId);
-
-        if (request.status() != null) {
-            vocabulary.setStatus(request.status());
-        }
-        if (request.difficulty() != null) {
-            vocabulary.setDifficulty(request.difficulty());
-        }
-        if (request.note() != null) {
-            vocabulary.setNote(request.note());
-        }
-        if (request.nextReviewAt() != null) {
-            vocabulary.setNextReviewAt(request.nextReviewAt());
-        }
-
-        return toResponse(userVocabularyRepository.save(vocabulary), true);
-    }
-
-    @Transactional
-    public UserVocabularyResponse archive(User user, UUID vocabularyId) {
-        requireUser(user);
-        UserVocabulary vocabulary = findOwnedVocabulary(user, vocabularyId);
-        vocabulary.setStatus(VocabularyStatus.ARCHIVED);
-        return toResponse(userVocabularyRepository.save(vocabulary), true);
     }
 
     private UserVocabulary createVocabulary(User user, SaveVocabularyRequest request, String normalizedWord) {

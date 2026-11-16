@@ -83,19 +83,4 @@ public class AudioController {
                 .build());
     }
 
-    /**
-     * Retry all processing lessons.
-     * Retry all lessons that are in PROCESSING status and created before 1 hour.
-     * 
-     * @return Upload response
-     * @throws InterruptedException
-     */
-    @GetMapping("/retry-all-processing-lesson")
-    public ResponseEntity<UploadResponse> retryAllProcessingLesson() {
-        audioService.retryAllProcessingLesson();
-        return ResponseEntity.ok(UploadResponse.builder()
-                .message("All processing lessons have been retried")
-                .build());
-    }
-
 }

@@ -151,25 +151,4 @@ public class AudioService {
         return lesson;
     }
 
-    /**
-     * Retry all processing lessons.
-     * Retry all lessons that are in PROCESSING status and created before 1 hour.
-     */
-    @Transactional
-    public void retryAllProcessingLesson() {
-        // Find all broken lessons
-        List<Lesson> lessons = lessonService.findAllBrokenLessons();
-
-        // Retry each lesson
-        for (Lesson lesson : lessons) {
-            // Update lesson status to PENDING
-            lesson.setStatus(LessonStatus.PENDING);
-            lesson.setProgress(0);
-            lesson.setCurrentStep("Uploading");
-            lessonService.save(lesson);
-
-            transcriptionSegmentService.deleteByLessonId(lesson.getId());
-            audioTaskProducer.sendTranscriptionTask(lesson.getId(), lesson.getFileUrl());
-        }
-    }
 }

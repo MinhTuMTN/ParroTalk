@@ -38,7 +38,6 @@ import com.parrotalk.backend.constant.Role;
 import com.parrotalk.backend.constant.SourceType;
 import com.parrotalk.backend.constant.TranslationLanguage;
 import com.parrotalk.backend.constant.TranslationStatus;
-import com.parrotalk.backend.dto.AdminCreateLessonRequest;
 import com.parrotalk.backend.dto.UpdateLessonInfoRequest;
 import com.parrotalk.backend.dto.CategoryResponse;
 import com.parrotalk.backend.dto.FeaturedLessonDTO;
@@ -179,33 +178,6 @@ public class LessonService {
                 .map(lessonMapper::toLessonResponse)
                 .sorted((j1, j2) -> j2.getCreatedAt().compareTo(j1.getCreatedAt()))
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Search lessons.
-     * 
-     * @param request Lesson search request
-     * @return Page of lessons
-     */
-    // @Cacheable(value = "lessonSearchCache", key = "#request.getCacheKey()")
-    public PageResponse<LessonWithProgressDTO> searchLessons(LessonSearchRequest request, User user) {
-        Pageable pageable = PageRequest.of(
-                request.getPage(),
-                request.getSize(),
-                Sort.by(Sort.Direction.DESC, "createdAt"));
-
-        Page<LessonWithProgressDTO> lessonPage = lessonRepository.searchPublishedLessonsWithProgress(
-                request.getQuery(),
-                user != null ? user.getId() : null,
-                pageable);
-
-        return PageResponse.<LessonWithProgressDTO>builder()
-                .content(lessonPage.getContent())
-                .page(lessonPage.getNumber())
-                .size(lessonPage.getSize())
-                .totalElements(lessonPage.getTotalElements())
-                .totalPages(lessonPage.getTotalPages())
-                .build();
     }
 
     /**
@@ -355,18 +327,6 @@ public class LessonService {
                 .totalElements(lessonPage.getTotalElements())
                 .totalPages(lessonPage.getTotalPages())
                 .build();
-    }
-
-    @Transactional
-    public LessonResponse createAdminLesson(AdminCreateLessonRequest request) {
-        Lesson lesson = Lesson.builder()
-                .title(request.getTitle().trim())
-                .fileUrl(request.getSource().trim())
-                .status(LessonStatus.DONE)
-                .visibilityStatus(LessonVisibilityStatus.HIDDEN)
-                .build();
-
-        return lessonMapper.toLessonResponse(lessonRepository.save(lesson));
     }
 
     /**

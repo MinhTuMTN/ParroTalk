@@ -32,13 +32,6 @@ public class PracticeController {
         return ResponseEntity.ok(practiceService.generateSession(user.getId()));
     }
 
-    @GetMapping("/session/{sessionId}")
-    public ResponseEntity<PracticeSessionDto> getSession(
-            @AuthenticationPrincipal User user,
-            @PathVariable UUID sessionId) {
-        return ResponseEntity.ok(practiceService.getSession(user.getId(), sessionId));
-    }
-
     @PostMapping("/answer")
     public ResponseEntity<AnswerResultDto> submitAnswer(
             @AuthenticationPrincipal User user,

@@ -198,28 +198,6 @@ public class PracticeService {
         return dummies[random.nextInt(dummies.length)];
     }
 
-    @Transactional(readOnly = true)
-    public PracticeSessionDto getSession(UUID userId, UUID sessionId) {
-        PracticeSession session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-
-        if (!session.getUser().getId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied");
-        }
-
-        List<PracticeQuestion> questions = questionRepository.findBySessionId(sessionId);
-        List<PracticeQuestionDto> questionDtos = questions.stream()
-                .map(this::mapToDto)
-                .collect(Collectors.toList());
-
-        return PracticeSessionDto.builder()
-                .sessionId(session.getId())
-                .status(session.getStatus())
-                .startedAt(session.getStartedAt())
-                .questions(questionDtos)
-                .build();
-    }
-
     /**
      * Submits an answer to a question.
      */
