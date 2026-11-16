@@ -174,6 +174,7 @@ public class LibraryCacheService {
             case CATEGORY -> section.getCategory() != null ? section.getCategory().getId().toString() : null;
             case PROGRAM -> section.getProgram();
             case IN_PROGRESS -> "IN_PROGRESS";
+            default -> null;
         };
     }
 
