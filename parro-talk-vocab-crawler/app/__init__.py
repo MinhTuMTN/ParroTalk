@@ -1,0 +1,2 @@
+"""ParroTalk Vocabulary Crawler Service."""
+

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Flame } from "lucide-react";
 import { Eyebrow } from "../shared";
+import { NotificationBellDropdown } from "../custom-lists/NotificationBellDropdown";
 
 function useGreeting() {
   const [greeting, setGreeting] = useState("Hello");
@@ -41,7 +42,10 @@ export function DashboardHeader({ name, streak }: { name?: string; streak: numbe
           A few new words. A little more confidence. Let&apos;s keep going.
         </p>
       </div>
-      <StreakBadge days={streak} />
+      <div className="flex items-center gap-3 self-start">
+        <NotificationBellDropdown />
+        <StreakBadge days={streak} />
+      </div>
     </header>
   );
 }

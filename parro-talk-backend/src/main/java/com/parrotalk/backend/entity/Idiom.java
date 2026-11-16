@@ -1,7 +1,10 @@
 package com.parrotalk.backend.entity;
 
+import com.parrotalk.backend.constant.VocabularyDataSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -52,4 +55,9 @@ public class Idiom extends BaseEntity {
 
     @Column(name = "example_vn", columnDefinition = "TEXT")
     private String exampleVn;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "data_source", nullable = false, length = 40)
+    @Builder.Default
+    private VocabularyDataSource dataSource = VocabularyDataSource.IMPORT_JSON;
 }

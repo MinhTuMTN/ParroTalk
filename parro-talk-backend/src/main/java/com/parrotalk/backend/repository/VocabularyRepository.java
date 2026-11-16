@@ -17,6 +17,7 @@ public interface VocabularyRepository extends JpaRepository<Vocabulary, UUID>, J
     
     Optional<Vocabulary> findByNormalizedWord(String normalizedWord);
     List<Vocabulary> findByNormalizedWordIn(List<String> normalizedWords);
+    org.springframework.data.domain.Page<Vocabulary> findByNormalizedWordStartingWith(String prefix, org.springframework.data.domain.Pageable pageable);
 
     /** Loads vocabularies with senses in one query; pronunciations are batch-loaded (@BatchSize). */
     @EntityGraph(attributePaths = {"senses"})

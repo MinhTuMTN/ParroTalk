@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, Layers, PenTool, Plus, RefreshCw } from "lucide-react";
+import { ArrowRight, FolderPlus, Layers, PenTool, Plus, RefreshCw } from "lucide-react";
 import { SectionHeader } from "../shared";
 
 const ACTIONS: { href: string; icon: LucideIcon; chip: string; title: string; desc: string }[] = [
   { href: "/vocabulary/topics", icon: Plus, chip: "bg-brand-100 text-brand-600", title: "Learn New Words", desc: "Find a topic that speaks to you." },
   { href: "/writing", icon: PenTool, chip: "bg-plum-100 text-plum-600", title: "Writing Assistant", desc: "Turn your ideas into natural English." },
+  { href: "/vocabulary/lists", icon: FolderPlus, chip: "bg-coral-100 text-coral-600", title: "Custom Word Lists", desc: "Build your own lists & AI quizzes." },
   { href: "/vocabulary/review", icon: RefreshCw, chip: "bg-honey-100 text-honey-600", title: "Review Words", desc: "Make what you've learned stick." },
   { href: "/vocabulary/saved", icon: Layers, chip: "bg-ocean-100 text-ocean-600", title: "My Words", desc: "Your growing word collection." },
 ];

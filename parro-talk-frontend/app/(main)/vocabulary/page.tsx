@@ -7,6 +7,7 @@ import {
   ContinueLearningHero,
   TodayReviewCard,
   ProgressOverview,
+  CustomListsSection,
   MyTopicsList,
   RecommendedTopics,
   NextStepActions,
@@ -46,6 +47,8 @@ export default function VocabularyDashboard() {
           weeklyGain={stats.weeklyGain}
           wordGoal={stats.wordGoal}
         />
+
+        <CustomListsSection />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <MyTopicsList topics={myTopics} loading={loading} />
