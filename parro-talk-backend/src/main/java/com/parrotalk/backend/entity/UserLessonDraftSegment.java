@@ -3,10 +3,14 @@ package com.parrotalk.backend.entity;
 import java.io.Serializable;
 import java.util.UUID;
 
+import com.parrotalk.backend.constant.DictationMode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -22,7 +26,8 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "user_lesson_draft_segment", indexes = {
-        @Index(name = "idx_user_lesson_draft_user_lesson_segment", columnList = "user_id, lesson_id, segment_id")
+        @Index(name = "idx_user_lesson_draft_user_lesson_segment", columnList = "user_id, lesson_id, segment_id"),
+        @Index(name = "idx_user_lesson_draft_user_lesson_mode", columnList = "user_id, lesson_id, dictation_mode")
 })
 @Getter
 @Setter
@@ -52,7 +57,8 @@ public class UserLessonDraftSegment extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({
             @JoinColumn(name = "user_id", referencedColumnName = "user_id", insertable = false, updatable = false),
-            @JoinColumn(name = "lesson_id", referencedColumnName = "lesson_id", insertable = false, updatable = false)
+            @JoinColumn(name = "lesson_id", referencedColumnName = "lesson_id", insertable = false, updatable = false),
+            @JoinColumn(name = "dictation_mode", referencedColumnName = "dictation_mode", insertable = false, updatable = false)
     })
     private UserLessonProgress userLessonProgress;
 
@@ -72,6 +78,17 @@ public class UserLessonDraftSegment extends BaseEntity {
 
         @Column(name = "segment_id")
         private UUID segmentId;
+
+        @Enumerated(EnumType.STRING)
+        @Column(name = "dictation_mode", nullable = false, length = 16)
+        private DictationMode dictationMode = DictationMode.FULL;
+
+        public UserLessonDraftSegmentId(UUID userId, UUID lessonId, UUID segmentId) {
+            this.userId = userId;
+            this.lessonId = lessonId;
+            this.segmentId = segmentId;
+            this.dictationMode = DictationMode.FULL;
+        }
     }
 
 }

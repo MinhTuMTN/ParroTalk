@@ -1,18 +1,28 @@
 "use client";
 
 import PracticeHeader from "@/features/practice/components/PracticeHeader";
+import PracticeModeSelector from "@/features/practice/components/PracticeModeSelector";
 import TranscriptList from "@/features/practice/components/TranscriptList";
 import VocabularyDetailPopup from "@/components/vocabulary/VocabularyDetailPopup";
 import TranslationReview from "@/features/practice/components/TranslationReview";
 import VideoPlayer from "@/features/practice/components/VideoPlayer";
 import WordDictation from "@/features/practice/components/WordDictation";
+import FillInBlanksDictation, {
+  type FillInBlanksDraftState,
+} from "@/features/practice/components/FillInBlanksDictation";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import FloatingToast from "@/components/ui/FloatingToast";
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, SkipForward } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Sentence, lessonService } from "@/features/lesson/services/lessonService";
+import {
+  type BlankAnswerItem,
+  type DictationMode,
+  type DraftSegmentResponse,
+  Sentence,
+  lessonService,
+} from "@/features/lesson/services/lessonService";
 import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import { REPLAY_KEY_OPTIONS } from "@/features/settings/types";
 
@@ -22,10 +32,18 @@ interface SegmentStat {
   attempts: number;
 }
 
+function getProgressStorageKey(lessonId: string, mode: DictationMode): string {
+  return `parrotalk_progress_${lessonId}_${mode}`;
+}
+
 export default function PracticePage() {
   const params = useParams();
   const router = useRouter();
   const lessonId = params?.lessonId as string;
+
+  const { settings, updateSettings } = useUserSettings();
+  const [selectedModeOverride, setSelectedModeOverride] = useState<DictationMode | null>(null);
+  const mode: DictationMode = selectedModeOverride ?? settings.defaultDictationMode ?? "FULL";
 
   const [segments, setSegments] = useState<Sentence[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -34,13 +52,13 @@ export default function PracticePage() {
   const [isConfirmSubmitOpen, setIsConfirmSubmitOpen] = useState(false);
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<number, string>>({});
+  const [blankDrafts, setBlankDrafts] = useState<Record<number, FillInBlanksDraftState>>({});
   const [segmentStats, setSegmentStats] = useState<Record<number, SegmentStat>>({});
   const [fileUrl, setFileUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toastError, setToastError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'practice' | 'transcript'>('practice');
-  const { settings, updateSettings } = useUserSettings();
   const [awaitingAdvance, setAwaitingAdvance] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [replayTrigger, setReplayTrigger] = useState(0);
@@ -81,18 +99,20 @@ export default function PracticePage() {
     completed: Set<number>,
     dict: Record<number, string>,
     stats: Record<number, SegmentStat>,
-    skipped: Set<number> = new Set()
+    skipped: Set<number> = new Set(),
+    drafts: Record<number, FillInBlanksDraftState> = blankDrafts
   ) => {
     if (!lessonId) return;
     const payload = {
       completed: Array.from(completed),
       skipped: Array.from(skipped),
       inputs: dict,
+      blankDrafts: drafts,
       stats: stats,
       activeIndex: idx,
     };
-    localStorage.setItem(`parrotalk_progress_${lessonId}`, JSON.stringify(payload));
-  }, [lessonId]);
+    localStorage.setItem(getProgressStorageKey(lessonId, mode), JSON.stringify(payload));
+  }, [blankDrafts, lessonId, mode]);
 
   const saveProgressToDb = useCallback(async (isFinished: boolean = false) => {
     if (!lessonId) return;
@@ -108,21 +128,25 @@ export default function PracticePage() {
         if (failedSubmissionsRef.current.size > 0) {
           const retries = Array.from(failedSubmissionsRef.current.entries()).map(
             ([segId, ansText]) =>
-              lessonService.submitAnswer(lessonId, segId, ansText, 0)
+              lessonService.submitAnswer(lessonId, segId, ansText, 0, { mode })
                 .then(() => failedSubmissionsRef.current.delete(segId))
                 .catch(err => console.warn(`Retry failed for segment ${segId}:`, err))
           );
           await Promise.allSettled(retries);
         }
 
-        const result = await lessonService.finalLessonSubmit(lessonId);
+        const result = await lessonService.finalLessonSubmit(lessonId, mode);
         // Redirect to result screen
         localStorage.setItem('parrotalk_last_result', JSON.stringify({
           lessonId: lessonId,
           score: result.score,
-          passed: result.passed
+          passed: result.passed,
+          mode,
         }));
-        localStorage.removeItem(`parrotalk_progress_${lessonId}`);
+        localStorage.removeItem(getProgressStorageKey(lessonId, mode));
+        if (mode === "FULL") {
+          localStorage.removeItem(`parrotalk_progress_${lessonId}`);
+        }
         router.push(`/result`);
       }
     } catch (e) {
@@ -131,7 +155,7 @@ export default function PracticePage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [lessonId, router]);
+  }, [lessonId, mode, router]);
 
   const consumeStudySeconds = useCallback(() => {
     const seconds = activeStudySecondsRef.current;
@@ -141,13 +165,20 @@ export default function PracticePage() {
 
   useEffect(() => {
     if (!lessonId) return;
+    let cancelled = false;
 
     const loadContent = async () => {
+      setLoading(true);
+      setAwaitingAdvance(false);
+      pendingSubmissionsRef.current.clear();
+      failedSubmissionsRef.current.clear();
+
       try {
         const [lessonData, progressData] = await Promise.all([
           lessonService.getLessonById(lessonId),
-          lessonService.getLessonProgress(lessonId).catch(() => null),
+          lessonService.getLessonProgress(lessonId, mode).catch(() => null),
         ]);
+        if (cancelled) return;
 
         setFileUrl(lessonData.fileUrl || "");
         setLessonTitle(lessonData.title || "Untitled Lesson");
@@ -158,6 +189,7 @@ export default function PracticePage() {
         // State initialization
         const initialCompleted = new Set<number>();
         const initialInputs: Record<number, string> = {};
+        const initialBlankDrafts: Record<number, FillInBlanksDraftState> = {};
         const initialStats: Record<number, SegmentStat> = {};
         let initialActiveIndex = 0;
 
@@ -184,16 +216,38 @@ export default function PracticePage() {
           }
         }
 
-        // Restore skipped from localStorage if present
+        // Restore skipped and mode-scoped drafts from localStorage if present
+        // For FULL mode, also fall back to legacy parrotalk_progress_${lessonId} key for backward compatibility
         const initialSkipped = new Set<number>();
         try {
-          const cached = localStorage.getItem(`parrotalk_progress_${lessonId}`);
+          const modeScopedRaw = localStorage.getItem(getProgressStorageKey(lessonId, mode));
+          const legacyRaw =
+            !modeScopedRaw && mode === "FULL"
+              ? localStorage.getItem(`parrotalk_progress_${lessonId}`)
+              : null;
+          const cached = modeScopedRaw ?? legacyRaw;
           if (cached) {
             const parsed = JSON.parse(cached);
             if (Array.isArray(parsed.skipped)) {
               parsed.skipped.forEach((idx: number) => {
                 if (!initialCompleted.has(idx)) {
                   initialSkipped.add(idx);
+                }
+              });
+            }
+            if (parsed.inputs && typeof parsed.inputs === "object") {
+              Object.entries(parsed.inputs as Record<string, string>).forEach(([k, v]) => {
+                const idx = Number(k);
+                if (!Number.isNaN(idx) && initialInputs[idx] === undefined && typeof v === "string") {
+                  initialInputs[idx] = v;
+                }
+              });
+            }
+            if (parsed.blankDrafts && typeof parsed.blankDrafts === "object") {
+              Object.entries(parsed.blankDrafts as Record<string, FillInBlanksDraftState>).forEach(([k, v]) => {
+                const idx = Number(k);
+                if (!Number.isNaN(idx) && v && typeof v === "object") {
+                  initialBlankDrafts[idx] = v;
                 }
               });
             }
@@ -205,47 +259,65 @@ export default function PracticePage() {
         setCompletedIndices(initialCompleted);
         setSkippedIndices(initialSkipped);
         setInputs(initialInputs);
+        setBlankDrafts(initialBlankDrafts);
         setSegmentStats(initialStats);
         setActiveIndex(initialActiveIndex);
 
       } catch (err) {
         console.error("Failed fetching context", err);
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    loadContent();
-  }, [lessonId]);
+    void loadContent();
+    return () => {
+      cancelled = true;
+    };
+  }, [lessonId, mode]);
 
   const activeSegment = segments[activeIndex] || null;
   const activeSentence = activeSegment?.text || "";
 
+  const handleModeChange = useCallback((nextMode: DictationMode) => {
+    setSelectedModeOverride(nextMode);
+  }, []);
+
   const handleInputChange = useCallback((val: string) => {
     setInputs(prev => {
       const newInputs = { ...prev, [activeIndex]: val };
-      saveToStorage(activeIndex, completedIndices, newInputs, segmentStats, skippedIndices);
+      saveToStorage(activeIndex, completedIndices, newInputs, segmentStats, skippedIndices, blankDrafts);
       return newInputs;
     });
-  }, [activeIndex, completedIndices, segmentStats, skippedIndices, saveToStorage]);
+  }, [activeIndex, blankDrafts, completedIndices, segmentStats, skippedIndices, saveToStorage]);
+
+  const handleBlankDraftChange = useCallback((nextDraft: FillInBlanksDraftState) => {
+    setBlankDrafts(prev => {
+      const updated = { ...prev, [activeIndex]: nextDraft };
+      saveToStorage(activeIndex, completedIndices, inputs, segmentStats, skippedIndices, updated);
+      return updated;
+    });
+  }, [activeIndex, completedIndices, inputs, saveToStorage, segmentStats, skippedIndices]);
 
   const incrementMetric = useCallback((metric: keyof SegmentStat) => {
     const isCompleted = completedIndices.has(activeIndex);
 
     if (activeSegment?.id && !isCompleted) {
-      if (metric === 'replayCount') lessonService.incrementReplay(lessonId, activeSegment.id);
-      if (metric === 'hintWords') lessonService.incrementHint(lessonId, activeSegment.id);
+      if (metric === 'replayCount') lessonService.incrementReplay(lessonId, activeSegment.id, mode);
+      if (metric === 'hintWords') lessonService.incrementHint(lessonId, activeSegment.id, mode);
     }
 
     setSegmentStats(prev => {
       const current = prev[activeIndex] || { hintWords: 0, replayCount: 0, attempts: 1 };
       const nextStats = { ...prev, [activeIndex]: { ...current, [metric]: current[metric] + 1 } };
-      saveToStorage(activeIndex, completedIndices, inputs, nextStats, skippedIndices);
+      saveToStorage(activeIndex, completedIndices, inputs, nextStats, skippedIndices, blankDrafts);
       return nextStats;
     });
-  }, [activeSegment?.id, activeIndex, completedIndices, inputs, lessonId, saveToStorage, skippedIndices]);
+  }, [activeSegment?.id, activeIndex, blankDrafts, completedIndices, inputs, lessonId, mode, saveToStorage, skippedIndices]);
 
-  const handleSentenceComplete = useCallback(() => {
+  const handleSentenceComplete = useCallback((preSubmittedResponse?: DraftSegmentResponse) => {
     const alreadyCompleted = completedIndices.has(activeIndex);
 
     const newCompleted = new Set(completedIndices);
@@ -257,16 +329,16 @@ export default function PracticePage() {
     setSkippedIndices(newSkipped);
 
     setAwaitingAdvance(true);
-    saveToStorage(activeIndex, newCompleted, inputs, segmentStats, newSkipped);
+    saveToStorage(activeIndex, newCompleted, inputs, segmentStats, newSkipped, blankDrafts);
 
-    // Save to backend in background
-    if (!alreadyCompleted && activeSegment?.id) {
+    // Save to backend in background if not already submitted (e.g., FULL mode or fallback)
+    if (!preSubmittedResponse && !alreadyCompleted && activeSegment?.id) {
       const segmentId = activeSegment.id;
       const userAnswer = inputs[activeIndex] || "";
       const studySeconds = consumeStudySeconds();
 
       const submitPromise = lessonService
-        .submitAnswer(lessonId, segmentId, userAnswer, studySeconds)
+        .submitAnswer(lessonId, segmentId, userAnswer, studySeconds, { mode })
         .then(() => {
           failedSubmissionsRef.current.delete(segmentId);
         })
@@ -279,7 +351,33 @@ export default function PracticePage() {
         });
       pendingSubmissionsRef.current.set(segmentId, submitPromise);
     }
-  }, [activeIndex, activeSegment, completedIndices, consumeStudySeconds, inputs, lessonId, saveToStorage, segmentStats, skippedIndices]);
+  }, [activeIndex, activeSegment, blankDrafts, completedIndices, consumeStudySeconds, inputs, lessonId, mode, saveToStorage, segmentStats, skippedIndices]);
+
+  const handleSubmitBlanks = useCallback(async (payload: {
+    blankAnswers: BlankAnswerItem[];
+    userAnswer: string;
+  }): Promise<DraftSegmentResponse> => {
+    if (!activeSegment?.id) {
+      throw new Error("Active segment has no ID");
+    }
+    const studySeconds = consumeStudySeconds();
+    const response = await lessonService.submitAnswer(
+      lessonId,
+      activeSegment.id,
+      payload.userAnswer,
+      studySeconds,
+      {
+        mode,
+        blankAnswers: payload.blankAnswers,
+      }
+    );
+    setInputs(prev => {
+      const nextInputs = { ...prev, [activeIndex]: response.userAnswer || payload.userAnswer };
+      saveToStorage(activeIndex, completedIndices, nextInputs, segmentStats, skippedIndices, blankDrafts);
+      return nextInputs;
+    });
+    return response;
+  }, [activeIndex, activeSegment?.id, blankDrafts, completedIndices, consumeStudySeconds, lessonId, mode, saveToStorage, segmentStats, skippedIndices]);
 
   const handleAdvanceAfterReview = useCallback(async () => {
     if (!awaitingAdvance) return;
@@ -299,8 +397,8 @@ export default function PracticePage() {
 
     const nextIndex = activeIndex + 1;
     setActiveIndex(nextIndex);
-    saveToStorage(nextIndex, completedIndices, inputs, segmentStats, skippedIndices);
-  }, [activeIndex, awaitingAdvance, completedIndices, inputs, saveProgressToDb, saveToStorage, segmentStats, segments, skippedIndices]);
+    saveToStorage(nextIndex, completedIndices, inputs, segmentStats, skippedIndices, blankDrafts);
+  }, [activeIndex, awaitingAdvance, blankDrafts, completedIndices, inputs, saveProgressToDb, saveToStorage, segmentStats, segments, skippedIndices]);
 
   useEffect(() => {
     if (!awaitingAdvance || !settings.dictationAutoAdvance) {
@@ -324,8 +422,8 @@ export default function PracticePage() {
   const handleSelectSentence = useCallback((index: number) => {
     setAwaitingAdvance(false);
     setActiveIndex(index);
-    saveToStorage(index, completedIndices, inputs, segmentStats, skippedIndices);
-  }, [completedIndices, inputs, segmentStats, skippedIndices, saveToStorage]);
+    saveToStorage(index, completedIndices, inputs, segmentStats, skippedIndices, blankDrafts);
+  }, [blankDrafts, completedIndices, inputs, segmentStats, skippedIndices, saveToStorage]);
 
   const handleSkipSegment = useCallback(() => {
     if (awaitingAdvance) return;
@@ -334,7 +432,7 @@ export default function PracticePage() {
     if (!completedIndices.has(activeIndex)) {
       nextSkipped.add(activeIndex);
       setSkippedIndices(nextSkipped);
-      saveToStorage(activeIndex, completedIndices, inputs, segmentStats, nextSkipped);
+      saveToStorage(activeIndex, completedIndices, inputs, segmentStats, nextSkipped, blankDrafts);
     }
 
     if (activeIndex < segments.length - 1) {
@@ -345,7 +443,7 @@ export default function PracticePage() {
         handleSelectSentence(firstUncompleted);
       }
     }
-  }, [activeIndex, awaitingAdvance, completedIndices, handleSelectSentence, inputs, saveToStorage, segmentStats, segments, skippedIndices]);
+  }, [activeIndex, awaitingAdvance, blankDrafts, completedIndices, handleSelectSentence, inputs, saveToStorage, segmentStats, segments, skippedIndices]);
 
   const handleNext = useCallback(() => {
     if (awaitingAdvance) {
@@ -415,6 +513,16 @@ export default function PracticePage() {
         canSubmit={canSubmit}
       />
 
+      {/* Difficulty Mode Selector Bar */}
+      <div className="bg-white/95 dark:bg-slate-900/95 border-b border-ink-200/70 dark:border-slate-800 px-4 sm:px-8 py-2.5 shrink-0">
+        <div className="max-w-6xl mx-auto">
+          <PracticeModeSelector
+            mode={mode}
+            onChange={handleModeChange}
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
 
       <div className="flex-1 overflow-hidden relative flex flex-col min-h-0">
         {/* Mobile Tabs */}
@@ -467,6 +575,7 @@ export default function PracticePage() {
               completedIndices={completedIndices}
               skippedIndices={skippedIndices}
               inputs={inputs}
+              mode={mode}
               onSelectSentence={(idx) => {
                 handleSelectSentence(idx);
                 if (activeTab === 'transcript') setActiveTab('practice');
@@ -481,7 +590,7 @@ export default function PracticePage() {
       {activeSegment ? (
         awaitingAdvance ? (
           <TranslationReview
-            key={activeIndex}
+            key={`${mode}-${activeIndex}`}
             sentence={activeSentence}
             translatedText={activeSegment.translation?.translatedText}
             showTranslationByDefault={settings.dictationShowTranslation}
@@ -574,14 +683,32 @@ export default function PracticePage() {
                 </div>
               </div>
 
-              <WordDictation
-                sentence={activeSentence}
-                fullInput={inputs[activeIndex] || ""}
-                onInputChange={handleInputChange}
-                onSentenceComplete={handleSentenceComplete}
-                onHintUsed={() => incrementMetric('hintWords')}
-                isCompleted={completedIndices.has(activeIndex)}
-              />
+              {mode === "FULL" ? (
+                <WordDictation
+                  sentence={activeSentence}
+                  fullInput={inputs[activeIndex] || ""}
+                  onInputChange={handleInputChange}
+                  onSentenceComplete={() => handleSentenceComplete()}
+                  onHintUsed={() => incrementMetric('hintWords')}
+                  isCompleted={completedIndices.has(activeIndex)}
+                />
+              ) : (
+                <FillInBlanksDictation
+                  key={`${mode}-${activeSegment.id ?? activeIndex}`}
+                  sentence={activeSentence}
+                  mode={mode}
+                  blanks={activeSegment.blanks?.[mode] ?? []}
+                  suitableForBlanks={activeSegment.suitableForBlanks !== false}
+                  isCompleted={completedIndices.has(activeIndex)}
+                  draftState={blankDrafts[activeIndex]}
+                  fallbackInput={inputs[activeIndex] || ""}
+                  onFallbackInputChange={handleInputChange}
+                  onDraftChange={handleBlankDraftChange}
+                  onSubmitBlanks={handleSubmitBlanks}
+                  onSegmentComplete={(resp) => handleSentenceComplete(resp)}
+                  onHintUsed={() => incrementMetric('hintWords')}
+                />
+              )}
             </div>
           </div>
         )

@@ -1,12 +1,15 @@
 package com.parrotalk.backend.dto;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import com.parrotalk.backend.dto.dictation.BlankResultItem;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Data
 @Builder
@@ -20,4 +23,6 @@ public class DraftSegmentResponse {
     private int hintCount;
     private boolean correct;
     private LocalDateTime updatedAt;
+    private List<BlankResultItem> blankResults;
+    private Double accuracy;
 }

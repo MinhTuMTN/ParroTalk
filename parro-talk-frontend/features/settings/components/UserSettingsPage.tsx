@@ -36,6 +36,7 @@ import { useUserSettings } from "../hooks/useUserSettings";
 import { settingsService } from "../services/settingsService";
 import {
   DAILY_GOAL_OPTIONS,
+  DICTATION_MODE_OPTIONS,
   getSettingsCopy,
   PLAYBACK_SPEED_OPTIONS,
   REPLAY_KEY_OPTIONS,
@@ -738,6 +739,37 @@ export default function UserSettingsPage() {
                       void updateSettings({ dictationAutoReplay: checked })
                     }
                   />
+                </SettingRow>
+
+                <SettingRow
+                  title={copy.dictation.defaultModeLabel}
+                  description={copy.dictation.defaultModeDesc}
+                >
+                  <div className="flex flex-wrap gap-1.5">
+                    {DICTATION_MODE_OPTIONS.map((modeOpt) => {
+                      const active =
+                        settings.defaultDictationMode === modeOpt.value;
+                      return (
+                        <button
+                          key={modeOpt.value}
+                          type="button"
+                          onClick={() =>
+                            void updateSettings({
+                              defaultDictationMode: modeOpt.value,
+                            })
+                          }
+                          title={modeOpt.description[settings.uiLanguage]}
+                          className={`rounded-xl px-3 py-1.5 text-xs font-bold border transition-all cursor-pointer ${
+                            active
+                              ? "border-emerald-500 bg-emerald-500 text-white"
+                              : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-emerald-300"
+                          }`}
+                        >
+                          {modeOpt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </SettingRow>
 
                 <SettingRow

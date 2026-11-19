@@ -1,7 +1,11 @@
 package com.parrotalk.backend.entity;
 
+import com.parrotalk.backend.constant.DictationMode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -29,7 +33,7 @@ import java.util.UUID;
         @Index(name = "idx_user_lesson_results_user_lesson", columnList = "user_id, lesson_id"),
         @Index(name = "idx_user_lesson_results_user", columnList = "user_id")
 }, uniqueConstraints = {
-        @UniqueConstraint(name = "uk_user_lesson_results_user_lesson", columnNames = { "user_id", "lesson_id" })
+        @UniqueConstraint(name = "uk_user_lesson_results_user_lesson_mode", columnNames = { "user_id", "lesson_id", "dictation_mode" })
 })
 @Getter
 @Setter
@@ -52,6 +56,12 @@ public class UserLessonResult extends BaseEntity {
     /** Lesson ID */
     @Column(name = "lesson_id", nullable = false)
     private UUID lessonId;
+
+    /** Dictation practice mode */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dictation_mode", nullable = false, length = 16)
+    @Builder.Default
+    private DictationMode dictationMode = DictationMode.FULL;
 
     /** Score */
     @Column(nullable = false)

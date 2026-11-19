@@ -1,7 +1,8 @@
 "use client";
 
 import { getDictationMatching } from "@/lib/utils";
-import { tokenizeText } from "@/lib/tokenizer";
+import { tokenizeText, tokenizeWithWordIndex } from "@/lib/tokenizer";
+import type { BlankSlot, DictationMode } from "@/features/lesson/services/lessonService";
 import { CheckCircle2, RotateCcw } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -9,6 +10,8 @@ interface Segment {
   start: number;
   end: number;
   text: string;
+  suitableForBlanks?: boolean;
+  blanks?: Partial<Record<DictationMode, BlankSlot[]>>;
 }
 
 interface TranscriptListProps {
@@ -17,6 +20,7 @@ interface TranscriptListProps {
   completedIndices: Set<number>;
   skippedIndices?: Set<number>;
   inputs: Record<number, string>;
+  mode?: DictationMode;
   onSelectSentence: (index: number) => void;
   onWordClick?: (word: string) => void;
 }
@@ -27,6 +31,7 @@ export default function TranscriptList({
   completedIndices,
   skippedIndices,
   inputs,
+  mode = "FULL",
   onSelectSentence,
   onWordClick
 }: TranscriptListProps) {
@@ -53,6 +58,34 @@ export default function TranscriptList({
         {match.displayString.replace(/\*/g, "•")}{" "}
       </span>
     ));
+  };
+
+  const renderBlankMaskedText = (segment: Segment) => {
+    const segmentBlanks = segment.blanks?.[mode] ?? [];
+    if (segment.suitableForBlanks === false || segmentBlanks.length === 0) {
+      return (
+        <span className="inline-flex items-center w-20 h-5 rounded-md bg-ink-100 dark:bg-slate-800 border border-ink-200 dark:border-slate-700 align-middle" aria-label="Hidden segment">
+          <span className="w-full text-center text-xs tracking-widest text-ink-400 dark:text-slate-500">____</span>
+        </span>
+      );
+    }
+
+    const blankWordIndices = new Set(segmentBlanks.map((b) => b.wordIndex));
+    const tokens = tokenizeWithWordIndex(segment.text);
+    return tokens.map((token) => {
+      if (token.isWord && blankWordIndices.has(token.wordIndex)) {
+        return (
+          <span
+            key={`pill-${token.tokenIndex}-${token.wordIndex}`}
+            className="inline-flex items-center justify-center w-16 mx-1 px-2 py-0.5 rounded-lg bg-brand-50 dark:bg-brand-900/30 border border-brand-200 dark:border-brand-700 text-brand-700 dark:text-brand-300 text-xs font-bold align-baseline select-none"
+            aria-label="Blank word"
+          >
+            ____
+          </span>
+        );
+      }
+      return <span key={`tok-${token.tokenIndex}`}>{token.text}</span>;
+    });
   };
 
   const renderCompletedText = (text: string) => {
@@ -152,9 +185,11 @@ export default function TranscriptList({
                 <p className={`text-[15px] leading-relaxed transition-all ${isActive ? "font-bold text-gray-900 dark:text-slate-100" : isCompleted ? "font-medium text-gray-800 dark:text-slate-200" : isSkipped ? "font-medium text-amber-900 dark:text-amber-200" : "font-medium text-gray-500 dark:text-slate-400"}`}>
                   {isCompleted
                     ? renderCompletedText(segment.text)
-                    : (isActive || inputs[index])
-                      ? renderInputText(inputs[index] || "", segment.text)
-                      : maskText(segment.text)}
+                    : mode !== "FULL"
+                      ? renderBlankMaskedText(segment)
+                      : (isActive || inputs[index])
+                        ? renderInputText(inputs[index] || "", segment.text)
+                        : maskText(segment.text)}
                 </p>
               </div>
             </div>

@@ -4,10 +4,14 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;
 
+import com.parrotalk.backend.constant.DictationMode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
@@ -30,7 +34,8 @@ import lombok.Setter;
  */
 @Entity
 @Table(name = "user_lesson_progress", indexes = {
-        @Index(name = "idx_user_lesson_progress_user_lesson", columnList = "user_id, lesson_id")
+        @Index(name = "idx_user_lesson_progress_user_lesson", columnList = "user_id, lesson_id"),
+        @Index(name = "idx_user_lesson_progress_user_lesson_mode", columnList = "user_id, lesson_id, dictation_mode")
 })
 @Getter
 @Setter
@@ -72,7 +77,20 @@ public class UserLessonProgress extends BaseEntity {
     @AllArgsConstructor
     @EqualsAndHashCode
     public static class UserLessonProgressId implements Serializable {
+        @Column(name = "user_id")
         private UUID userId;
+
+        @Column(name = "lesson_id")
         private UUID lessonId;
+
+        @Enumerated(EnumType.STRING)
+        @Column(name = "dictation_mode", nullable = false, length = 16)
+        private DictationMode dictationMode = DictationMode.FULL;
+
+        public UserLessonProgressId(UUID userId, UUID lessonId) {
+            this.userId = userId;
+            this.lessonId = lessonId;
+            this.dictationMode = DictationMode.FULL;
+        }
     }
 }

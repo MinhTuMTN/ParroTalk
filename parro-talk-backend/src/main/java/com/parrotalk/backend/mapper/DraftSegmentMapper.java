@@ -19,5 +19,7 @@ public interface DraftSegmentMapper {
      * @return DraftSegmentResponse
      */
     @Mapping(target = "segmentId", source = "id.segmentId")
+    @Mapping(target = "blankResults", ignore = true)
+    @Mapping(target = "accuracy", ignore = true)
     DraftSegmentResponse toDraftSegmentResponse(UserLessonDraftSegment draft);
 }
