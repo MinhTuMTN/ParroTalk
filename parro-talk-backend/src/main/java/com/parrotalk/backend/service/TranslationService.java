@@ -21,6 +21,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.parrotalk.backend.config.ChatModelProvider;
+import com.parrotalk.backend.constant.CacheNames;
 import com.parrotalk.backend.dto.ChatModelNode;
 import com.parrotalk.backend.dto.LlmTranslateRequestItem;
 import com.parrotalk.backend.dto.LlmTranslateResponseItem;
@@ -254,7 +255,7 @@ public class TranslationService {
     }
 
     private void evictLessonDetailCache(UUID lessonId) {
-        Cache cache = cacheManager.getCache("lessonDetailCache");
+        Cache cache = cacheManager.getCache(CacheNames.LESSON_DETAIL_CACHE);
         if (cache != null) {
             cache.evict(lessonId);
         }

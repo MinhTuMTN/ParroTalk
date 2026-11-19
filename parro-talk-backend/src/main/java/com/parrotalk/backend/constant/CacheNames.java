@@ -14,7 +14,7 @@ public final class CacheNames {
     public static final String LESSON_SEARCH_CACHE = "lessonSearchCache";
 
     /** Cache for detailed lesson information **/
-    public static final String LESSON_DETAIL_CACHE = "lessonDetailCache";
+    public static final String LESSON_DETAIL_CACHE = "lessonDetailCache_v2";
 
     /** Cache for featured lessons on public landing page **/
     public static final String FEATURED_LESSONS_CACHE = "featuredLessonsCache";

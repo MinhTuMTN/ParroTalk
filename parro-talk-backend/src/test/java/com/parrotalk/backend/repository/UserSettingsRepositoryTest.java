@@ -83,6 +83,7 @@ class UserSettingsRepositoryTest {
         assertThat(loaded.getDictationShowTranslation()).isTrue();
         assertThat(loaded.getDictationAutoReplay()).isFalse();
         assertThat(loaded.getDictationReplayKey()).isEqualTo("Escape");
+        assertThat(loaded.getDefaultDictationMode()).isEqualTo("FULL");
         assertThat(loaded.getDefaultWritingMode()).isEqualTo("SUGGESTION");
         assertThat(loaded.getDefaultDifficultyScale()).isEqualTo("CEFR");
         assertThat(loaded.getDefaultTargetLevel()).isEqualTo("B2");
@@ -94,6 +95,7 @@ class UserSettingsRepositoryTest {
         loaded.setPreferredAccent("UK");
         loaded.setPreferredUkVoice("en-GB-RyanNeural");
         loaded.setPlaybackSpeed(1.25);
+        loaded.setDefaultDictationMode("HARD");
         loaded.setDailyGoal(35);
         userSettingsRepository.saveAndFlush(loaded);
         entityManager.clear();
@@ -103,6 +105,7 @@ class UserSettingsRepositoryTest {
         assertThat(updated.getPreferredAccent()).isEqualTo("UK");
         assertThat(updated.getPreferredUkVoice()).isEqualTo("en-GB-RyanNeural");
         assertThat(updated.getPlaybackSpeed()).isEqualTo(1.25);
+        assertThat(updated.getDefaultDictationMode()).isEqualTo("HARD");
         assertThat(updated.getDailyGoal()).isEqualTo(35);
     }
 

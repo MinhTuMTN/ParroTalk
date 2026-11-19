@@ -11,6 +11,7 @@ export type UkVoiceOption =
   | "en-GB-RyanNeural"
   | "en-GB-LibbyNeural";
 export type DictationReplayKey = "Escape" | "Tab" | "Control";
+export type DictationMode = "EASY" | "MEDIUM" | "HARD" | "FULL";
 export type DefaultWritingMode = "SUGGESTION" | "GUIDANCE";
 export type DefaultDifficultyScale = "CEFR" | "IELTS";
 export type DefaultFlashcardDirection = "EN_VI" | "VI_EN";
@@ -28,6 +29,7 @@ export interface UserSettings {
   dictationShowTranslation: boolean;
   dictationAutoReplay: boolean;
   dictationReplayKey: DictationReplayKey;
+  defaultDictationMode: DictationMode;
   defaultWritingMode: DefaultWritingMode;
   defaultDifficultyScale: DefaultDifficultyScale;
   defaultTargetLevel: string;
@@ -49,6 +51,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   dictationShowTranslation: true,
   dictationAutoReplay: false,
   dictationReplayKey: "Escape",
+  defaultDictationMode: "FULL",
   defaultWritingMode: "SUGGESTION",
   defaultDifficultyScale: "CEFR",
   defaultTargetLevel: "B2",
@@ -116,6 +119,50 @@ export const REPLAY_KEY_OPTIONS: {
   { value: "Escape", label: "Escape (Esc)", shortLabel: "Esc" },
   { value: "Tab", label: "Tab", shortLabel: "Tab" },
   { value: "Control", label: "Control (Ctrl)", shortLabel: "Ctrl" },
+];
+
+export const DICTATION_MODE_OPTIONS: {
+  value: DictationMode;
+  label: string;
+  shortLabel: string;
+  description: Record<UiLanguage, string>;
+}[] = [
+  {
+    value: "EASY",
+    label: "Easy",
+    shortLabel: "Easy",
+    description: {
+      vi: "~15–20% từ khóa chính",
+      en: "~15–20% key words",
+    },
+  },
+  {
+    value: "MEDIUM",
+    label: "Medium",
+    shortLabel: "Medium",
+    description: {
+      vi: "~30–40% luyện nghe cân bằng",
+      en: "~30–40% balanced listening",
+    },
+  },
+  {
+    value: "HARD",
+    label: "Hard",
+    shortLabel: "Hard",
+    description: {
+      vi: "~50–60% nối âm & âm yếu",
+      en: "~50–60% connected speech & weak forms",
+    },
+  },
+  {
+    value: "FULL",
+    label: "Full Dictation",
+    shortLabel: "Full",
+    description: {
+      vi: "100% gõ cả câu",
+      en: "100% full sentence",
+    },
+  },
 ];
 
 export const TRANSLATION_LANGUAGE_OPTIONS: {
@@ -210,6 +257,8 @@ export const SETTINGS_I18N = {
       autoReplayDesc: "Đồng bộ với nút Auto replay trong trình phát video luyện tập.",
       replayKeyLabel: "Phím tắt phát lại câu (Replay key)",
       replayKeyDesc: "Nhấn phím này bất cứ lúc nào trong trang Practice để nghe lại câu đang làm.",
+      defaultModeLabel: "Chế độ luyện nghe mặc định",
+      defaultModeDesc: "Chọn mức độ mặc định (Easy, Medium, Hard hoặc Full Dictation) khi mở bài học mới.",
     },
     learning: {
       title: "Học tập & Trợ lý AI",
@@ -322,6 +371,8 @@ export const SETTINGS_I18N = {
       autoReplayDesc: "Stays synced with the Auto replay toggle in the Practice video player.",
       replayKeyLabel: "Replay shortcut key",
       replayKeyDesc: "Press this key anytime during Practice to replay the active segment.",
+      defaultModeLabel: "Default dictation difficulty",
+      defaultModeDesc: "Choose the default level (Easy, Medium, Hard, or Full Dictation) when opening a lesson.",
     },
     learning: {
       title: "Learning & AI Assistant",

@@ -10,10 +10,14 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.parrotalk.backend.constant.DictationMode;
 import com.parrotalk.backend.dto.AnswerRequest;
 import com.parrotalk.backend.dto.DraftSegmentResponse;
 import com.parrotalk.backend.dto.LessonProgressResponse;
 import com.parrotalk.backend.dto.SubmitLessonResponse;
+import com.parrotalk.backend.dto.dictation.BlankAnswerItem;
+import com.parrotalk.backend.dto.dictation.BlankSlotDto;
+import com.parrotalk.backend.dto.dictation.SegmentBlanksPayload;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.entity.User;
@@ -30,6 +34,10 @@ import com.parrotalk.backend.repository.UserLessonAnswerDetailRepository;
 import com.parrotalk.backend.repository.UserLessonDraftSegmentRepository;
 import com.parrotalk.backend.repository.UserLessonHistoryRepository;
 import com.parrotalk.backend.repository.UserLessonProgressRepository;
+import com.parrotalk.backend.service.dictation.DictationAnswerValidator;
+import com.parrotalk.backend.service.dictation.DictationAnswerValidator.SegmentValidationResult;
+import com.parrotalk.backend.service.dictation.DictationBlankGenerator;
+import com.parrotalk.backend.service.dictation.SegmentBlanksCodec;
 import com.parrotalk.backend.util.ScoringUtil;
 
 import jakarta.persistence.EntityManager;
@@ -66,38 +74,60 @@ public class LessonProgressService {
     /** Draft Segment Mapper */
     private final DraftSegmentMapper draftSegmentMapper;
 
+    /** Fill-in-the-blank answer validator */
+    private final DictationAnswerValidator answerValidator;
+
+    /** Fill-in-the-blank generator for lazy backfill fallback */
+    private final DictationBlankGenerator blankGenerator;
+
+    /** JSON codec for segment blanks */
+    private final SegmentBlanksCodec segmentBlanksCodec;
+
     /** Entity Manager */
     @PersistenceContext
     private EntityManager entityManager;
 
     /**
-     * Get lesson progress for a user.
-     * 
+     * Get lesson progress for a user in default FULL mode.
+     */
+    @Transactional
+    public LessonProgressResponse getProgress(User user, UUID lessonId) {
+        return getProgress(user, lessonId, DictationMode.FULL);
+    }
+
+    /**
+     * Get lesson progress for a user scoped by dictation mode.
+     *
      * @param user     User
      * @param lessonId Lesson id
+     * @param mode     Optional dictation mode (defaults to FULL)
      * @return Lesson progress response
      */
-    public LessonProgressResponse getProgress(User user, UUID lessonId) {
-
-        UserLessonProgressId key = new UserLessonProgressId(user.getId(), lessonId);
+    @Transactional
+    public LessonProgressResponse getProgress(User user, UUID lessonId, DictationMode mode) {
+        DictationMode resolvedMode = resolveMode(mode);
+        UserLessonProgressId key = new UserLessonProgressId(user.getId(), lessonId, resolvedMode);
         UserLessonProgress progress = progressRepository.findById(key)
-                .orElseGet(() -> this.createLessonProgress(user, lessonId));
+                .orElseGet(() -> this.createLessonProgress(user, lessonId, resolvedMode));
 
         return LessonProgressResponse.builder()
                 .userId(user.getId())
                 .lessonId(lessonId)
+                .mode(resolvedMode)
                 .currentSegmentId(progress.getCurrentSegmentId())
                 .lastProgress(progress.getLastProgress())
                 .updatedAt(progress.getUpdatedAt())
-                .draftSegments(progress.getDraftSegments().stream()
-                        .map(draftSegmentMapper::toDraftSegmentResponse)
-                        .collect(Collectors.toList()))
+                .draftSegments(progress.getDraftSegments() == null
+                        ? List.of()
+                        : progress.getDraftSegments().stream()
+                                .map(draftSegmentMapper::toDraftSegmentResponse)
+                                .collect(Collectors.toList()))
                 .build();
     }
 
     /**
      * Submit answer for a segment.
-     * 
+     *
      * @param user     User
      * @param lessonId Lesson id
      * @param request  Answer request
@@ -105,12 +135,18 @@ public class LessonProgressService {
      */
     @Transactional
     public DraftSegmentResponse submitAnswer(User user, UUID lessonId, AnswerRequest request) {
-        // Get segment
-        TranscriptionSegment segment = segmentRepository.findById(request.getSegmentId())
-                .orElseThrow(() -> new RuntimeException("Segment not found"));
+        DictationMode resolvedMode = resolveMode(request.getMode());
 
-        // Get draft segment
-        UserLessonDraftSegment draft = getDraftSegment(user.getId(), lessonId, request.getSegmentId());
+        TranscriptionSegment segment = segmentRepository.findById(request.getSegmentId())
+                .orElseThrow(() -> new ParroTalkException("Segment not found", HttpStatusCode.valueOf(404)));
+
+        if (segment.getLesson() == null || !lessonId.equals(segment.getLesson().getId())) {
+            throw new ParroTalkException("Segment does not belong to lesson", HttpStatusCode.valueOf(400));
+        }
+
+        // Ensure parent progress row exists before creating/saving child draft due to 3-column FK
+        ensureLessonProgressExists(user, lessonId, resolvedMode);
+        UserLessonDraftSegment draft = getDraftSegment(user.getId(), lessonId, request.getSegmentId(), resolvedMode);
 
         if (draft.isCorrect()) {
             throw new ParroTalkException(
@@ -118,18 +154,35 @@ public class LessonProgressService {
                     HttpStatusCode.valueOf(400));
         }
 
-        // Check answer is correct
-        boolean isCorrect = ScoringUtil.checkAnswerIsCorrect(request.getUserAnswer(), segment.getText());
+        boolean isCorrect;
+        SegmentValidationResult blankValidation = null;
+        String storedUserAnswer;
+
+        if (resolvedMode == DictationMode.FULL) {
+            isCorrect = ScoringUtil.checkAnswerIsCorrect(request.getUserAnswer(), segment.getText());
+            storedUserAnswer = request.getUserAnswer();
+        } else {
+            List<BlankSlotDto> blanks = resolveBlanksForSegment(segment, resolvedMode);
+            if (blanks.isEmpty()) {
+                isCorrect = ScoringUtil.checkAnswerIsCorrect(request.getUserAnswer(), segment.getText());
+                storedUserAnswer = request.getUserAnswer();
+            } else {
+                blankValidation = answerValidator.validateSegmentBlanks(
+                        segment.getText(),
+                        blanks,
+                        request.getBlankAnswers());
+                isCorrect = blankValidation.isAllCorrect();
+                storedUserAnswer = formatBlankUserAnswer(request.getUserAnswer(), request.getBlankAnswers());
+            }
+        }
+
         draft.setCorrect(isCorrect);
-
-        // Calculate score
-        int score = ScoringUtil.calculateScore(segment.getText(), draft.getHintCount(), draft.getReplayCount());
+        int score = isCorrect
+                ? ScoringUtil.calculateScore(segment.getText(), draft.getHintCount(), draft.getReplayCount())
+                : 0;
         draft.setScore(score);
+        draft.setUserAnswer(storedUserAnswer);
 
-        // Set user answer
-        draft.setUserAnswer(request.getUserAnswer());
-
-        // Save draft segment
         draftSegmentRepository.save(draft);
 
         learningActivityService.recordSegmentAttempt(
@@ -137,22 +190,32 @@ public class LessonProgressService {
                 isCorrect,
                 request.getStudySecondsDelta() == null ? 0 : request.getStudySecondsDelta());
 
-        // Update overall progress
-        updateOverallProgress(user, lessonId, request.getSegmentId());
+        updateOverallProgress(user, lessonId, request.getSegmentId(), resolvedMode);
 
-        return draftSegmentMapper.toDraftSegmentResponse(draft);
+        DraftSegmentResponse response = draftSegmentMapper.toDraftSegmentResponse(draft);
+        if (blankValidation != null) {
+            response.setBlankResults(blankValidation.getResults());
+            response.setAccuracy(blankValidation.getAccuracy());
+        }
+        return response;
     }
 
     /**
-     * Increment replay count
-     * 
-     * @param userId    User id
-     * @param lessonId  Lesson id
-     * @param segmentId Segment id
+     * Increment replay count in default FULL mode.
      */
     @Transactional
     public void incrementReplay(UUID userId, UUID lessonId, UUID segmentId) {
-        UserLessonDraftSegment draft = getDraftSegment(userId, lessonId, segmentId);
+        incrementReplay(userId, lessonId, segmentId, DictationMode.FULL);
+    }
+
+    /**
+     * Increment replay count scoped by dictation mode.
+     */
+    @Transactional
+    public void incrementReplay(UUID userId, UUID lessonId, UUID segmentId, DictationMode mode) {
+        DictationMode resolvedMode = resolveMode(mode);
+        ensureLessonProgressExistsByIds(userId, lessonId, resolvedMode);
+        UserLessonDraftSegment draft = getDraftSegment(userId, lessonId, segmentId, resolvedMode);
         if (draft.isCorrect()) {
             throw new ParroTalkException(
                     "Cannot increment replay count for correct answer",
@@ -164,15 +227,21 @@ public class LessonProgressService {
     }
 
     /**
-     * Increment hint count
-     * 
-     * @param userId    User id
-     * @param lessonId  Lesson id
-     * @param segmentId Segment id
+     * Increment hint count in default FULL mode.
      */
     @Transactional
     public void incrementHint(UUID userId, UUID lessonId, UUID segmentId) {
-        UserLessonDraftSegment draft = getDraftSegment(userId, lessonId, segmentId);
+        incrementHint(userId, lessonId, segmentId, DictationMode.FULL);
+    }
+
+    /**
+     * Increment hint count scoped by dictation mode.
+     */
+    @Transactional
+    public void incrementHint(UUID userId, UUID lessonId, UUID segmentId, DictationMode mode) {
+        DictationMode resolvedMode = resolveMode(mode);
+        ensureLessonProgressExistsByIds(userId, lessonId, resolvedMode);
+        UserLessonDraftSegment draft = getDraftSegment(userId, lessonId, segmentId, resolvedMode);
         if (draft.isCorrect()) {
             throw new ParroTalkException(
                     "Cannot increment hint count for correct answer",
@@ -184,42 +253,47 @@ public class LessonProgressService {
     }
 
     /**
-     * Submit lesson
-     * 
-     * @param user     User
-     * @param lessonId Lesson id
-     * @return Submit lesson response
+     * Submit lesson in default FULL mode.
      */
     @Transactional
     public SubmitLessonResponse submitLesson(User user, UUID lessonId) {
-        // Get all draft segments
-        List<UserLessonDraftSegment> drafts = draftSegmentRepository.findByUserIdAndLessonId(user.getId(),
-                lessonId);
+        return submitLesson(user, lessonId, DictationMode.FULL);
+    }
+
+    /**
+     * Submit lesson scoped by dictation mode.
+     */
+    @Transactional
+    public SubmitLessonResponse submitLesson(User user, UUID lessonId, DictationMode mode) {
+        DictationMode resolvedMode = resolveMode(mode);
+        List<UserLessonDraftSegment> drafts = draftSegmentRepository.findByUserIdAndLessonIdAndMode(
+                user.getId(),
+                lessonId,
+                resolvedMode);
         if (drafts.isEmpty()) {
-            throw new RuntimeException("No draft progress found for this lesson");
+            throw new ParroTalkException("No draft progress found for this lesson", HttpStatusCode.valueOf(400));
         }
 
         Lesson lesson = lessonService.findById(lessonId)
-                .orElseThrow(() -> new RuntimeException("Lesson not found"));
+                .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
         Map<UUID, TranscriptionSegment> segmentMap = segmentRepository.findByLessonId(lessonId).stream()
                 .collect(Collectors.toMap(TranscriptionSegment::getId, segment -> segment));
 
         int totalScore = drafts.stream().mapToInt(UserLessonDraftSegment::getScore).sum();
         int averageScore = drafts.isEmpty() ? 0 : totalScore / drafts.size();
 
-        // 1. Create History
         UserLessonHistory history = UserLessonHistory.builder()
                 .user(user)
                 .lesson(lesson)
+                .dictationMode(resolvedMode)
                 .overallScore(averageScore)
-                .totalTimeSpent(0) // Logic for time tracking can be added
+                .totalTimeSpent(0)
                 .build();
         history = historyRepository.save(history);
 
-        // 2. Create Details
         List<UserLessonAnswerDetail> details = new ArrayList<>();
         for (UserLessonDraftSegment draft : drafts) {
-            UserLessonDraftSegment.UserLessonDraftSegmentId id = draft.getId();
+            UserLessonDraftSegmentId id = draft.getId();
             TranscriptionSegment segment = segmentMap.get(id.getSegmentId());
             log.info("Id: {}, found: {}, text: {}", id.getSegmentId(), segment != null,
                     segment == null ? "null" : segment.getId());
@@ -237,8 +311,7 @@ public class LessonProgressService {
         }
         answerDetailRepository.saveAll(details);
 
-        // 3. Cleanup Drafts
-        draftSegmentRepository.deleteByUserIdAndLessonId(user.getId(), lessonId);
+        draftSegmentRepository.deleteByUserIdAndLessonIdAndMode(user.getId(), lessonId, resolvedMode);
         learningActivityService.recordCompletedLesson(user.getId(), averageScore);
         return SubmitLessonResponse.builder()
                 .score((double) averageScore)
@@ -248,69 +321,121 @@ public class LessonProgressService {
 
     @Transactional
     public void resetProgress(User user, UUID lessonId) {
-        draftSegmentRepository.deleteByUserIdAndLessonId(user.getId(), lessonId);
-        progressRepository.deleteById(new UserLessonProgress.UserLessonProgressId(user.getId(), lessonId));
+        resetProgress(user, lessonId, DictationMode.FULL);
     }
 
-    /**
-     * Get draft segment
-     *
-     * @param userId    User id
-     * @param lessonId  Lesson id
-     * @param segmentId Segment id
-     * @return Draft segment
-     */
-    private UserLessonDraftSegment getDraftSegment(UUID userId, UUID lessonId, UUID segmentId) {
+    @Transactional
+    public void resetProgress(User user, UUID lessonId, DictationMode mode) {
+        DictationMode resolvedMode = resolveMode(mode);
+        draftSegmentRepository.deleteByUserIdAndLessonIdAndMode(user.getId(), lessonId, resolvedMode);
+        progressRepository.deleteById(new UserLessonProgressId(user.getId(), lessonId, resolvedMode));
+    }
+
+    private DictationMode resolveMode(DictationMode mode) {
+        return mode != null ? mode : DictationMode.FULL;
+    }
+
+    private List<BlankSlotDto> resolveBlanksForSegment(TranscriptionSegment segment, DictationMode mode) {
+        SegmentBlanksPayload payload = segmentBlanksCodec.deserialize(segment.getBlanksJson());
+        if (payload == null) {
+            payload = blankGenerator.generateForSegment(segment.getText());
+            segment.setBlanksJson(segmentBlanksCodec.serialize(payload));
+            segmentRepository.save(segment);
+        }
+        if (payload.getLevels() == null) {
+            return List.of();
+        }
+        return payload.getLevels().getOrDefault(mode, List.of());
+    }
+
+    private String formatBlankUserAnswer(String rawUserAnswer, List<BlankAnswerItem> blankAnswers) {
+        if (rawUserAnswer != null && !rawUserAnswer.isBlank()) {
+            return rawUserAnswer;
+        }
+        if (blankAnswers == null || blankAnswers.isEmpty()) {
+            return "";
+        }
+        return blankAnswers.stream()
+                .map(item -> item == null || item.getAnswer() == null ? "" : item.getAnswer().trim())
+                .collect(Collectors.joining(" | "));
+    }
+
+    private UserLessonDraftSegment getDraftSegment(
+            UUID userId,
+            UUID lessonId,
+            UUID segmentId,
+            DictationMode mode) {
         return draftSegmentRepository
-                .findExact(userId, lessonId, segmentId)
-                .orElseGet(() -> this.createDraftSegment(userId, lessonId, segmentId));
+                .findExactByMode(userId, lessonId, segmentId, mode)
+                .orElseGet(() -> this.createDraftSegment(userId, lessonId, segmentId, mode));
     }
 
-    /**
-     * Update overall progress
-     * 
-     * @param user             User
-     * @param lessonId         Lesson id
-     * @param currentSegmentId Current segment id
-     */
-    private void updateOverallProgress(User user, UUID lessonId, UUID currentSegmentId) {
-        // Get lesson
+    private void updateOverallProgress(
+            User user,
+            UUID lessonId,
+            UUID currentSegmentId,
+            DictationMode mode) {
         Lesson lesson = lessonService.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found",
                         HttpStatusCode.valueOf(404)));
 
-        // Get or create progress
+        UserLessonProgressId progressId = new UserLessonProgressId(user.getId(), lessonId, mode);
         UserLessonProgress progress = progressRepository
-                .findById(new UserLessonProgress.UserLessonProgressId(user.getId(), lessonId))
-                .orElse(UserLessonProgress.builder()
+                .findById(progressId)
+                .orElseGet(() -> UserLessonProgress.builder()
+                        .id(progressId)
                         .user(user)
                         .lesson(lesson)
+                        .draftSegments(new ArrayList<>())
                         .build());
 
-        // Update progress
-        progress.setCurrentSegmentId(currentSegmentId);
-        progress.setTotalSegmentsCompleted(progress.getTotalSegmentsCompleted() + 1);
+        int completedCount = (int) draftSegmentRepository.countCorrectByUserIdAndLessonIdAndMode(
+                user.getId(), lessonId, mode);
 
-        double progressPercent = (double) progress.getTotalSegmentsCompleted() / lesson.getTotalSegments();
-        progressPercent = Math.floor(progressPercent * 100) / 100;
+        progress.setCurrentSegmentId(currentSegmentId);
+        progress.setTotalSegmentsCompleted(completedCount);
+
+        Integer totalSegments = lesson.getTotalSegments();
+        if (totalSegments == null || totalSegments <= 0) {
+            totalSegments = segmentRepository.findByLessonId(lessonId).size();
+        }
+        double progressPercent = (totalSegments != null && totalSegments > 0)
+                ? (double) completedCount / totalSegments
+                : 0.0;
+        progressPercent = Math.min(1.0, Math.floor(progressPercent * 100.0) / 100.0);
         progress.setLastProgress(progressPercent);
 
-        // Save progress
         progressRepository.save(progress);
     }
 
-    /**
-     * Create lesson progress
-     * 
-     * @param user     User
-     * @param lessonId Lesson id
-     * @return UserLessonProgress
-     */
-    private UserLessonProgress createLessonProgress(User user, UUID lessonId) {
+    private void ensureLessonProgressExists(User user, UUID lessonId, DictationMode mode) {
+        UserLessonProgressId key = new UserLessonProgressId(user.getId(), lessonId, mode);
+        if (!progressRepository.existsById(key)) {
+            createLessonProgress(user, lessonId, mode);
+        }
+    }
+
+    private void ensureLessonProgressExistsByIds(UUID userId, UUID lessonId, DictationMode mode) {
+        UserLessonProgressId key = new UserLessonProgressId(userId, lessonId, mode);
+        if (!progressRepository.existsById(key)) {
+            Lesson lesson = lessonService.findById(lessonId).orElseThrow(
+                    () -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
+            User userRef = entityManager.getReference(User.class, userId);
+            UserLessonProgress progress = UserLessonProgress.builder()
+                    .id(key)
+                    .user(userRef)
+                    .lesson(lesson)
+                    .draftSegments(new ArrayList<>())
+                    .build();
+            progressRepository.save(progress);
+        }
+    }
+
+    private UserLessonProgress createLessonProgress(User user, UUID lessonId, DictationMode mode) {
         Lesson lesson = lessonService.findById(lessonId).orElseThrow(
                 () -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
 
-        UserLessonProgressId key = new UserLessonProgressId(user.getId(), lessonId);
+        UserLessonProgressId key = new UserLessonProgressId(user.getId(), lessonId, mode);
         UserLessonProgress progress = UserLessonProgress.builder()
                 .id(key)
                 .user(user)
@@ -320,20 +445,15 @@ public class LessonProgressService {
         return progressRepository.save(progress);
     }
 
-    /**
-     * Create draft segment
-     * 
-     * @param userId    User id
-     * @param lessonId  Lesson id
-     * @param segmentId Segment id
-     * @return UserLessonDraftSegment
-     */
-    private UserLessonDraftSegment createDraftSegment(UUID userId, UUID lessonId, UUID segmentId) {
-        UserLessonDraftSegmentId id = new UserLessonDraftSegmentId(userId, lessonId, segmentId);
+    private UserLessonDraftSegment createDraftSegment(
+            UUID userId,
+            UUID lessonId,
+            UUID segmentId,
+            DictationMode mode) {
+        UserLessonDraftSegmentId id = new UserLessonDraftSegmentId(userId, lessonId, segmentId, mode);
         UserLessonDraftSegment draftSegment = UserLessonDraftSegment.builder()
                 .id(id)
                 .build();
         return draftSegmentRepository.save(draftSegment);
     }
-
 }

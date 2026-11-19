@@ -103,7 +103,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
                     THEN COALESCE(
@@ -116,9 +116,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.duration
             )
             FROM Lesson l
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
                 AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
             """, countQuery = """
@@ -144,7 +141,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
                     THEN COALESCE(
@@ -157,9 +154,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.duration
             )
             FROM Lesson l
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE l.ownerId = :userId
                 AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.HIDDEN
                 AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
@@ -214,7 +208,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                ulp.lastProgress * 100,
+                MAX(ulp.lastProgress) * 100.0,
                 CASE
                     WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
                     THEN COALESCE(
@@ -231,7 +225,8 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             WHERE ulp.user.id = :userId
                 AND ulp.lastProgress > 0
                 AND ulp.lastProgress < 1.0
-            ORDER BY ulp.updatedAt DESC
+            GROUP BY l.id, l.title, l.thumbnailUrl, l.fileUrl, l.duration
+            ORDER BY MAX(ulp.updatedAt) DESC
             """)
     List<LessonWithProgressDTO> findContinueLearning(
             @Param("userId") UUID userId,
@@ -244,7 +239,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
                     THEN COALESCE(
@@ -257,9 +252,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.duration
             )
             FROM Lesson l
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE l.ownerId = :userId
                 AND l.status IN (com.parrotalk.backend.constant.LessonStatus.PENDING, com.parrotalk.backend.constant.LessonStatus.PROCESSING)
             ORDER BY l.createdAt DESC
@@ -275,7 +267,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
                     THEN COALESCE(
@@ -288,9 +280,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.duration
             )
             FROM Lesson l
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE l.ownerId = :userId
                 AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
             ORDER BY l.createdAt DESC
@@ -306,7 +295,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN (l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%')
                          AND c.imageUrl IS NOT NULL AND c.imageUrl <> ''
@@ -318,9 +307,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             )
             FROM Lesson l
             JOIN l.categories c
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE c.id = :categoryId
                 AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
                 AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
@@ -338,7 +324,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
                     THEN COALESCE(
@@ -351,9 +337,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.duration
             )
             FROM Lesson l
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE l.program = :program
                 AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
                 AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
@@ -371,7 +354,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN (l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%')
                          AND c.imageUrl IS NOT NULL AND c.imageUrl <> ''
@@ -383,9 +366,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             )
             FROM Lesson l
             JOIN l.categories c
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE c.slug = :categorySlug
                 AND l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
                 AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
@@ -415,7 +395,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
                 l.title,
-                COALESCE(ulp.lastProgress, 0) * 100,
+                COALESCE((SELECT MAX(ulp.lastProgress) FROM UserLessonProgress ulp WHERE ulp.lesson.id = l.id AND ulp.user.id = :userId), 0.0) * 100.0,
                 CASE
                     WHEN l.thumbnailUrl IS NULL OR l.thumbnailUrl = '' OR l.thumbnailUrl LIKE '%default-audio-thumbnail%'
                     THEN COALESCE(
@@ -429,9 +409,6 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
                 l.duration
             )
             FROM Lesson l
-            LEFT JOIN UserLessonProgress ulp
-                ON ulp.lesson.id = l.id
-                AND ulp.user.id = :userId
             WHERE l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
                 AND l.status = com.parrotalk.backend.constant.LessonStatus.DONE
                 AND (:query IS NULL OR :query = '' OR LOWER(l.title) LIKE LOWER(CONCAT('%', :query, '%')))
@@ -540,44 +517,50 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
      * Batch query user-specific lessons (IN_PROGRESS).
      */
     @Query(value = """
+            WITH deduped_progress AS (
+                SELECT
+                    ulp.lesson_id,
+                    ulp.last_progress,
+                    ulp.updated_at,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ulp.lesson_id
+                        ORDER BY ulp.updated_at DESC, ulp.last_progress DESC
+                    ) AS rn
+                FROM user_lesson_progress ulp
+                WHERE ulp.user_id = :userId
+                  AND ulp.last_progress > 0
+                  AND ulp.last_progress < 1.0
+            )
             SELECT
                 'IN_PROGRESS' AS section_key,
                 CAST(l.id AS VARCHAR) AS id,
                 l.title,
-                ulp.last_progress * 100.0 AS progress,
+                dp.last_progress * 100.0 AS progress,
                 CASE
                     WHEN l.thumbnail_url IS NULL
                         OR l.thumbnail_url = ''
                         OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
-                    THEN COALESCE(category_thumbnail.image_url, l.thumbnail_url)
+                    THEN COALESCE(
+                        (SELECT lc.image_url
+                         FROM lesson_category_lesson lcl
+                         JOIN lesson_categories lc ON lc.id = lcl.category_id
+                         WHERE lcl.lesson_id = l.id
+                           AND lc.is_deleted = false
+                           AND lc.image_url IS NOT NULL
+                           AND lc.image_url <> ''
+                         ORDER BY lc.sort_order ASC, lc.name ASC
+                         LIMIT 1),
+                        l.thumbnail_url
+                    )
                     ELSE l.thumbnail_url
                 END AS thumbnail_url,
                 l.file_url,
                 l.duration
-            FROM user_lesson_progress ulp
-            JOIN lessons l ON l.id = ulp.lesson_id
-            LEFT JOIN LATERAL (
-                SELECT lc.image_url
-                FROM lesson_category_lesson lcl
-                JOIN lesson_categories lc
-                    ON lc.id = lcl.category_id
-                WHERE lcl.lesson_id = l.id
-                AND (
-                    l.thumbnail_url IS NULL
-                    OR l.thumbnail_url = ''
-                    OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
-                )
-                AND lc.is_deleted = false
-                AND lc.image_url IS NOT NULL
-                AND lc.image_url <> ''
-                ORDER BY lc.sort_order ASC, lc.name ASC
-                LIMIT 1
-            ) category_thumbnail ON true
-            WHERE ulp.user_id = :userId
-            AND ulp.last_progress > 0
-            AND ulp.last_progress < 1.0
+            FROM deduped_progress dp
+            JOIN lessons l ON l.id = dp.lesson_id
+            WHERE dp.rn = 1
             AND l.is_deleted = false
-            ORDER BY ulp.updated_at DESC
+            ORDER BY dp.updated_at DESC
             LIMIT :maxItems
         """, nativeQuery = true)
     List<SectionLessonProjection> findBatchUserLessons(

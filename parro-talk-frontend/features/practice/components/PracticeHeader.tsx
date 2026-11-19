@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import Switch from "@/components/ui/Switch";
 import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import {
+  DICTATION_MODE_OPTIONS,
   PLAYBACK_SPEED_OPTIONS,
   REPLAY_KEY_OPTIONS,
 } from "@/features/settings/types";
@@ -237,6 +238,35 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
                           }`}
                         >
                           {keyOpt.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1 border-t border-gray-100 dark:border-slate-800">
+                  <p className="font-semibold text-gray-700 dark:text-slate-200">
+                    {isEn ? "Default dictation mode" : "Chế độ chép chính tả mặc định"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {DICTATION_MODE_OPTIONS.map((modeOpt) => {
+                      const active = settings.defaultDictationMode === modeOpt.value;
+                      return (
+                        <button
+                          key={modeOpt.value}
+                          type="button"
+                          onClick={() =>
+                            void updateSettings({
+                              defaultDictationMode: modeOpt.value,
+                            })
+                          }
+                          className={`rounded-lg px-2 py-1.5 text-[11px] font-bold border transition-all cursor-pointer ${
+                            active
+                              ? "border-emerald-500 bg-emerald-500 text-white"
+                              : "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:border-emerald-300"
+                          }`}
+                        >
+                          {modeOpt.label}
                         </button>
                       );
                     })}

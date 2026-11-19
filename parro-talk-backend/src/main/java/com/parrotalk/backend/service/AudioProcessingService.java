@@ -12,9 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.TranslationLanguage;
 import com.parrotalk.backend.dto.LessonCompletedEvent;
+import com.parrotalk.backend.dto.dictation.SegmentBlanksPayload;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.exception.ParroTalkException;
+import com.parrotalk.backend.service.dictation.DictationBlankGenerator;
+import com.parrotalk.backend.service.dictation.SegmentBlanksCodec;
 import com.parrotalk.backend.util.SentenceUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,12 @@ public class AudioProcessingService {
 
     /** Application event publisher */
     private final ApplicationEventPublisher applicationEventPublisher;
+
+    /** Deterministic fill-in-the-blank generator */
+    private final DictationBlankGenerator blankGenerator;
+
+    /** JSON codec for blanks payload */
+    private final SegmentBlanksCodec segmentBlanksCodec;
 
     /**
      * Process audio result from AI
@@ -102,17 +111,26 @@ public class AudioProcessingService {
 
         int order = 1;
         List<TranscriptionSegment> segments = new ArrayList<>();
+        List<String> segmentTexts = new ArrayList<>();
         for (JsonNode seg : resultNode.get("segments")) {
+            String trimmedText = seg.get("text").asString().trim();
             TranscriptionSegment segment = TranscriptionSegment.builder()
                     .lesson(lesson)
-                    .text(seg.get("text").asString().trim())
+                    .text(trimmedText)
                     .startTime(seg.get("start").asDouble())
                     .endTime(seg.get("end").asDouble())
                     .displayOrder(order++)
-                    .difficulty(SentenceUtil.getSentenceDifficulty(seg.get("text").asString()))
+                    .difficulty(SentenceUtil.getSentenceDifficulty(trimmedText))
                     .build();
             segments.add(segment);
+            segmentTexts.add(trimmedText);
         }
+
+        List<SegmentBlanksPayload> payloads = blankGenerator.generateForSegments(segmentTexts);
+        for (int i = 0; i < segments.size(); i++) {
+            segments.get(i).setBlanksJson(segmentBlanksCodec.serialize(payloads.get(i)));
+        }
+
         return segmentService.saveAllTranscriptionSegment(segments);
     }
 }

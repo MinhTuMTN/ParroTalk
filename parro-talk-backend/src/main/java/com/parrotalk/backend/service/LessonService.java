@@ -1,6 +1,7 @@
 package com.parrotalk.backend.service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -31,6 +32,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import com.parrotalk.backend.config.AppSetting;
 import com.parrotalk.backend.constant.CacheNames;
+import com.parrotalk.backend.constant.DictationMode;
 import com.parrotalk.backend.constant.LessonStatus;
 import com.parrotalk.backend.constant.LessonVisibilityStatus;
 import com.parrotalk.backend.constant.MediaType;
@@ -49,6 +51,8 @@ import com.parrotalk.backend.dto.TranscriptionResponse;
 import com.parrotalk.backend.dto.SegmentTranslationResponse;
 import com.parrotalk.backend.dto.TranslationSummaryResponse;
 import com.parrotalk.backend.dto.UpsertSegmentRequest;
+import com.parrotalk.backend.dto.dictation.BlankSlotDto;
+import com.parrotalk.backend.dto.dictation.SegmentBlanksPayload;
 import com.parrotalk.backend.entity.Category;
 import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.TranscriptionSegment;
@@ -60,6 +64,9 @@ import com.parrotalk.backend.repository.CategoryRepository;
 import com.parrotalk.backend.repository.LessonRepository;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
 import com.parrotalk.backend.repository.SegmentTranslationRepository;
+import com.parrotalk.backend.service.dictation.DictationBlankGenerator;
+import com.parrotalk.backend.service.dictation.SegmentBlanksCodec;
+import com.parrotalk.backend.util.SentenceUtil;
 import com.parrotalk.backend.util.YoutubeUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -87,6 +94,8 @@ public class LessonService {
     private final SegmentTranslationRepository segmentTranslationRepository;
     private final CategoryRepository categoryRepository;
     private final TranslationService translationService;
+    private final DictationBlankGenerator blankGenerator;
+    private final SegmentBlanksCodec segmentBlanksCodec;
 
     /** App setting */
     private final AppSetting appSetting;
@@ -150,16 +159,18 @@ public class LessonService {
      * @return Lesson response
      */
     @Cacheable(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
-    @Transactional(readOnly = true)
+    @Transactional
     public LessonResponse getLessonDetail(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
 
-        List<TranscriptionResponse> segments = buildSegmentResponses(lesson.getSegments());
+        List<TranscriptionSegment> lessonSegments = transcriptionSegmentRepository
+                .findByLessonIdOrderByDisplayOrderAsc(lessonId);
+        List<TranscriptionResponse> segments = buildSegmentResponses(lessonSegments);
 
         LessonResponse lessonResponse = lessonMapper.toLessonResponse(lesson);
         lessonResponse.setSegments(segments);
-        lessonResponse.setTranslationSummary(buildTranslationSummary(lesson.getId(), lesson.getSegments().size()));
+        lessonResponse.setTranslationSummary(buildTranslationSummary(lesson.getId(), lessonSegments.size()));
 
         return lessonResponse;
     }
@@ -362,7 +373,7 @@ public class LessonService {
         return toAdminLessonResponse(lesson);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LessonResponse getAdminLessonDetail(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
@@ -447,30 +458,51 @@ public class LessonService {
 
         Set<UUID> changedTextSegmentIds = new HashSet<>();
         AtomicBoolean hasNewSegments = new AtomicBoolean(false);
+        List<TranscriptionSegment> segmentsNeedingBlanks = new ArrayList<>();
         List<TranscriptionSegment> upserts = requests.stream().map(request -> {
             TranscriptionSegment segment;
+            boolean textChangedOrNew = false;
+            String trimmedText = request.getText().trim();
             if (request.getId() != null) {
                 segment = existingById.get(request.getId());
                 if (segment == null) {
                     throw new ParroTalkException("Segment does not belong to lesson", HttpStatusCode.valueOf(400));
                 }
-                if (!Objects.equals(segment.getText(), request.getText().trim())) {
+                if (!Objects.equals(segment.getText(), trimmedText)) {
                     changedTextSegmentIds.add(segment.getId());
+                    textChangedOrNew = true;
                 }
             } else {
                 segment = new TranscriptionSegment();
                 segment.setLesson(lesson);
                 hasNewSegments.set(true);
+                textChangedOrNew = true;
             }
 
-            segment.setText(request.getText().trim());
+            segment.setText(trimmedText);
             segment.setStartTime(request.getStartTime());
             segment.setEndTime(request.getEndTime());
             segment.setDisplayOrder(request.getOrder());
+            if (textChangedOrNew || segment.getBlanksJson() == null) {
+                segment.setDifficulty(SentenceUtil.getSentenceDifficulty(trimmedText));
+                segmentsNeedingBlanks.add(segment);
+            }
             return segment;
         }).collect(Collectors.toList());
 
+        if (!segmentsNeedingBlanks.isEmpty()) {
+            List<String> texts = segmentsNeedingBlanks.stream()
+                    .map(TranscriptionSegment::getText)
+                    .toList();
+            List<SegmentBlanksPayload> payloads = blankGenerator.generateForSegments(texts);
+            for (int i = 0; i < segmentsNeedingBlanks.size(); i++) {
+                segmentsNeedingBlanks.get(i).setBlanksJson(segmentBlanksCodec.serialize(payloads.get(i)));
+            }
+        }
+
         transcriptionSegmentRepository.saveAll(upserts);
+        lesson.setTotalSegments(upserts.size());
+        lessonRepository.save(lesson);
         if (!changedTextSegmentIds.isEmpty()) {
             segmentTranslationRepository.deleteBySegmentIdInAndTargetLanguage(
                     changedTextSegmentIds,
@@ -490,7 +522,7 @@ public class LessonService {
      * @param user     User
      * @return Lesson
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public LessonResponse getAccessibleLessonDetail(UUID lessonId, User user) {
         Lesson lesson = findAccessibleLesson(lessonId, user);
 
@@ -621,6 +653,32 @@ public class LessonService {
             return List.of();
         }
 
+        List<TranscriptionSegment> missingSegments = new ArrayList<>();
+        List<SegmentBlanksPayload> parsedPayloads = new ArrayList<>(segments.size());
+        for (TranscriptionSegment segment : segments) {
+            SegmentBlanksPayload payload = segmentBlanksCodec.deserialize(segment.getBlanksJson());
+            parsedPayloads.add(payload);
+            if (payload == null) {
+                missingSegments.add(segment);
+            }
+        }
+
+        if (!missingSegments.isEmpty()) {
+            List<String> texts = missingSegments.stream()
+                    .map(TranscriptionSegment::getText)
+                    .toList();
+            List<SegmentBlanksPayload> generated = blankGenerator.generateForSegments(texts);
+            int genIdx = 0;
+            for (int i = 0; i < segments.size(); i++) {
+                if (parsedPayloads.get(i) == null) {
+                    SegmentBlanksPayload payload = generated.get(genIdx++);
+                    parsedPayloads.set(i, payload);
+                    segments.get(i).setBlanksJson(segmentBlanksCodec.serialize(payload));
+                }
+            }
+            transcriptionSegmentRepository.saveAll(missingSegments);
+        }
+
         List<UUID> segmentIds = segments.stream()
                 .map(TranscriptionSegment::getId)
                 .toList();
@@ -633,17 +691,28 @@ public class LessonService {
                                 translation.getTargetLanguage(),
                                 translation.getTranslatedText())));
 
-        return segments.stream()
-                .map(segment -> TranscriptionResponse.builder()
-                        .id(segment.getId())
-                        .text(segment.getText())
-                        .start(segment.getStartTime())
-                        .end(segment.getEndTime())
-                        .order(segment.getDisplayOrder())
-                        .difficulty(segment.getDifficulty())
-                        .translation(translationsBySegmentId.get(segment.getId()))
-                        .build())
-                .collect(Collectors.toList());
+        List<TranscriptionResponse> responses = new ArrayList<>(segments.size());
+        for (int i = 0; i < segments.size(); i++) {
+            TranscriptionSegment segment = segments.get(i);
+            SegmentBlanksPayload payload = parsedPayloads.get(i);
+            Map<DictationMode, List<BlankSlotDto>> blanksMap = payload != null && payload.getLevels() != null
+                    ? payload.getLevels()
+                    : Map.of();
+
+            responses.add(TranscriptionResponse.builder()
+                    .id(segment.getId())
+                    .text(segment.getText())
+                    .start(segment.getStartTime())
+                    .end(segment.getEndTime())
+                    .order(segment.getDisplayOrder())
+                    .difficulty(segment.getDifficulty())
+                    .translation(translationsBySegmentId.get(segment.getId()))
+                    .wordCount(payload != null ? payload.getWordCount() : null)
+                    .suitableForBlanks(payload != null ? payload.isSuitable() : null)
+                    .blanks(blanksMap)
+                    .build());
+        }
+        return responses;
     }
 
     private TranslationSummaryResponse buildTranslationSummary(UUID lessonId, int totalSegments) {

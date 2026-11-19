@@ -90,6 +90,10 @@ public class UserSettings extends BaseEntity {
     @Builder.Default
     private String dictationReplayKey = "Escape";
 
+    @Column(name = "default_dictation_mode", nullable = false, length = 16)
+    @Builder.Default
+    private String defaultDictationMode = "FULL";
+
     @Column(name = "default_writing_mode", nullable = false, length = 32)
     @Builder.Default
     private String defaultWritingMode = "SUGGESTION";
