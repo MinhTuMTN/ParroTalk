@@ -279,4 +279,28 @@ class ChatModelProviderTest {
         assertNull(provider.getQuarantinedUntil("AIza...1111"));
         assertEquals(85L, provider.getLastLatencyMs("AIza...1111"));
     }
+
+    @Test
+    @DisplayName("markFailed should apply 30s cooldown on 503 and Request failed timeouts")
+    void markFailed_AppliesShortCooldownOn503AndTimeout() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-11-17T00:00:00Z"));
+        ChatModelNode node1 = new ChatModelNode(mock(ChatClient.class), "gemini-3.5-flash-lite", "AIza...1111");
+        ChatModelNode node2 = new ChatModelNode(mock(ChatClient.class), "gemini-3.5-flash-lite", "AQ.A...o1eg");
+        ChatModelNode node3 = new ChatModelNode(mock(ChatClient.class), "gemini-3.5-flash-lite", "AIza...2222");
+
+        ChatModelProvider provider = new ChatModelProvider(List.of(node1, node2, node3), clock);
+
+        provider.markFailed(node1, new RuntimeException("503: null"));
+        assertTrue(provider.isQuarantined(node1));
+
+        provider.markFailed(node2, new RuntimeException("Request failed"));
+        assertTrue(provider.isQuarantined(node2));
+        assertEquals(1, provider.healthyCount());
+        assertEquals(node3, provider.current());
+
+        clock.advanceSeconds(31);
+        assertFalse(provider.isQuarantined(node1));
+        assertFalse(provider.isQuarantined(node2));
+        assertEquals(3, provider.healthyCount());
+    }
 }

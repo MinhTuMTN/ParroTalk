@@ -77,18 +77,11 @@ public class LibraryController {
     }
 
     /**
-     * Search lessons.
-     * 
-     * @param query Search query
-     * @param category Category
-     * @param program Program
-     * @param source Source
-     * @param sort Sort
-     * @param page Page
-     * @param size Size
-     * @param user User
-     * @return List of lessons
+     * Search lessons using legacy LIKE matching.
+     *
+     * @deprecated Use {@link #searchPublicLessonsSemantic} ({@code GET /api/library/search/semantic}) instead.
      */
+    @Deprecated(since = "2026-11-19", forRemoval = false)
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<LessonWithProgressDTO>>> searchPublicLessons(
             @RequestParam(name = "q", required = false) String query,
@@ -100,6 +93,26 @@ public class LibraryController {
             @RequestParam(defaultValue = "12") int size,
             @AuthenticationPrincipal User user) {
         PageResponse<LessonWithProgressDTO> response = libraryService.searchPublicLessons(
+                query, category, program, source, sort, page, size, user);
+        return ResponseEntity.ok(ApiResponse.<PageResponse<LessonWithProgressDTO>>builder()
+                .result(response)
+                .build());
+    }
+
+    /**
+     * Semantic search across public lessons using pgvector embeddings with automatic LIKE fallback.
+     */
+    @GetMapping("/search/semantic")
+    public ResponseEntity<ApiResponse<PageResponse<LessonWithProgressDTO>>> searchPublicLessonsSemantic(
+            @RequestParam(name = "q", required = false) String query,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String program,
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false, defaultValue = "relevance") String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @AuthenticationPrincipal User user) {
+        PageResponse<LessonWithProgressDTO> response = libraryService.searchPublicLessonsSemantic(
                 query, category, program, source, sort, page, size, user);
         return ResponseEntity.ok(ApiResponse.<PageResponse<LessonWithProgressDTO>>builder()
                 .result(response)

@@ -27,4 +27,7 @@ public final class CacheNames {
 
     /** Cache for library sections **/
     public static final String LIBRARY_SECTIONS_CACHE = "librarySectionsCache";
+
+    /** Cache for Cloudflare query embeddings in semantic lesson search **/
+    public static final String SEMANTIC_QUERY_EMBEDDING_CACHE = "semanticQueryEmbeddingCache";
 }

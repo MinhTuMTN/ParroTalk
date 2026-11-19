@@ -326,7 +326,13 @@ public class ChatModelProvider {
                 if (lower.contains("429")
                         || lower.contains("rate_limit_exceeded")
                         || lower.contains("rate limit")
-                        || lower.contains("too many requests")) {
+                        || lower.contains("too many requests")
+                        || lower.contains("503")
+                        || lower.contains("service unavailable")
+                        || lower.contains("overloaded")
+                        || lower.contains("request failed")
+                        || lower.contains("timeout")
+                        || lower.contains("timed out")) {
                     return RATE_LIMIT_COOLDOWN;
                 }
             }

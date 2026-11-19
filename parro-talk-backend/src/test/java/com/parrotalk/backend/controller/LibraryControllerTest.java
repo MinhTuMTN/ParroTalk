@@ -123,4 +123,30 @@ class LibraryControllerTest {
         assertEquals("Search Match", response.getBody().getResult().getContent().get(0).getTitle());
         verify(libraryService).searchPublicLessons(eq("query"), any(), any(), any(), eq("latest"), eq(0), eq(12), eq(mockUser));
     }
+
+    @Test
+    @DisplayName("GET /api/library/search/semantic returns semantic search results")
+    void searchPublicLessonsSemantic_ReturnsOkWithPage() {
+        LessonWithProgressDTO lesson = new LessonWithProgressDTO(UUID.randomUUID(), "Semantic Match", 25.0, "thumb.jpg", "url.mp3", 240);
+        PageResponse<LessonWithProgressDTO> pageResponse = PageResponse.<LessonWithProgressDTO>builder()
+                .content(List.of(lesson))
+                .page(0)
+                .size(12)
+                .totalElements(1)
+                .totalPages(1)
+                .build();
+
+        when(libraryService.searchPublicLessonsSemantic(eq("nấu ăn"), any(), any(), any(), eq("relevance"), eq(0), eq(12), eq(mockUser)))
+                .thenReturn(pageResponse);
+
+        ResponseEntity<ApiResponse<PageResponse<LessonWithProgressDTO>>> response =
+                libraryController.searchPublicLessonsSemantic("nấu ăn", null, null, null, "relevance", 0, 12, mockUser);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().getResult().getTotalElements());
+        assertEquals("Semantic Match", response.getBody().getResult().getContent().get(0).getTitle());
+        verify(libraryService).searchPublicLessonsSemantic(eq("nấu ăn"), any(), any(), any(), eq("relevance"), eq(0), eq(12), eq(mockUser));
+    }
 }

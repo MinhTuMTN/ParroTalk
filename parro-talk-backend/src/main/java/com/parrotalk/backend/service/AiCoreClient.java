@@ -37,6 +37,7 @@ public class AiCoreClient {
 
     private static final int DEFAULT_MIN_ATTEMPTS = 3;
     private static final int DEFAULT_MAX_ATTEMPTS = 15;
+    private static final int DEFAULT_FALLBACK_PROVIDER_MAX_ATTEMPTS = 2;
     private static final long SAME_KEY_BACKOFF_MS = 200L;
 
     private final ChatModelProvider chatModelProvider;
@@ -243,7 +244,12 @@ public class AiCoreClient {
             } catch (RuntimeException e) {
                 lastException = e;
                 provider.markFailed(node, e);
-                if (provider.healthyCount() == 0 && hasFallbackProvider.getAsBoolean()) {
+                boolean hasFallback = hasFallbackProvider.getAsBoolean();
+                if (hasFallback) {
+                    maxAttempts = Math.min(maxAttempts,
+                            Math.max(1, Math.min(provider.size(), DEFAULT_FALLBACK_PROVIDER_MAX_ATTEMPTS)));
+                }
+                if (provider.healthyCount() == 0 && hasFallback) {
                     log.warn("AI call failed (model: {}, key: {}) and no healthy keys remain; falling back immediately. Error: {}",
                             node.modelName(), node.maskedApiKey(), e.getMessage());
                     break;

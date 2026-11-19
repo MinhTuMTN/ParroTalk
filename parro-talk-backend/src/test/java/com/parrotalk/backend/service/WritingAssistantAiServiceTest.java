@@ -69,11 +69,11 @@ public class WritingAssistantAiServiceTest {
                         .build();
 
         ArgumentCaptor<String> userPromptCaptor = ArgumentCaptor.forClass(String.class);
-        when(aiCoreClient.callAndValidate(anyString(), userPromptCaptor.capture(),
+        when(aiCoreClient.callAndValidate(eq(List.of("groq", "gemini", "gemini-vocab")), anyString(), userPromptCaptor.capture(),
                 eq(WritingAssistantAiService.AiSuggestionPayload.class), any()))
                 .thenAnswer(inv -> {
                     Function<WritingAssistantAiService.AiSuggestionPayload, WritingAssistantAiService.AiWritingAnalysisPayload> validator =
-                            inv.getArgument(3);
+                            inv.getArgument(4);
                     return validator.apply(mockSuggestion);
                 });
 
@@ -94,7 +94,7 @@ public class WritingAssistantAiServiceTest {
         assertTrue(result.getCompleteSentences().isEmpty());
         assertNull(result.getCombinationGuideVn());
         assertTrue(userPromptCaptor.getValue().contains("IELTS 6.5"));
-        verify(aiCoreClient, times(1)).callAndValidate(anyString(), anyString(),
+        verify(aiCoreClient, times(1)).callAndValidate(eq(List.of("groq", "gemini", "gemini-vocab")), anyString(), anyString(),
                 eq(WritingAssistantAiService.AiSuggestionPayload.class), any());
     }
 
@@ -121,11 +121,11 @@ public class WritingAssistantAiServiceTest {
                         .completeSentences(List.of())
                         .build();
 
-        when(aiCoreClient.callAndValidate(anyString(), anyString(),
+        when(aiCoreClient.callAndValidate(eq(List.of("groq", "gemini", "gemini-vocab")), anyString(), anyString(),
                 eq(WritingAssistantAiService.AiWritingAnalysisPayload.class), any()))
                 .thenAnswer(inv -> {
                     Function<WritingAssistantAiService.AiWritingAnalysisPayload, WritingAssistantAiService.AiWritingAnalysisPayload> validator =
-                            inv.getArgument(3);
+                            inv.getArgument(4);
                     return validator.apply(invalidPayload);
                 });
 
@@ -199,7 +199,7 @@ public class WritingAssistantAiServiceTest {
 
         ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
-        when(aiCoreClient.callAndValidate(eq(List.of("gemini", "groq")), systemCaptor.capture(), userCaptor.capture(),
+        when(aiCoreClient.callAndValidate(eq(List.of("groq", "gemini", "gemini-vocab")), systemCaptor.capture(), userCaptor.capture(),
                 eq(WritingAssistantAiService.AiDraftReviewPayload.class), any()))
                 .thenAnswer(inv -> {
                     Function<WritingAssistantAiService.AiDraftReviewPayload, WritingAssistantAiService.AiDraftReviewPayload> validator =
@@ -242,7 +242,7 @@ public class WritingAssistantAiServiceTest {
     @DisplayName("reviewDraft rejects missing, duplicate, or out-of-range assessment criteria")
     @SuppressWarnings("unchecked")
     void testReviewDraft_RejectsMalformedCriteria() {
-        when(aiCoreClient.callAndValidate(eq(List.of("gemini", "groq")), anyString(), anyString(),
+        when(aiCoreClient.callAndValidate(eq(List.of("groq", "gemini", "gemini-vocab")), anyString(), anyString(),
                 eq(WritingAssistantAiService.AiDraftReviewPayload.class), any()))
                 .thenAnswer(inv -> {
                     Function<WritingAssistantAiService.AiDraftReviewPayload, WritingAssistantAiService.AiDraftReviewPayload> validator =

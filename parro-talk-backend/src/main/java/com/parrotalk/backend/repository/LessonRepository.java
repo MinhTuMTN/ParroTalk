@@ -410,7 +410,10 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
 
     /**
      * Search public lessons with optional filters.
+     *
+     * @deprecated Use {@link #searchPublicLessonsSemantic} instead.
      */
+    @Deprecated(since = "2026-11-19", forRemoval = false)
     @Query(value = """
             SELECT new com.parrotalk.backend.dto.LessonWithProgressDTO(
                 l.id,
@@ -454,6 +457,98 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
             @Param("program") String program,
             @Param("source") String source,
             @Param("userId") UUID userId,
+            Pageable pageable);
+
+    /**
+     * Semantic search across vectorized public lessons using pgvector cosine similarity.
+     */
+    @Query(value = """
+            SELECT
+                l.id,
+                l.title,
+                COALESCE(ulp.last_progress, 0) * 100.0 AS progress,
+                CASE
+                    WHEN l.thumbnail_url IS NULL OR l.thumbnail_url = '' OR l.thumbnail_url LIKE '%default-audio-thumbnail%'
+                    THEN COALESCE(
+                        (
+                            SELECT MIN(cat.image_url)
+                            FROM public.lesson_category_lesson lcl2
+                            JOIN public.lesson_categories cat ON cat.id = lcl2.category_id
+                            WHERE lcl2.lesson_id = l.id
+                              AND cat.is_deleted = false
+                              AND :category <> ''
+                              AND (cat.slug = :category OR cat.name = :category)
+                              AND cat.image_url IS NOT NULL
+                              AND cat.image_url <> ''
+                        ),
+                        (
+                            SELECT MIN(cat.image_url)
+                            FROM public.lesson_category_lesson lcl3
+                            JOIN public.lesson_categories cat ON cat.id = lcl3.category_id
+                            WHERE lcl3.lesson_id = l.id
+                              AND cat.is_deleted = false
+                              AND cat.image_url IS NOT NULL
+                              AND cat.image_url <> ''
+                        ),
+                        l.thumbnail_url
+                    )
+                    ELSE l.thumbnail_url
+                END AS thumbnail_url,
+                l.file_url,
+                l.duration
+            FROM public.lesson_embeddings le
+            JOIN public.lessons l ON l.id = le.lesson_id
+            LEFT JOIN public.user_lesson_progress ulp
+                ON ulp.lesson_id = l.id
+                AND ulp.user_id = CAST(:userId AS uuid)
+            WHERE l.is_deleted = false
+              AND l.visibility_status = 'PUBLISHED'
+              AND l.status = 'DONE'
+              AND (1.0 - (le.embedding <=> CAST(:queryVector AS vector))) >= :minSimilarity
+              AND (:category = '' OR EXISTS (
+                    SELECT 1
+                    FROM public.lesson_category_lesson lcl
+                    JOIN public.lesson_categories c ON c.id = lcl.category_id
+                    WHERE lcl.lesson_id = l.id
+                      AND c.is_deleted = false
+                      AND (c.slug = :category OR c.name = :category)
+              ))
+              AND (:program = '' OR l.program = :program)
+              AND (:source = '' OR l.source = :source)
+            ORDER BY
+                CASE WHEN :sortBy = 'duration_asc' THEN l.duration END ASC NULLS LAST,
+                CASE WHEN :sortBy = 'duration_desc' THEN l.duration END DESC NULLS LAST,
+                CASE WHEN :sortBy = 'title_asc' THEN LOWER(l.title) END ASC,
+                CASE WHEN :sortBy IN ('latest', 'popular') THEN l.created_at END DESC,
+                CASE WHEN :sortBy = 'relevance' THEN (le.embedding <=> CAST(:queryVector AS vector)) END ASC,
+                l.created_at DESC
+            """, countQuery = """
+            SELECT COUNT(l.id)
+            FROM public.lesson_embeddings le
+            JOIN public.lessons l ON l.id = le.lesson_id
+            WHERE l.is_deleted = false
+              AND l.visibility_status = 'PUBLISHED'
+              AND l.status = 'DONE'
+              AND (1.0 - (le.embedding <=> CAST(:queryVector AS vector))) >= :minSimilarity
+              AND (:category = '' OR EXISTS (
+                    SELECT 1
+                    FROM public.lesson_category_lesson lcl
+                    JOIN public.lesson_categories c ON c.id = lcl.category_id
+                    WHERE lcl.lesson_id = l.id
+                      AND c.is_deleted = false
+                      AND (c.slug = :category OR c.name = :category)
+              ))
+              AND (:program = '' OR l.program = :program)
+              AND (:source = '' OR l.source = :source)
+            """, nativeQuery = true)
+    Page<Object[]> searchPublicLessonsSemantic(
+            @Param("queryVector") String queryVector,
+            @Param("minSimilarity") double minSimilarity,
+            @Param("category") String category,
+            @Param("program") String program,
+            @Param("source") String source,
+            @Param("userId") UUID userId,
+            @Param("sortBy") String sortBy,
             Pageable pageable);
 
     /**

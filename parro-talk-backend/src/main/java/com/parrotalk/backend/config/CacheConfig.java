@@ -44,6 +44,8 @@ public class CacheConfig implements CachingConfigurer {
             CacheNames.ADMIN_USER_DETAIL_CACHE,
             Duration.ofMinutes(15),
             CacheNames.LIBRARY_SECTIONS_CACHE,
+            Duration.ofMinutes(5),
+            CacheNames.SEMANTIC_QUERY_EMBEDDING_CACHE,
             Duration.ofMinutes(5));
 
     @Bean

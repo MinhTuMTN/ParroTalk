@@ -512,15 +512,16 @@ export const lessonService = {
   async searchLibraryLessons(
     params: SearchLessonsParams = {},
   ): Promise<PageResponse<LessonWithProgressDTO>> {
+    const trimmedQuery = params.q?.trim() || undefined;
     const response = await axiosInstance.get<
       ApiResponse<PageResponse<LessonWithProgressDTO>>
-    >("/library/search", {
+    >("/library/search/semantic", {
       params: {
-        q: params.q?.trim() || undefined,
+        q: trimmedQuery,
         category: params.category?.trim() || undefined,
         program: params.program?.trim() || undefined,
         source: params.source?.trim() || undefined,
-        sort: params.sort?.trim() || "latest",
+        sort: params.sort?.trim() || (trimmedQuery ? "relevance" : "latest"),
         page: params.page ?? 0,
         size: params.size ?? 12,
       },

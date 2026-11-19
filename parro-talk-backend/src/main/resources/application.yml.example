@@ -112,6 +112,12 @@ application:
         base-url: https://generativelanguage.googleapis.com/v1beta/openai
         model:
           - gemini-3.5-flash-lite
+  cloudflare:
+    enabled: ${CLOUDFLARE_EMBEDDING_ENABLED:true}
+    account-id: ${CLOUDFLARE_ACCOUNT_ID:}
+    api-token: ${CLOUDFLARE_API_TOKEN:}
+    embedding-model: ${CLOUDFLARE_EMBEDDING_MODEL:@cf/baai/bge-m3}
+    min-similarity: ${CLOUDFLARE_MIN_SIMILARITY:0.30}
 
 settings:
   default-time-zone: Asia/Bangkok

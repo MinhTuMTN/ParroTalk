@@ -52,6 +52,7 @@ const SOURCE_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
+  { id: "relevance", label: "Liên quan nhất" },
   { id: "latest", label: "Mới nhất" },
   { id: "popular", label: "Phổ biến nhất" },
   { id: "duration_asc", label: "Thời lượng ngắn nhất" },
@@ -98,7 +99,7 @@ function SearchPageContent() {
   const initialCategory = searchParams.get("category") || "";
   const initialProgram = searchParams.get("program") || "";
   const initialSource = searchParams.get("source") || "";
-  const initialSort = searchParams.get("sort") || "latest";
+  const initialSort = searchParams.get("sort") || (initialQuery.trim() ? "relevance" : "latest");
   const initialPage = Number(searchParams.get("page")) || 0;
 
   // Local state
@@ -169,7 +170,8 @@ function SearchPageContent() {
     if (category) p.set("category", category);
     if (program) p.set("program", program);
     if (source) p.set("source", source);
-    if (sort && sort !== "latest") p.set("sort", sort);
+    const defaultSort = debouncedQuery.trim() ? "relevance" : "latest";
+    if (sort && sort !== defaultSort) p.set("sort", sort);
     if (page > 0) p.set("page", page.toString());
 
     const newQueryString = p.toString();
@@ -182,6 +184,15 @@ function SearchPageContent() {
       );
     }
   }, [debouncedQuery, category, program, source, sort, page, router, searchParams]);
+
+  // Switch default sort between relevance (when searching) and latest (when browsing)
+  useEffect(() => {
+    if (debouncedQuery.trim() && sort === "latest") {
+      setSort("relevance");
+    } else if (!debouncedQuery.trim() && sort === "relevance") {
+      setSort("latest");
+    }
+  }, [debouncedQuery, sort]);
 
   // Reset page to 0 on filter change
   useEffect(() => {
@@ -433,7 +444,7 @@ function SearchPageContent() {
             </select>
 
             {/* Active Filters Clear */}
-            {(debouncedQuery || category || program || source || sort !== "latest") && (
+            {(debouncedQuery || category || program || source || (sort !== "latest" && !(debouncedQuery.trim() && sort === "relevance"))) && (
               <button
                 type="button"
                 onClick={handleResetFilters}

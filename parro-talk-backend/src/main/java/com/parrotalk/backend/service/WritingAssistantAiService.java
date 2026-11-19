@@ -28,6 +28,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WritingAssistantAiService {
 
+    private static final List<String> WRITING_PROVIDER_ORDER = List.of("groq", "gemini", "gemini-vocab");
+
     private final AiCoreClient aiCoreClient;
 
     private static final String SUGGESTION_SYSTEM_PROMPT = """
@@ -381,6 +383,7 @@ public class WritingAssistantAiService {
                     scaleType + " " + targetLevel);
 
             return aiCoreClient.callAndValidate(
+                    WRITING_PROVIDER_ORDER,
                     SUGGESTION_SYSTEM_PROMPT,
                     userPrompt,
                     AiSuggestionPayload.class,
@@ -421,6 +424,7 @@ public class WritingAssistantAiService {
                 scaleType + " " + targetLevel);
 
         return aiCoreClient.callAndValidate(
+                WRITING_PROVIDER_ORDER,
                 GUIDANCE_SYSTEM_PROMPT,
                 userPrompt,
                 AiWritingAnalysisPayload.class,
@@ -489,7 +493,7 @@ public class WritingAssistantAiService {
                 suggestedList);
 
         return aiCoreClient.callAndValidate(
-                List.of("gemini", "groq"),
+                WRITING_PROVIDER_ORDER,
                 DRAFT_REVIEW_SYSTEM_PROMPT,
                 userPrompt,
                 AiDraftReviewPayload.class,
