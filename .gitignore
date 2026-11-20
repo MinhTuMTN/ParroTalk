@@ -1,7 +1,7 @@
 .vscode
-.agents
+.agents/*
+!.agents/skills/
 .continue
-skills-lock.json
 .codex
 eclipse-java-google-style.xml
 docker-gui.bat
