@@ -188,7 +188,9 @@ public class TranslationService {
             throw new RuntimeException("Failed to serialize translation request items to JSON", e);
         }
 
-        return aiCoreClient.callAndValidate(
+        return com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.TRANSLATION,
+                () -> aiCoreClient.callAndValidate(
                 SYSTEM_PROMPT,
                 requestJson,
                 LLM_RESPONSE_LIST_TYPE,
@@ -199,7 +201,7 @@ public class TranslationService {
                     validateResponse(batch, items);
                     return items;
                 }
-        );
+        ));
     }
 
     void validateResponse(List<TranscriptionSegment> batch, List<SegmentTranslationResponseItem> responseItems) {

@@ -382,7 +382,9 @@ public class WritingAssistantAiService {
                     levelDescriptor,
                     scaleType + " " + targetLevel);
 
-            return aiCoreClient.callAndValidate(
+            return com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.WRITING_ASSISTANT,
+                () -> aiCoreClient.callAndValidate(
                     WRITING_PROVIDER_ORDER,
                     SUGGESTION_SYSTEM_PROMPT,
                     userPrompt,
@@ -410,7 +412,7 @@ public class WritingAssistantAiService {
                                 .completeSentences(List.of())
                                 .build();
                     }
-            );
+            ));
         }
 
         String userPrompt = String.format("""
@@ -423,7 +425,9 @@ public class WritingAssistantAiService {
                 levelDescriptor,
                 scaleType + " " + targetLevel);
 
-        return aiCoreClient.callAndValidate(
+        return com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.WRITING_ASSISTANT,
+                () -> aiCoreClient.callAndValidate(
                 WRITING_PROVIDER_ORDER,
                 GUIDANCE_SYSTEM_PROMPT,
                 userPrompt,
@@ -452,7 +456,7 @@ public class WritingAssistantAiService {
                     }
                     return raw;
                 }
-        );
+        ));
     }
 
     /**
@@ -492,7 +496,9 @@ public class WritingAssistantAiService {
                 levelDescriptor,
                 suggestedList);
 
-        return aiCoreClient.callAndValidate(
+        return com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.WRITING_ASSISTANT,
+                () -> aiCoreClient.callAndValidate(
                 WRITING_PROVIDER_ORDER,
                 DRAFT_REVIEW_SYSTEM_PROMPT,
                 userPrompt,
@@ -541,7 +547,7 @@ public class WritingAssistantAiService {
                     }
                     return raw;
                 }
-        );
+        ));
     }
 
     private List<AiCriterionAssessment> validateAndCanonicalizeCriteria(List<AiCriterionAssessment> rawCriteria) {

@@ -143,6 +143,10 @@ application:
         expiration: 604800000 # 7 days
   settings:
     default-audio-thumbnail: https://res.cloudinary.com/dgrjyts1r/image/upload/v1778946072/default-audio-thumbnail.png
+  ai-usage:
+    retention-days: ${AI_USAGE_RETENTION_DAYS:30}
+    flush-interval-ms: ${AI_USAGE_FLUSH_INTERVAL_MS:5000}
+    queue-capacity: ${AI_USAGE_QUEUE_CAPACITY:10000}
   ai:
     default-provider: ${AI_DEFAULT_PROVIDER:gemini-vocab}
     timeout-seconds: ${AI_TIMEOUT_SECONDS:30}

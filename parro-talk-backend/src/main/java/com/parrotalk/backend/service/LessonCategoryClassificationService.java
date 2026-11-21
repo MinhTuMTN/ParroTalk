@@ -127,11 +127,13 @@ public class LessonCategoryClassificationService {
         // 6. Call AI & 7. Validate AI Result
         List<Category> selectedCategories;
         try {
-            selectedCategories = aiCoreClient.callAndValidate(
+            selectedCategories = com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.LESSON_CATEGORY_CLASSIFICATION,
+                () -> aiCoreClient.callAndValidate(
                     SYSTEM_PROMPT,
                     userPrompt,
                     LlmCategoryClassificationResponse.class,
-                    (response) -> this.validateAiResponse(response, allowedCategoryMap));
+                    (response) -> this.validateAiResponse(response, allowedCategoryMap)));
         } catch (ParroTalkException e) {
             throw e;
         } catch (Exception e) {

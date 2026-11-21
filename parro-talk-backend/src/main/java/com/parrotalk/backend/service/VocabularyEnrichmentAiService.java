@@ -229,7 +229,9 @@ public class VocabularyEnrichmentAiService {
                     "crawlStatus", status,
                     "rawPayload", payload
             ));
-            return aiCoreClient.callAndValidate(
+            return com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.VOCABULARY_ENRICHMENT,
+                () -> aiCoreClient.callAndValidate(
                     ENRICH_SYSTEM_PROMPT,
                     userPrompt,
                     AiEnrichmentResponse.class,
@@ -239,7 +241,7 @@ public class VocabularyEnrichmentAiService {
                         }
                         return resp;
                     }
-            );
+            ));
         } catch (Exception ex) {
             log.warn("AI enrichment fallback triggered for word '{}': {}", word, ex.getMessage());
             return buildFallbackEnrichmentFromPayload(word, payload);

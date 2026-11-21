@@ -92,7 +92,9 @@ public class TopicPracticeSentenceAiService {
 
         try {
             log.info("Prompting AI for contextual sentence: word='{}', topic='{}'", word, topicName);
-            AiSentenceResponse response = aiCoreClient.callAndValidate(
+            AiSentenceResponse response = com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.TOPIC_PRACTICE_SENTENCE,
+                () -> aiCoreClient.callAndValidate(
                     SYSTEM_PROMPT,
                     userPrompt,
                     AiSentenceResponse.class,
@@ -114,7 +116,7 @@ public class TopicPracticeSentenceAiService {
                         }
                         return raw;
                     }
-            );
+            ));
 
             return TopicPracticeSentence.builder()
                     .vocabulary(vocabulary)

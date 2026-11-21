@@ -5,6 +5,7 @@ import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import { getSettingsCopy } from "@/features/settings/types";
 import {
   BarChart3,
+  BrainCircuit,
   Boxes,
   FileText,
   KeyRound,
@@ -99,6 +100,12 @@ export default function Sidebar({
       label: "AI API Keys",
       path: "/admin/ai-keys",
       active: pathname.startsWith("/admin/ai-keys"),
+    },
+    {
+      icon: BrainCircuit,
+      label: "AI Usage",
+      path: "/admin/ai-usage",
+      active: pathname.startsWith("/admin/ai-usage"),
     },
     {
       icon: BarChart3,
