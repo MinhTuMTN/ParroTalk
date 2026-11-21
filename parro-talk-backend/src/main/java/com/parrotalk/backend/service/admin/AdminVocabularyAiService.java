@@ -65,7 +65,9 @@ public class AdminVocabularyAiService {
             throw new RuntimeException("Failed to serialize AI refine request payload to JSON", e);
         }
 
-        return aiCoreClient.callAndValidate(
+        return com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.ADMIN_VOCABULARY_AI,
+                () -> aiCoreClient.callAndValidate(
                 SYSTEM_PROMPT,
                 userPrompt,
                 LLM_RESPONSE_LIST_TYPE,
@@ -78,7 +80,7 @@ public class AdminVocabularyAiService {
                     }
                     return rawResponse;
                 }
-        );
+        ));
     }
 
     private static final String COMMON_MEANING_SYSTEM_PROMPT = """
@@ -107,7 +109,9 @@ public class AdminVocabularyAiService {
             throw new RuntimeException("Failed to serialize AI request payload to JSON", e);
         }
 
-        return aiCoreClient.callAndValidate(
+        return com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.ADMIN_VOCABULARY_AI,
+                () -> aiCoreClient.callAndValidate(
                 COMMON_MEANING_SYSTEM_PROMPT,
                 userPrompt,
                 COMMON_MEANING_RESPONSE_TYPE,
@@ -117,6 +121,6 @@ public class AdminVocabularyAiService {
                     }
                     return rawResponse;
                 }
-        );
+        ));
     }
 }

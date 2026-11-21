@@ -615,7 +615,9 @@ public class VocabularyPracticeService {
 
                 try {
                     String prompt = "Generate 3 short clues to guess the word '" + word + "'. Definition: " + definitionEn + ". Output exactly 3 lines, each a clue. Do not include the word itself.";
-                    String aiResponse = aiCoreClient.callAndValidate("You are a helpful English teacher.", prompt, String.class, java.util.function.Function.identity());
+                    String aiResponse = com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                com.parrotalk.backend.ai.AiFeature.VOCABULARY_PRACTICE,
+                () -> aiCoreClient.callAndValidate("You are a helpful English teacher.", prompt, String.class, java.util.function.Function.identity()));
                     if (aiResponse != null && !aiResponse.isBlank()) {
                         clues = java.util.Arrays.asList(aiResponse.split("\n"));
                     }

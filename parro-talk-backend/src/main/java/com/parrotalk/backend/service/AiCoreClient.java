@@ -2,6 +2,7 @@ package com.parrotalk.backend.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -13,11 +14,17 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.lang.Nullable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import com.parrotalk.backend.ai.AiFeature;
+import com.parrotalk.backend.ai.AiUsageContext;
+import com.parrotalk.backend.ai.AiUsageRecorder;
 import com.parrotalk.backend.config.ChatModelProvider;
 import com.parrotalk.backend.config.ChatModelProviderRegistry;
 import com.parrotalk.backend.dto.ChatModelNode;
+import com.parrotalk.backend.entity.User;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,7 +47,11 @@ public class AiCoreClient {
     private static final int DEFAULT_FALLBACK_PROVIDER_MAX_ATTEMPTS = 2;
     private static final long SAME_KEY_BACKOFF_MS = 200L;
 
+    private static final String LEGACY_PROVIDER_NAME = "default";
+
     private final ChatModelProvider chatModelProvider;
+    @Nullable
+    private final AiUsageRecorder usageRecorder;
     @Nullable
     private final ChatModelProviderRegistry providerRegistry;
 
@@ -50,12 +61,20 @@ public class AiCoreClient {
                 "groq"));
     }
 
+    public AiCoreClient(
+            ChatModelProvider chatModelProvider,
+            @Nullable ChatModelProviderRegistry providerRegistry) {
+        this(chatModelProvider, providerRegistry, null);
+    }
+
     @Autowired
     public AiCoreClient(
             ChatModelProvider chatModelProvider,
-            @Autowired(required = false) @Nullable ChatModelProviderRegistry providerRegistry) {
+            @Autowired(required = false) @Nullable ChatModelProviderRegistry providerRegistry,
+            @Autowired(required = false) @Nullable AiUsageRecorder usageRecorder) {
         this.chatModelProvider = chatModelProvider;
         this.providerRegistry = providerRegistry;
+        this.usageRecorder = usageRecorder;
     }
 
     /**
@@ -76,6 +95,7 @@ public class AiCoreClient {
                     validator);
         }
         return executeWithRotation(
+                LEGACY_PROVIDER_NAME,
                 chatModelProvider,
                 responseType.getSimpleName(),
                 node -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
@@ -119,6 +139,7 @@ public class AiCoreClient {
                     validator);
         }
         return executeWithRotation(
+                LEGACY_PROVIDER_NAME,
                 chatModelProvider,
                 responseType.getType().getTypeName(),
                 node -> prompt(node, systemPrompt, userPrompt).responseEntity(responseType),
@@ -171,7 +192,7 @@ public class AiCoreClient {
             Function<T, R> validator) {
 
         if (providerOrder == null || providerOrder.isEmpty()) {
-            return executeWithRotation(chatModelProvider, target, call, validator);
+            return executeWithRotation(LEGACY_PROVIDER_NAME, chatModelProvider, target, call, validator);
         }
 
         RuntimeException lastException = null;
@@ -188,6 +209,7 @@ public class AiCoreClient {
             final int nextProviderIdx = i + 1;
             try {
                 return executeWithRotation(
+                        providerName,
                         provider,
                         target,
                         call,
@@ -220,14 +242,16 @@ public class AiCoreClient {
     }
 
     private <T, R> R executeWithRotation(
+            String providerName,
             ChatModelProvider provider,
             String target,
             Function<ChatModelNode, ResponseEntity<ChatResponse, T>> call,
             Function<T, R> validator) {
-        return executeWithRotation(provider, target, call, validator, () -> false);
+        return executeWithRotation(providerName, provider, target, call, validator, () -> false);
     }
 
     private <T, R> R executeWithRotation(
+            String providerName,
             ChatModelProvider provider,
             String target,
             Function<ChatModelNode, ResponseEntity<ChatResponse, T>> call,
@@ -240,7 +264,7 @@ public class AiCoreClient {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             ChatModelNode node = provider.current();
             try {
-                return execute(node, target, () -> call.apply(node), validator);
+                return execute(providerName, node, target, () -> call.apply(node), validator);
             } catch (RuntimeException e) {
                 lastException = e;
                 provider.markFailed(node, e);
@@ -268,6 +292,7 @@ public class AiCoreClient {
     }
 
     private <T, R> R execute(
+            String providerName,
             ChatModelNode node,
             String target,
             Supplier<ResponseEntity<ChatResponse, T>> call,
@@ -277,7 +302,39 @@ public class AiCoreClient {
         ResponseEntity<ChatResponse, T> result = call.get();
         long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
         logUsage(node, target, elapsedMs, result.response());
+        recordUsage(providerName, node, result.response());
         return validator.apply(result.entity());
+    }
+
+    private void recordUsage(String providerName, ChatModelNode node, ChatResponse response) {
+        if (usageRecorder == null) {
+            return;
+        }
+        try {
+            Usage usage = response != null && response.getMetadata() != null
+                    ? response.getMetadata().getUsage() : null;
+            int in = usage != null && usage.getPromptTokens() != null ? usage.getPromptTokens() : 0;
+            int out = usage != null && usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0;
+            if (in <= 0 && out <= 0) {
+                log.debug("Skipping AI usage record for model {}: no token usage reported", node.modelName());
+                return;
+            }
+            AiUsageContext.Value ctx = AiUsageContext.current();
+            UUID userId = ctx != null && ctx.userId() != null ? ctx.userId() : currentAuthenticatedUserId();
+            String feature = ctx != null ? ctx.feature() : AiFeature.UNKNOWN;
+            usageRecorder.record(userId, providerName, node.modelName(), feature, in, out, "OK");
+        } catch (RuntimeException e) {
+            log.warn("Failed to record AI usage: {}", e.getMessage());
+        }
+    }
+
+    @Nullable
+    private UUID currentAuthenticatedUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof User user) {
+            return user.getId();
+        }
+        return null;
     }
 
     private void sleepQuietly(long millis) {

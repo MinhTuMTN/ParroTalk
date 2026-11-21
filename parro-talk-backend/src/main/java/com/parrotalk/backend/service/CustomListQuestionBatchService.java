@@ -146,6 +146,13 @@ public class CustomListQuestionBatchService {
     }
 
     public int runFinalizeBatchSync(UUID listId, UUID userId) {
+        try (var ignored = com.parrotalk.backend.ai.AiUsageContext.open(
+                userId, com.parrotalk.backend.ai.AiFeature.CUSTOM_LIST_QUESTION_BATCH)) {
+            return doRunFinalizeBatchSync(listId, userId);
+        }
+    }
+
+    private int doRunFinalizeBatchSync(UUID listId, UUID userId) {
         List<Set<UUID>> targets = proxy().loadFinalizeTargetsAndMarkGenerating(listId);
         if (targets == null) {
             return 0;
@@ -402,7 +409,10 @@ public class CustomListQuestionBatchService {
         );
 
         try {
-            AiMcqBatchResponse response = aiCoreClient.callAndValidate(
+            AiMcqBatchResponse response = com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                userId,
+                com.parrotalk.backend.ai.AiFeature.CUSTOM_LIST_QUESTION_BATCH,
+                () -> aiCoreClient.callAndValidate(
                     MCQ_SYSTEM_PROMPT,
                     userPrompt,
                     AiMcqBatchResponse.class,
@@ -412,7 +422,7 @@ public class CustomListQuestionBatchService {
                         }
                         return raw;
                     }
-            );
+            ));
             return persistQuestions(
                     response.getQuestions(),
                     vocab,
@@ -460,7 +470,10 @@ public class CustomListQuestionBatchService {
         );
 
         try {
-            AiMcqBatchResponse response = aiCoreClient.callAndValidate(
+            AiMcqBatchResponse response = com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                userId,
+                com.parrotalk.backend.ai.AiFeature.CUSTOM_LIST_QUESTION_BATCH,
+                () -> aiCoreClient.callAndValidate(
                     MCQ_SYSTEM_PROMPT,
                     userPrompt,
                     AiMcqBatchResponse.class,
@@ -470,7 +483,7 @@ public class CustomListQuestionBatchService {
                         }
                         return raw;
                     }
-            );
+            ));
             return persistQuestions(
                     response.getQuestions(),
                     vocab,
@@ -518,7 +531,10 @@ public class CustomListQuestionBatchService {
         );
 
         try {
-            AiMcqBatchResponse response = aiCoreClient.callAndValidate(
+            AiMcqBatchResponse response = com.parrotalk.backend.ai.AiUsageContext.withFeature(
+                userId,
+                com.parrotalk.backend.ai.AiFeature.CUSTOM_LIST_QUESTION_BATCH,
+                () -> aiCoreClient.callAndValidate(
                     MCQ_SYSTEM_PROMPT,
                     userPrompt,
                     AiMcqBatchResponse.class,
@@ -528,7 +544,7 @@ public class CustomListQuestionBatchService {
                         }
                         return raw;
                     }
-            );
+            ));
             return persistQuestions(
                     response.getQuestions(),
                     vocab,
