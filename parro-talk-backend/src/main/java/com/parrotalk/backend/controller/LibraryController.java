@@ -16,6 +16,8 @@ import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.dto.LibrarySectionDTO;
 import com.parrotalk.backend.dto.PageResponse;
 import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.ratelimit.RateLimit;
+import com.parrotalk.backend.ratelimit.RateLimitTier;
 import com.parrotalk.backend.service.LibraryService;
 
 import lombok.RequiredArgsConstructor;
@@ -103,6 +105,7 @@ public class LibraryController {
      * Semantic search across public lessons using pgvector embeddings with automatic LIKE fallback.
      */
     @GetMapping("/search/semantic")
+    @RateLimit(tier = RateLimitTier.AI_LIGHT)
     public ResponseEntity<ApiResponse<PageResponse<LessonWithProgressDTO>>> searchPublicLessonsSemantic(
             @RequestParam(name = "q", required = false) String query,
             @RequestParam(required = false) String category,

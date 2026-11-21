@@ -118,6 +118,47 @@ application:
     api-token: ${CLOUDFLARE_API_TOKEN:}
     embedding-model: ${CLOUDFLARE_EMBEDDING_MODEL:@cf/baai/bge-m3}
     min-similarity: ${CLOUDFLARE_MIN_SIMILARITY:0.30}
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    trust-proxy-headers: ${RATE_LIMIT_TRUST_PROXY_HEADERS:true}
+    trust-cloudflare-header: ${RATE_LIMIT_TRUST_CLOUDFLARE_HEADER:false}
+    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:1}
+    tiers:
+      auth:
+        capacity: ${RATE_LIMIT_AUTH_CAPACITY:10}
+        refill-tokens: ${RATE_LIMIT_AUTH_REFILL_TOKENS:10}
+        refill-period-seconds: ${RATE_LIMIT_AUTH_REFILL_PERIOD_SECONDS:60}
+        admin-bypass: false
+      auth-forgot-password:
+        capacity: ${RATE_LIMIT_FORGOT_PASSWORD_CAPACITY:${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:5}}
+        refill-tokens: ${RATE_LIMIT_FORGOT_PASSWORD_REFILL_TOKENS:${PASSWORD_RESET_MAX_REQUESTS_PER_HOUR:5}}
+        refill-period-seconds: ${RATE_LIMIT_FORGOT_PASSWORD_REFILL_PERIOD_SECONDS:3600}
+        admin-bypass: false
+      auth-resend-verification:
+        capacity: ${RATE_LIMIT_RESEND_VERIFICATION_CAPACITY:5}
+        refill-tokens: ${RATE_LIMIT_RESEND_VERIFICATION_REFILL_TOKENS:5}
+        refill-period-seconds: ${RATE_LIMIT_RESEND_VERIFICATION_REFILL_PERIOD_SECONDS:900}
+        admin-bypass: false
+      ai-heavy:
+        capacity: ${RATE_LIMIT_AI_HEAVY_CAPACITY:10}
+        refill-tokens: ${RATE_LIMIT_AI_HEAVY_REFILL_TOKENS:10}
+        refill-period-seconds: ${RATE_LIMIT_AI_HEAVY_REFILL_PERIOD_SECONDS:60}
+        admin-bypass: true
+      ai-light:
+        capacity: ${RATE_LIMIT_AI_LIGHT_CAPACITY:30}
+        refill-tokens: ${RATE_LIMIT_AI_LIGHT_REFILL_TOKENS:30}
+        refill-period-seconds: ${RATE_LIMIT_AI_LIGHT_REFILL_PERIOD_SECONDS:60}
+        admin-bypass: true
+      general-public:
+        capacity: ${RATE_LIMIT_GENERAL_PUBLIC_CAPACITY:60}
+        refill-tokens: ${RATE_LIMIT_GENERAL_PUBLIC_REFILL_TOKENS:60}
+        refill-period-seconds: ${RATE_LIMIT_GENERAL_PUBLIC_REFILL_PERIOD_SECONDS:60}
+        admin-bypass: true
+      general-authenticated:
+        capacity: ${RATE_LIMIT_GENERAL_AUTH_CAPACITY:120}
+        refill-tokens: ${RATE_LIMIT_GENERAL_AUTH_REFILL_TOKENS:120}
+        refill-period-seconds: ${RATE_LIMIT_GENERAL_AUTH_REFILL_PERIOD_SECONDS:60}
+        admin-bypass: true
 
 settings:
   default-time-zone: Asia/Bangkok

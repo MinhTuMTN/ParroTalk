@@ -4,6 +4,8 @@ import com.parrotalk.backend.entity.User;
 import com.parrotalk.backend.dto.UploadResponse;
 import com.parrotalk.backend.dto.YoutubeUploadRequest;
 import com.parrotalk.backend.entity.Lesson;
+import com.parrotalk.backend.ratelimit.RateLimit;
+import com.parrotalk.backend.ratelimit.RateLimitTier;
 import com.parrotalk.backend.service.AudioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +15,13 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.util.UUID;
 
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,6 +47,7 @@ public class AudioController {
      * @return Upload response
      */
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @RateLimit(tier = RateLimitTier.AI_HEAVY)
     public ResponseEntity<UploadResponse> uploadAudio(
             @RequestParam MultipartFile file,
             @RequestParam String title,
@@ -58,6 +67,7 @@ public class AudioController {
      * @return Upload response
      */
     @PostMapping("/youtube")
+    @RateLimit(tier = RateLimitTier.AI_HEAVY)
     public ResponseEntity<UploadResponse> processYoutube(
             @RequestBody YoutubeUploadRequest request,
             @AuthenticationPrincipal User user) {
@@ -75,6 +85,7 @@ public class AudioController {
      * @return Upload response
      */
     @GetMapping("/retry/{lessonId}")
+    @RateLimit(tier = RateLimitTier.AI_HEAVY)
     public ResponseEntity<UploadResponse> retryLesson(@PathVariable UUID lessonId) {
         Lesson lesson = audioService.retryLesson(lessonId);
         return ResponseEntity.ok(UploadResponse.builder()

@@ -1,19 +1,22 @@
 package com.parrotalk.backend.service;
 
-import java.time.Duration;
-
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import com.parrotalk.backend.config.PasswordResetProperties;
 import com.parrotalk.backend.constant.ErrorCode;
 import com.parrotalk.backend.exception.AuthException;
+import com.parrotalk.backend.ratelimit.RateLimitProperties;
+import com.parrotalk.backend.ratelimit.RateLimitProperties.TierConfig;
+import com.parrotalk.backend.ratelimit.RateLimitResult;
+import com.parrotalk.backend.ratelimit.RateLimitTier;
+import com.parrotalk.backend.ratelimit.RedisTokenBucketRateLimiter;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Redis-backed rate limiter for the forgot-password endpoint.
- * Tracks request counts per key (IP address or email) using Redis increment.
+ * Delegates to the shared {@link RedisTokenBucketRateLimiter} so IP and email keys
+ * use the same atomic token bucket engine and fail-open behavior as the rest of the API.
  *
  * @author MinhTuMTN
  */
@@ -21,50 +24,48 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ForgotPasswordRateLimiter {
 
-    private static final String KEY_PREFIX = "rate_limit:forgot_password:";
-    private static final long WINDOW_SECONDS = 3600; // 1 hour
+    private final RedisTokenBucketRateLimiter rateLimiter;
+    private final RateLimitProperties rateLimitProperties;
+    private final PasswordResetProperties passwordResetProperties;
 
-    private final StringRedisTemplate redisTemplate;
-    private final int maxRequests;
-
-    public ForgotPasswordRateLimiter(StringRedisTemplate redisTemplate, PasswordResetProperties properties) {
-        this.redisTemplate = redisTemplate;
-        this.maxRequests = properties.getMaxRequestsPerHour();
+    public ForgotPasswordRateLimiter(
+            RedisTokenBucketRateLimiter rateLimiter,
+            RateLimitProperties rateLimitProperties,
+            PasswordResetProperties passwordResetProperties) {
+        this.rateLimiter = rateLimiter;
+        this.rateLimitProperties = rateLimitProperties;
+        this.passwordResetProperties = passwordResetProperties;
     }
 
     /**
-     * Check whether the given key has exceeded the rate limit.
+     * Check whether the given key has exceeded the forgot-password rate limit.
      *
      * @param key an identifier such as a client IP or email address
-     * @throws AuthException with {@link ErrorCode#RATE_LIMIT_EXCEEDED} if the limit is exceeded
+     * @throws AuthException with {@link ErrorCode#RATE_LIMIT_EXCEEDED} and {@link RateLimitResult} if exceeded
      */
     public void checkRateLimit(String key) {
-        String redisKey = KEY_PREFIX + key;
-
-        Long count = redisTemplate.opsForValue().increment(redisKey);
-
-        if (count != null && count == 1) {
-            redisTemplate.expire(redisKey, Duration.ofSeconds(WINDOW_SECONDS));
+        if (!rateLimitProperties.isEnabled()) {
+            return;
         }
 
-        if (count != null && count > maxRequests) {
-            log.warn("Rate limit exceeded for key: {}", maskKey(key));
-            throw new AuthException(ErrorCode.RATE_LIMIT_EXCEEDED);
+        TierConfig tierConfig = resolveEffectiveConfig();
+        String bucketKey = RateLimitTier.AUTH_FORGOT_PASSWORD.getConfigKey() + ":" + key;
+        RateLimitResult result = rateLimiter.tryConsume(bucketKey, tierConfig);
+
+        if (!result.allowed()) {
+            log.warn("Forgot-password rate limit exceeded for key: {}",
+                    RedisTokenBucketRateLimiter.maskKey(bucketKey));
+            throw new AuthException(ErrorCode.RATE_LIMIT_EXCEEDED, result);
         }
     }
 
-    /** Mask the key for safe logging (e.g. email → ab***@domain.com). */
-    private String maskKey(String key) {
-        if (key.contains("@")) {
-            int atIdx = key.indexOf('@');
-            String local = key.substring(0, atIdx);
-            String masked = local.length() > 2
-                    ? local.substring(0, 2) + "***"
-                    : local.substring(0, 1) + "***";
-            return masked + key.substring(atIdx);
+    private TierConfig resolveEffectiveConfig() {
+        TierConfig configured = rateLimitProperties.resolveTier(RateLimitTier.AUTH_FORGOT_PASSWORD);
+        int legacyMax = passwordResetProperties != null ? passwordResetProperties.getMaxRequestsPerHour() : 0;
+        if (legacyMax > 0 && rateLimitProperties.getTiers() != null
+                && !rateLimitProperties.getTiers().containsKey(RateLimitTier.AUTH_FORGOT_PASSWORD.getConfigKey())) {
+            return new TierConfig(legacyMax, legacyMax, configured.getRefillPeriodSeconds(), false);
         }
-        // IP addresses — show first octet only
-        int dot = key.indexOf('.');
-        return dot > 0 ? key.substring(0, dot) + ".***" : key;
+        return configured;
     }
 }

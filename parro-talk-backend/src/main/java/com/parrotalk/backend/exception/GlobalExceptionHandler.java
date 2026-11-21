@@ -2,6 +2,7 @@ package com.parrotalk.backend.exception;
 
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -14,6 +15,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 import com.parrotalk.backend.constant.ErrorCode;
 import com.parrotalk.backend.dto.ApiResponse;
+import com.parrotalk.backend.ratelimit.RateLimitHttpSupport;
+import com.parrotalk.backend.ratelimit.RateLimitResult;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,9 +35,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuthException(AuthException e) {
         ErrorCode errorCode = e.getErrorCode();
-        return ResponseEntity
-                .status(errorCode.getHttpStatus())
-                .body(buildError(errorCode.getCode(), errorCode.name(), errorCode.getMessage()));
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(errorCode.getHttpStatus());
+        RateLimitResult rateLimitResult = e.getRateLimitResult();
+        if (rateLimitResult != null) {
+            builder.header(RateLimitHttpSupport.HEADER_RATE_LIMIT, String.valueOf(rateLimitResult.limit()));
+            builder.header(RateLimitHttpSupport.HEADER_RATE_LIMIT_REMAINING, String.valueOf(rateLimitResult.remaining()));
+            builder.header(RateLimitHttpSupport.HEADER_RATE_LIMIT_RESET, String.valueOf(rateLimitResult.resetEpochSeconds()));
+            if (!rateLimitResult.allowed() && rateLimitResult.retryAfterSeconds() > 0) {
+                builder.header(HttpHeaders.RETRY_AFTER, String.valueOf(rateLimitResult.retryAfterSeconds()));
+            }
+        }
+        return builder.body(buildError(errorCode.getCode(), errorCode.name(), errorCode.getMessage()));
     }
 
     @ExceptionHandler(ParroTalkException.class)
