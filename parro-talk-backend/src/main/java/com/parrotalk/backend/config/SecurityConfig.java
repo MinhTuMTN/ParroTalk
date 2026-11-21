@@ -1,10 +1,12 @@
 package com.parrotalk.backend.config;
 
+import com.parrotalk.backend.ratelimit.RateLimitFilter;
 import com.parrotalk.backend.security.JwtAuthenticationEntryPoint;
 import com.parrotalk.backend.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import java.util.Arrays;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,6 +44,9 @@ public class SecurityConfig {
 
     /** Jwt authentication filter */
     private final JwtAuthenticationFilter jwtAuthFilter;
+
+    /** Global API rate limit filter */
+    private final ObjectProvider<RateLimitFilter> rateLimitFilterProvider;
 
     /** Authentication provider */
     private final AuthenticationProvider authenticationProvider;
@@ -118,6 +123,11 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider)
                 // Add JWT authentication filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        RateLimitFilter rateLimitFilter = rateLimitFilterProvider.getIfAvailable();
+        if (rateLimitFilter != null) {
+            http.addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class);
+        }
 
         return http.build();
     }

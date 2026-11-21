@@ -7,6 +7,8 @@ import com.parrotalk.backend.dto.writing.WritingDraftUpdateRequestDto;
 import com.parrotalk.backend.dto.writing.WritingSessionResponseDto;
 import com.parrotalk.backend.dto.writing.WritingSessionSummaryDto;
 import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.ratelimit.RateLimit;
+import com.parrotalk.backend.ratelimit.RateLimitTier;
 import com.parrotalk.backend.service.TtsPrewarmService;
 import com.parrotalk.backend.service.WritingAssistantService;
 import com.parrotalk.backend.service.WritingTtsService;
@@ -81,6 +83,7 @@ public class WritingAssistantController {
     }
 
     @PostMapping("/analyze")
+    @RateLimit(tier = RateLimitTier.AI_HEAVY)
     public ResponseEntity<ApiResponse<WritingSessionResponseDto>> analyze(
             @Valid @RequestBody WritingAnalyzeRequestDto request) {
         User user = getCurrentUser();
@@ -144,6 +147,7 @@ public class WritingAssistantController {
      * {@code ETag}/{@code If-None-Match} (304) and HTTP {@code Range} partial content (206).
      */
     @GetMapping(value = "/tts", produces = "audio/mpeg")
+    @RateLimit(tier = RateLimitTier.AI_LIGHT)
     public ResponseEntity<Resource> synthesizeTts(
             @RequestParam("text") String text,
             @RequestParam(value = "accent", defaultValue = "US") String accent,

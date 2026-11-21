@@ -24,11 +24,80 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: handle 401 and refresh
+export const RATE_LIMIT_EVENT = "parrotalk:rate-limit";
+
+export interface RateLimitEventDetail {
+  retryAfterSeconds: number;
+  message: string;
+}
+
+function parseRetryAfterSeconds(headers: Record<string, unknown> | undefined): number {
+  if (!headers) {
+    return 60;
+  }
+
+  const rawRetryAfter = headers["retry-after"] ?? headers["Retry-After"];
+  if (rawRetryAfter !== undefined && rawRetryAfter !== null) {
+    const parsed = Number.parseInt(String(rawRetryAfter), 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  const rawReset = headers["x-ratelimit-reset"] ?? headers["X-RateLimit-Reset"];
+  if (rawReset !== undefined && rawReset !== null) {
+    const resetEpoch = Number.parseInt(String(rawReset), 10);
+    if (Number.isFinite(resetEpoch)) {
+      const diff = resetEpoch - Math.floor(Date.now() / 1000);
+      if (diff > 0) {
+        return diff;
+      }
+    }
+  }
+
+  return 60;
+}
+
+const DEFAULT_RATE_LIMIT_MESSAGE =
+  "Bạn đang gửi yêu cầu quá nhanh. Vui lòng chờ một lát rồi thử lại.";
+
+function dispatchRateLimitEvent(response: {
+  headers?: unknown;
+  data?: { message?: unknown };
+}): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const retryAfterSeconds = parseRetryAfterSeconds(
+    response.headers as Record<string, unknown> | undefined
+  );
+  const rawMessage =
+    typeof response.data?.message === "string"
+      ? response.data.message.trim()
+      : "";
+  const message =
+    rawMessage.length > 0 &&
+    rawMessage !== "Too many requests. Please try again later."
+      ? rawMessage
+      : DEFAULT_RATE_LIMIT_MESSAGE;
+
+  window.dispatchEvent(
+    new CustomEvent<RateLimitEventDetail>(RATE_LIMIT_EVENT, {
+      detail: { retryAfterSeconds, message },
+    })
+  );
+}
+
+// Response interceptor: handle 401 refresh and 429 rate limiting
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    if (error.response?.status === 429) {
+      dispatchRateLimitEvent(error.response);
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -45,7 +114,12 @@ axiosInstance.interceptors.response.use(
           axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
           
           return axiosInstance(originalRequest);
-        } catch {
+        } catch (refreshError) {
+          if (axios.isAxiosError(refreshError) && refreshError.response?.status === 429) {
+            dispatchRateLimitEvent(refreshError.response);
+            return Promise.reject(refreshError);
+          }
+
           // Refresh failed, logout user
           if (typeof window !== "undefined") {
             localStorage.removeItem("token");

@@ -12,6 +12,8 @@ import com.parrotalk.backend.dto.vocablist.VocabularyListDetailDto;
 import com.parrotalk.backend.dto.vocablist.VocabularyListItemDto;
 import com.parrotalk.backend.dto.vocablist.VocabularyListSummaryDto;
 import com.parrotalk.backend.entity.User;
+import com.parrotalk.backend.ratelimit.RateLimit;
+import com.parrotalk.backend.ratelimit.RateLimitTier;
 import com.parrotalk.backend.service.CustomVocabularyListService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -135,6 +137,7 @@ public class CustomVocabularyListController {
     }
 
     @PostMapping("/{listId}/finalize")
+    @RateLimit(tier = RateLimitTier.AI_HEAVY)
     public ResponseEntity<ApiResponse<Map<String, Object>>> finalizeList(
             @AuthenticationPrincipal User user,
             @PathVariable UUID listId) {
@@ -144,6 +147,7 @@ public class CustomVocabularyListController {
     }
 
     @PostMapping("/{listId}/generate-more-questions")
+    @RateLimit(tier = RateLimitTier.AI_HEAVY)
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateMoreQuestions(
             @AuthenticationPrincipal User user,
             @PathVariable UUID listId,
@@ -154,6 +158,7 @@ public class CustomVocabularyListController {
     }
 
     @PostMapping("/{listId}/generate-more")
+    @RateLimit(tier = RateLimitTier.AI_HEAVY)
     public ResponseEntity<ApiResponse<Integer>> generateMoreAlias(
             @AuthenticationPrincipal User user,
             @PathVariable UUID listId,

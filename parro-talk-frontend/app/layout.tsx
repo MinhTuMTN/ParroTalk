@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { AuthProvider } from "@/features/auth/hooks/useAuth";
 import { ThemeSync } from "@/features/settings/components/ThemeSync";
+import { RateLimitToast } from "@/components/common/RateLimitToast";
 
 import { THEME_COLOR } from "@/lib/constants/colors";
 
@@ -51,6 +52,7 @@ export default function RootLayout({
       <body className="font-sans min-h-screen bg-[#F8FAF9] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <AuthProvider>
           <ThemeSync />
+          <RateLimitToast />
           {children}
         </AuthProvider>
       </body>

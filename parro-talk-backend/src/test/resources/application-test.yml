@@ -37,3 +37,7 @@ app:
   tts:
     prewarm:
       enabled: false
+
+application:
+  rate-limit:
+    enabled: false

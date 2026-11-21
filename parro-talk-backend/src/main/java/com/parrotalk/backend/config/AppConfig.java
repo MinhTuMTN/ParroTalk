@@ -1,9 +1,13 @@
 package com.parrotalk.backend.config;
 
+import com.parrotalk.backend.ratelimit.RateLimitHttpSupport;
+import com.parrotalk.backend.ratelimit.RateLimitInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -16,6 +20,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.concurrent.Executor;
@@ -36,6 +41,9 @@ public class AppConfig implements WebMvcConfigurer {
     /** Frontend properties to configure CORS mappings. */
     private final FrontendProperties frontendProperties;
 
+    /** Endpoint-level rate limit interceptor. */
+    private final ObjectProvider<RateLimitInterceptor> rateLimitInterceptorProvider;
+
     /**
      * Configures Cross-Origin Resource Sharing (CORS) mappings to allow
      * cross-origin requests from specified origins.
@@ -51,8 +59,21 @@ public class AppConfig implements WebMvcConfigurer {
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
+                .exposedHeaders(
+                        HttpHeaders.RETRY_AFTER,
+                        RateLimitHttpSupport.HEADER_RATE_LIMIT,
+                        RateLimitHttpSupport.HEADER_RATE_LIMIT_REMAINING,
+                        RateLimitHttpSupport.HEADER_RATE_LIMIT_RESET)
                 .allowCredentials(true)
                 .maxAge(3600);
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        RateLimitInterceptor interceptor = rateLimitInterceptorProvider.getIfAvailable();
+        if (interceptor != null) {
+            registry.addInterceptor(interceptor).addPathPatterns("/api/**");
+        }
     }
 
     @Bean
