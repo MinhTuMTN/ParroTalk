@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle, XCircle, Award, ArrowRight, RotateCcw } from "lucide-react";
+import { CheckCircle, XCircle, Award, ArrowRight, RotateCcw, Sparkles } from "lucide-react";
 
 import { useEffect, useState } from "react";
 
@@ -62,6 +62,15 @@ export default function ResultPage() {
         </div>
 
         <div className="flex flex-col gap-3 w-full">
+          {lessonId && (
+            <Link
+              href={`/practice/${lessonId}?mode=quiz`}
+              className="w-full py-4 rounded-xl bg-emerald-500 text-white font-black shadow-lg shadow-emerald-200 hover:bg-emerald-600 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
+            >
+              <Sparkles size={18} />
+              Làm Quiz Hiểu Bài Nghe
+            </Link>
+          )}
           {lessonId && !isPassed && (
             <Link href={`/practice/${lessonId}`} className="w-full py-4 rounded-xl bg-orange-100 text-orange-600 font-bold hover:bg-orange-200 transition-colors flex items-center justify-center gap-2">
               <RotateCcw size={18} />

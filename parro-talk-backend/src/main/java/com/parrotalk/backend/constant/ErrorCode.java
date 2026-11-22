@@ -30,6 +30,14 @@ public enum ErrorCode {
     LESSON_TRANSCRIPT_EMPTY(2003, "Lesson transcript is empty or not available.", HttpStatus.BAD_REQUEST),
     ACTIVE_CATEGORIES_NOT_FOUND(2004, "No active allowed categories available for classification.", HttpStatus.BAD_REQUEST),
 
+    // Lesson Comprehension Quiz
+    QUIZ_GENERATION_COOLDOWN(2101, "Please wait before regenerating the quiz.", HttpStatus.TOO_MANY_REQUESTS),
+    QUIZ_NOT_FOUND(2102, "Quiz or attempt not found.", HttpStatus.NOT_FOUND),
+    QUIZ_ALREADY_COMPLETED(2103, "This quiz attempt has already been completed.", HttpStatus.BAD_REQUEST),
+    QUIZ_QUESTION_ALREADY_ANSWERED(2104, "This question has already been answered.", HttpStatus.BAD_REQUEST),
+    QUIZ_INCOMPLETE(2105, "Please answer all questions before completing the quiz.", HttpStatus.BAD_REQUEST),
+    QUIZ_TRANSCRIPT_NOT_READY(2106, "Lesson transcript is not ready for quiz generation.", HttpStatus.BAD_REQUEST),
+
     INTERNAL_SERVER_ERROR(1500, "Internal server error.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int code;

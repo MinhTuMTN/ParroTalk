@@ -6,10 +6,11 @@ import VocabularyDetailPopup from "@/components/vocabulary/VocabularyDetailPopup
 import TranslationReview from "@/features/practice/components/TranslationReview";
 import VideoPlayer from "@/features/practice/components/VideoPlayer";
 import WordDictation from "@/features/practice/components/WordDictation";
+import LessonQuizWorkspace from "@/features/practice/components/quiz/LessonQuizWorkspace";
 import ConfirmationModal from "@/components/ui/ConfirmationModal";
 import FloatingToast from "@/components/ui/FloatingToast";
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, SkipForward } from "lucide-react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Sentence, lessonService } from "@/features/lesson/services/lessonService";
@@ -25,7 +26,17 @@ interface SegmentStat {
 export default function PracticePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const lessonId = params?.lessonId as string;
+
+  const [practiceMode, setPracticeMode] = useState<"dictation" | "quiz">(() =>
+    searchParams?.get("mode") === "quiz" ? "quiz" : "dictation",
+  );
+  const [quizEvidenceSegment, setQuizEvidenceSegment] = useState<{
+    start: number;
+    end: number;
+    text: string;
+  } | null>(null);
 
   const [segments, setSegments] = useState<Sentence[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -395,6 +406,37 @@ export default function PracticePage() {
     }
   }, [saveProgressToDb, uncompletedCount]);
 
+  const handlePracticeModeChange = useCallback(
+    (nextMode: "dictation" | "quiz") => {
+      setPracticeMode(nextMode);
+      setIsPlaying(false);
+      if (nextMode === "quiz") {
+        setQuizEvidenceSegment(null);
+      }
+    },
+    [],
+  );
+
+  const handlePlayQuizEvidence = useCallback(
+    (startTime: number, endTime: number, text: string) => {
+      const safeStart = Math.max(0, startTime);
+      const safeEnd = Math.max(safeStart + 0.5, endTime);
+      setQuizEvidenceSegment({
+        start: safeStart,
+        end: safeEnd,
+        text,
+      });
+      setIsPlaying(true);
+    },
+    [],
+  );
+
+  const handlePlayQuizFullAudio = useCallback(() => {
+    setQuizEvidenceSegment(null);
+    setIsPlaying(true);
+    setReplayTrigger((prev) => prev + 1);
+  }, []);
+
   if (loading || isSubmitting) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center font-bold text-gray-500 gap-4 animate-pulse">
@@ -403,6 +445,12 @@ export default function PracticePage() {
       </div>
     );
   }
+
+  const hasSegments = segments.length > 0;
+  const playerActiveSegment =
+    practiceMode === "quiz"
+      ? (quizEvidenceSegment ?? undefined)
+      : (activeSegment ?? undefined);
 
   return (
     <div className="flex flex-col overflow-hidden h-[100dvh] overscroll-none">
@@ -413,37 +461,43 @@ export default function PracticePage() {
         onFinish={handleRequestSubmit}
         isAllCompleted={isAllCompleted}
         canSubmit={canSubmit}
+        practiceMode={practiceMode}
+        onPracticeModeChange={handlePracticeModeChange}
+        quizDisabled={!hasSegments}
       />
 
 
       <div className="flex-1 overflow-hidden relative flex flex-col min-h-0">
-        {/* Mobile Tabs */}
-        <div className="md:hidden flex border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-          <button
-            onClick={() => setActiveTab('practice')}
-            className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'practice' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30 dark:bg-emerald-950/30' : 'text-gray-400 dark:text-slate-400'}`}
-          >
-            Practice
-          </button>
-          <button
-            onClick={() => setActiveTab('transcript')}
-            className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'transcript' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30 dark:bg-emerald-950/30' : 'text-gray-400 dark:text-slate-400'}`}
-          >
-            Transcript
-          </button>
-        </div>
+        {/* Mobile Tabs (Dictation only) */}
+        {practiceMode === "dictation" && (
+          <div className="md:hidden flex border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
+            <button
+              onClick={() => setActiveTab('practice')}
+              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'practice' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30 dark:bg-emerald-950/30' : 'text-gray-400 dark:text-slate-400'}`}
+            >
+              Practice
+            </button>
+            <button
+              onClick={() => setActiveTab('transcript')}
+              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'transcript' ? 'text-green-500 border-b-2 border-green-500 bg-green-50/30 dark:bg-emerald-950/30' : 'text-gray-400 dark:text-slate-400'}`}
+            >
+              Transcript
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 p-4 sm:p-8 flex flex-col md:flex-row gap-6 lg:gap-8 items-stretch relative overflow-y-auto md:overflow-hidden min-h-0">
 
           {/* Left Column: Player and Controls */}
           <div className={`
             w-full md:w-[320px] lg:w-[360px] flex-shrink-0 transition-all duration-300 md:sticky md:top-0 h-fit
-            ${activeTab === 'practice' ? 'block' : 'hidden md:block'}
+            ${practiceMode === "quiz" || activeTab === 'practice' ? 'block' : 'hidden md:block'}
           `}>
             <VideoPlayer
               src={fileUrl}
-              activeSegment={activeSegment}
-              onReplay={() => incrementMetric('replayCount')}
+              activeSegment={playerActiveSegment}
+              freePlayMode={practiceMode === "quiz"}
+              onReplay={practiceMode === "dictation" ? () => incrementMetric('replayCount') : undefined}
               isPlaying={isPlaying}
               setIsPlaying={setIsPlaying}
               replayTrigger={replayTrigger}
@@ -455,30 +509,42 @@ export default function PracticePage() {
             />
           </div>
 
-          {/* Right Column: Transcript */}
-          <div className={`
-            flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar md:pr-4 pb-20 sm:pb-32 w-full
-            ${activeTab === 'transcript' ? 'block' : 'hidden md:block'}
-          `}>
+          {/* Right Column: Transcript (Dictation) OR Quiz Workspace (Quiz) */}
+          {practiceMode === "quiz" ? (
+            <div className="flex-1 min-w-0 h-full md:overflow-y-auto custom-scrollbar md:pr-4 pb-16 w-full">
+              <LessonQuizWorkspace
+                lessonId={lessonId}
+                hasSegments={hasSegments}
+                onPlayEvidence={handlePlayQuizEvidence}
+                onPlayFullAudio={handlePlayQuizFullAudio}
+                onBackToDictation={() => handlePracticeModeChange("dictation")}
+              />
+            </div>
+          ) : (
+            <div className={`
+              flex-1 min-w-0 h-full overflow-y-auto custom-scrollbar md:pr-4 pb-20 sm:pb-32 w-full
+              ${activeTab === 'transcript' ? 'block' : 'hidden md:block'}
+            `}>
 
-            <TranscriptList
-              segments={segments}
-              activeIndex={activeIndex}
-              completedIndices={completedIndices}
-              skippedIndices={skippedIndices}
-              inputs={inputs}
-              onSelectSentence={(idx) => {
-                handleSelectSentence(idx);
-                if (activeTab === 'transcript') setActiveTab('practice');
-              }}
-              onWordClick={setSelectedWord}
-            />
-          </div>
+              <TranscriptList
+                segments={segments}
+                activeIndex={activeIndex}
+                completedIndices={completedIndices}
+                skippedIndices={skippedIndices}
+                inputs={inputs}
+                onSelectSentence={(idx) => {
+                  handleSelectSentence(idx);
+                  if (activeTab === 'transcript') setActiveTab('practice');
+                }}
+                onWordClick={setSelectedWord}
+              />
+            </div>
+          )}
         </div>
       </div>
 
 
-      {activeSegment ? (
+      {practiceMode === "dictation" && activeSegment ? (
         awaitingAdvance ? (
           <TranslationReview
             key={activeIndex}
