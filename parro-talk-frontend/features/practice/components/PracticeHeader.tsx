@@ -19,9 +19,22 @@ interface PracticeHeaderProps {
   onFinish?: () => void;
   isAllCompleted?: boolean;
   canSubmit?: boolean;
+  practiceMode?: "dictation" | "quiz";
+  onPracticeModeChange?: (mode: "dictation" | "quiz") => void;
+  quizDisabled?: boolean;
 }
 
-export default function PracticeHeader({ currentSentence, totalSentences, percent, onFinish, isAllCompleted, canSubmit }: PracticeHeaderProps) {
+export default function PracticeHeader({
+  currentSentence,
+  totalSentences,
+  percent,
+  onFinish,
+  isAllCompleted,
+  canSubmit,
+  practiceMode,
+  onPracticeModeChange,
+  quizDisabled = false,
+}: PracticeHeaderProps) {
   const { user } = useAuth();
   const { openMobileMenu } = useUI();
   const { settings, updateSettings } = useUserSettings();
@@ -32,6 +45,7 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
   const avatarSrc = user?.avatarUrl?.trim() || "";
   const showAvatarImage = Boolean(avatarSrc) && failedAvatarUrl !== avatarSrc;
   const isEn = settings.uiLanguage === "en";
+  const hasModeSwitcher = Boolean(practiceMode && onPracticeModeChange);
 
   useEffect(() => {
     if (!isQuickSettingsOpen) {
@@ -62,8 +76,8 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
   }, [isQuickSettingsOpen]);
 
   return (
-    <header className="h-16 bg-white/90 dark:bg-slate-900/95 border-b border-gray-100 dark:border-slate-800 px-4 md:px-6 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
-      <div className="flex items-center gap-4">
+    <header className="h-16 bg-white/90 dark:bg-slate-900/95 border-b border-gray-100 dark:border-slate-800 px-4 md:px-6 flex items-center justify-between gap-2 sticky top-0 z-50 backdrop-blur-md">
+      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
         <button
           onClick={openMobileMenu}
           className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl text-gray-400 dark:text-slate-400 transition-all active:scale-95"
@@ -77,26 +91,75 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
           </div>
           <span className="font-black text-sm text-gray-800 dark:text-slate-100 tracking-tight">ParroTalk</span>
         </Link>
+
+        {hasModeSwitcher && onPracticeModeChange && (
+          <div
+            role="tablist"
+            aria-label={isEn ? "Practice mode" : "Chế độ luyện tập"}
+            className="inline-flex items-center rounded-xl bg-gray-100 dark:bg-slate-800 p-1 border border-gray-200/80 dark:border-slate-700"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={practiceMode === "dictation"}
+              onClick={() => onPracticeModeChange("dictation")}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer ${
+                practiceMode === "dictation"
+                  ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-300 shadow-xs"
+                  : "text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+              }`}
+            >
+              Dictation
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={practiceMode === "quiz"}
+              disabled={quizDisabled}
+              title={
+                quizDisabled
+                  ? "Bài nghe chưa có transcript để làm Quiz"
+                  : "Listening Comprehension Quiz"
+              }
+              onClick={() => onPracticeModeChange("quiz")}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg text-[11px] font-black transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                practiceMode === "quiz"
+                  ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-300 shadow-xs"
+                  : "text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
+              }`}
+            >
+              Quiz
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 max-w-md px-4 sm:px-10">
-        <div className="flex items-center justify-between mb-1.5 px-0.5">
-          <span className="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <span className="hidden xs:inline">{isEn ? "Lesson Progress" : "Tiến độ bài học"}</span>
-            <span className="text-gray-300 dark:text-slate-600">•</span>
-            <span className="text-gray-600 dark:text-slate-300">
-              {isEn ? `Sentence ${currentSentence}/${totalSentences}` : `Câu ${currentSentence}/${totalSentences}`}
-            </span>
+      {practiceMode === "quiz" ? (
+        <div className="flex-1 max-w-md px-2 sm:px-6 hidden md:flex items-center justify-center">
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 px-3 py-1 rounded-full">
+            {isEn ? "Listening Comprehension Quiz" : "Quiz Hiểu Bài Nghe"}
           </span>
-          <span className="text-[9px] font-black text-green-500 dark:text-emerald-300 uppercase tracking-widest bg-green-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">{percent}%</span>
         </div>
-        <div className="h-1.5 w-full bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
-          <div className="h-full bg-green-500 transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(34,197,94,0.4)]" style={{ width: `${percent}%` }} />
+      ) : (
+        <div className="flex-1 max-w-md px-4 sm:px-10">
+          <div className="flex items-center justify-between mb-1.5 px-0.5">
+            <span className="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
+              <span className="hidden xs:inline">{isEn ? "Lesson Progress" : "Tiến độ bài học"}</span>
+              <span className="text-gray-300 dark:text-slate-600">•</span>
+              <span className="text-gray-600 dark:text-slate-300">
+                {isEn ? `Sentence ${currentSentence}/${totalSentences}` : `Câu ${currentSentence}/${totalSentences}`}
+              </span>
+            </span>
+            <span className="text-[9px] font-black text-green-500 dark:text-emerald-300 uppercase tracking-widest bg-green-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">{percent}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+            <div className="h-full bg-green-500 transition-all duration-1000 ease-out shadow-[0_0_8px_rgba(34,197,94,0.4)]" style={{ width: `${percent}%` }} />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex items-center gap-1 sm:gap-3">
-        {(canSubmit || isAllCompleted) && (
+        {practiceMode !== "quiz" && (canSubmit || isAllCompleted) && (
           <button
             type="button"
             aria-label="Submit lesson"

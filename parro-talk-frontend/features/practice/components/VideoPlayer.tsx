@@ -30,7 +30,8 @@ export default function VideoPlayer({
   setSpeed: setSpeedProp,
   lessonTitle,
   lessonDuration,
-  totalSegments
+  totalSegments,
+  freePlayMode = false,
 }: {
   src?: string,
   activeSegment?: Segment,
@@ -42,7 +43,8 @@ export default function VideoPlayer({
   setSpeed?: React.Dispatch<React.SetStateAction<number>>,
   lessonTitle?: string,
   lessonDuration?: number,
-  totalSegments?: number
+  totalSegments?: number,
+  freePlayMode?: boolean,
 }) {
   const [localIsPlaying, localSetIsPlaying] = useState(false);
   const isPlaying = isPlayingProp !== undefined ? isPlayingProp : localIsPlaying;
@@ -74,7 +76,8 @@ export default function VideoPlayer({
   const isYoutube = src?.includes('youtube.com') || src?.includes('youtu.be');
 
   const handleReplay = useCallback(() => {
-    if (activeSegment && playerRef.current) {
+    if (!playerRef.current) return;
+    if (activeSegment) {
       if (isYoutube) {
         (playerRef.current as ReactPlayer).seekTo(activeSegment.start, 'seconds');
         setIsPlaying(true);
@@ -85,8 +88,18 @@ export default function VideoPlayer({
         setIsPlaying(true);
       }
       if (onReplay) onReplay();
+    } else if (freePlayMode) {
+      if (isYoutube) {
+        (playerRef.current as ReactPlayer).seekTo(0, 'seconds');
+        setIsPlaying(true);
+      } else {
+        const video = playerRef.current as HTMLVideoElement;
+        video.currentTime = 0;
+        video.play().catch(e => console.log("Playback error", e));
+        setIsPlaying(true);
+      }
     }
-  }, [activeSegment, onReplay, isYoutube, setIsPlaying]);
+  }, [activeSegment, freePlayMode, onReplay, isYoutube, setIsPlaying]);
 
   useEffect(() => {
     const replayKey = settings.dictationReplayKey || "Escape";
@@ -148,38 +161,54 @@ export default function VideoPlayer({
     }
   }, [replayTrigger]);
 
-  // Handle loop clipping bounding
+  // Handle loop clipping bounding (or free full-audio progress when freePlayMode is active without activeSegment)
   useEffect(() => {
-    if (isYoutube || !activeSegment) return;
+    if (isYoutube) return;
+    if (!activeSegment && !freePlayMode) return;
     const v = playerRef.current as HTMLVideoElement;
     if (!v) return;
 
     const handleTimeUpdate = () => {
       const ct = v.currentTime;
-      const { start, end } = activeSegment;
+      if (activeSegment) {
+        const { start, end } = activeSegment;
 
-      if (ct >= end) {
-        v.currentTime = start;
-        if (isLooping) {
-          v.play().catch(e => console.log(e));
-          if (onReplay) onReplay();
-        } else {
-          v.pause();
-          setIsPlaying(false);
-          hasEndedRef.current = true;
+        if (ct >= end) {
+          if (freePlayMode) {
+            v.pause();
+            v.currentTime = start;
+            setIsPlaying(false);
+            hasEndedRef.current = true;
+          } else {
+            v.currentTime = start;
+            if (isLooping) {
+              v.play().catch(e => console.log(e));
+              if (onReplay) onReplay();
+            } else {
+              v.pause();
+              setIsPlaying(false);
+              hasEndedRef.current = true;
+            }
+          }
+        }
+
+        const span = Math.max(0.01, end - start);
+        const mappedProgress = Math.max(0, Math.min(100, ((ct - start) / span) * 100));
+        setProgressPercent(mappedProgress);
+      } else if (freePlayMode) {
+        const total = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : lessonDuration || 0;
+        if (total > 0) {
+          setProgressPercent(Math.max(0, Math.min(100, (ct / total) * 100)));
         }
       }
-
-      const mappedProgress = Math.max(0, Math.min(100, ((ct - start) / (end - start)) * 100));
-      setProgressPercent(mappedProgress);
       if (v.paused !== !isPlaying) setIsPlaying(!v.paused);
     };
 
     v.addEventListener('timeupdate', handleTimeUpdate);
     return () => v.removeEventListener('timeupdate', handleTimeUpdate);
-  }, [activeSegment, isLooping, isPlaying, isYoutube, onReplay, setIsPlaying]);
+  }, [activeSegment, freePlayMode, isLooping, isPlaying, isYoutube, lessonDuration, onReplay, setIsPlaying]);
 
-  // Handle active Segment change payload
+  // Handle active Segment change payload (and reset progress when entering freePlayMode without activeSegment)
   useEffect(() => {
     if (activeSegment && playerRef.current) {
       if (isYoutube) {
@@ -195,8 +224,16 @@ export default function VideoPlayer({
             setIsPlaying(false);
           });
       }
+      return;
     }
-  }, [activeSegment, isYoutube, setIsPlaying]);
+
+    if (freePlayMode && !activeSegment) {
+      const resetTimer = window.setTimeout(() => {
+        setProgressPercent(0);
+      }, 0);
+      return () => window.clearTimeout(resetTimer);
+    }
+  }, [activeSegment, freePlayMode, isYoutube, setIsPlaying]);
 
   useEffect(() => {
     if (!isYoutube && playerRef.current) {
@@ -242,13 +279,18 @@ export default function VideoPlayer({
   }, [setSpeed]);
 
 
-  const onYoutubeProgress = (state: { playedSeconds: number }) => {
-    if (isYoutube && activeSegment && playerRef.current) {
+  const onYoutubeProgress = (state: { playedSeconds: number; played?: number }) => {
+    if (!isYoutube || !playerRef.current) return;
+    if (activeSegment) {
       const { start, end } = activeSegment;
       const ct = state.playedSeconds;
 
       if (ct >= end) {
-        if (isLooping) {
+        if (freePlayMode) {
+          setIsPlaying(false);
+          (playerRef.current as ReactPlayer).seekTo(start, 'seconds');
+          hasEndedRef.current = true;
+        } else if (isLooping) {
           (playerRef.current as ReactPlayer).seekTo(start, 'seconds');
           if (onReplay) onReplay();
         } else {
@@ -258,24 +300,48 @@ export default function VideoPlayer({
         }
       }
 
-      const mappedProgress = Math.max(0, Math.min(100, ((ct - start) / (end - start)) * 100));
+      const span = Math.max(0.01, end - start);
+      const mappedProgress = Math.max(0, Math.min(100, ((ct - start) / span) * 100));
       setProgressPercent(mappedProgress);
+    } else if (freePlayMode) {
+      if (typeof state.played === "number") {
+        setProgressPercent(Math.max(0, Math.min(100, state.played * 100)));
+      } else if (lessonDuration && lessonDuration > 0) {
+        setProgressPercent(Math.max(0, Math.min(100, (state.playedSeconds / lessonDuration) * 100)));
+      }
     }
   };
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!activeSegment || !playerRef.current) return;
+    if (!playerRef.current) return;
+    if (!activeSegment && !freePlayMode) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const clickPercent = Math.max(0, Math.min(1, clickX / rect.width));
-    const seekTime = activeSegment.start + clickPercent * (activeSegment.end - activeSegment.start);
 
-    if (isYoutube) {
-      (playerRef.current as ReactPlayer).seekTo(seekTime, 'seconds');
-    } else {
-      (playerRef.current as HTMLVideoElement).currentTime = seekTime;
+    if (activeSegment) {
+      const seekTime = activeSegment.start + clickPercent * (activeSegment.end - activeSegment.start);
+      if (isYoutube) {
+        (playerRef.current as ReactPlayer).seekTo(seekTime, 'seconds');
+      } else {
+        (playerRef.current as HTMLVideoElement).currentTime = seekTime;
+      }
+      setProgressPercent(clickPercent * 100);
+      return;
     }
-    setProgressPercent(clickPercent * 100);
+
+    if (freePlayMode) {
+      if (isYoutube) {
+        (playerRef.current as ReactPlayer).seekTo(clickPercent, 'fraction');
+      } else {
+        const video = playerRef.current as HTMLVideoElement;
+        const total = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : lessonDuration || 0;
+        if (total > 0) {
+          video.currentTime = clickPercent * total;
+        }
+      }
+      setProgressPercent(clickPercent * 100);
+    }
   };
 
   return (
