@@ -2,7 +2,9 @@ package com.parrotalk.backend.entity;
 
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.parrotalk.backend.constant.Difficulty;
 
@@ -10,6 +12,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -65,8 +68,13 @@ public class TranscriptionSegment extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private Difficulty difficulty;
 
+    /** Precomputed fill-in-the-blanks slots serialized as JSON */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "blanks_json", columnDefinition = "jsonb")
+    private String blanksJson;
+
     /** Lesson */
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lesson_id", nullable = false)
     private Lesson lesson;
 }

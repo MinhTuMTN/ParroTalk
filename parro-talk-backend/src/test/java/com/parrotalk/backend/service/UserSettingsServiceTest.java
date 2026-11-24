@@ -59,6 +59,7 @@ class UserSettingsServiceTest {
         assertTrue(dto.getDictationShowTranslation());
         assertFalse(dto.getDictationAutoReplay());
         assertEquals("Escape", dto.getDictationReplayKey());
+        assertEquals("FULL", dto.getDefaultDictationMode());
         assertEquals("SUGGESTION", dto.getDefaultWritingMode());
         assertEquals("CEFR", dto.getDefaultDifficultyScale());
         assertEquals("B2", dto.getDefaultTargetLevel());
@@ -83,6 +84,7 @@ class UserSettingsServiceTest {
                 .preferredUsVoice("en-us-ariaNeural")
                 .preferredUkVoice("en-gb-ryanNeural")
                 .dictationReplayKey("control")
+                .defaultDictationMode("medium")
                 .defaultWritingMode("guidance")
                 .defaultDifficultyScale("ielts")
                 .defaultTargetLevel("6.5")
@@ -99,6 +101,7 @@ class UserSettingsServiceTest {
         assertEquals("en-US-AriaNeural", result.getPreferredUsVoice());
         assertEquals("en-GB-RyanNeural", result.getPreferredUkVoice());
         assertEquals("Control", result.getDictationReplayKey());
+        assertEquals("MEDIUM", result.getDefaultDictationMode());
         assertEquals("GUIDANCE", result.getDefaultWritingMode());
         assertEquals("IELTS", result.getDefaultDifficultyScale());
         assertEquals("6.5", result.getDefaultTargetLevel());
@@ -169,6 +172,7 @@ class UserSettingsServiceTest {
         assertValidationError(UpdateUserSettingsRequest.builder().translationLanguage("es").build());
         assertValidationError(UpdateUserSettingsRequest.builder().theme("solarized").build());
         assertValidationError(UpdateUserSettingsRequest.builder().dictationReplayKey("Space").build());
+        assertValidationError(UpdateUserSettingsRequest.builder().defaultDictationMode("EXTREME").build());
         assertValidationError(UpdateUserSettingsRequest.builder().defaultWritingMode("FREE").build());
         assertValidationError(UpdateUserSettingsRequest.builder().defaultDifficultyScale("TOEFL").build());
         assertValidationError(UpdateUserSettingsRequest.builder().defaultTargetLevel("6.5").build()); // current scale is CEFR

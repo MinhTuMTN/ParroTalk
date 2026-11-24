@@ -22,6 +22,7 @@ public class UserSettingsDto {
     private Boolean dictationShowTranslation;
     private Boolean dictationAutoReplay;
     private String dictationReplayKey;
+    private String defaultDictationMode;
     private String defaultWritingMode;
     private String defaultDifficultyScale;
     private String defaultTargetLevel;

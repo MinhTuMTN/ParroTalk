@@ -144,6 +144,11 @@ export default function WordDictation({ sentence, fullInput, onInputChange, onSe
           onKeyDown={handleKeyDown}
           placeholder="Type what you hear..."
           rows={1}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          enterKeyHint="done"
           className={`
             w-full bg-gray-50 dark:bg-slate-900 border-2 rounded-2xl 
             py-2 px-3 sm:py-3 sm:px-4 lg:py-3 lg:px-4

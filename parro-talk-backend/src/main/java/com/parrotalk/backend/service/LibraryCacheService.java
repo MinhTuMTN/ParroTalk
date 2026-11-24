@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,6 +116,16 @@ public class LibraryCacheService {
                 .map(section -> buildLibrarySectionDTO(section, itemsBySectionKey.get(getSectionKey(section))))
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    /**
+     * Evict cached user-specific processing sections (IN_PROGRESS).
+     *
+     * @param userId Authenticated user id
+     */
+    @CacheEvict(value = CacheNames.LIBRARY_SECTIONS_CACHE, key = "'user:' + #userId", condition = "#userId != null")
+    public void evictUserProcessingSections(UUID userId) {
+        log.debug("Evicting library sections cache for user {}", userId);
     }
 
     /**

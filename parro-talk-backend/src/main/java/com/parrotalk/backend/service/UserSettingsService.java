@@ -28,6 +28,7 @@ public class UserSettingsService {
     private static final List<String> ALLOWED_THEMES = List.of("light", "dark", "system");
     private static final List<String> ALLOWED_ACCENTS = List.of("US", "UK");
     private static final List<String> ALLOWED_REPLAY_KEYS = List.of("Escape", "Tab", "Control");
+    private static final List<String> ALLOWED_DICTATION_MODES = List.of("EASY", "MEDIUM", "HARD", "FULL");
     private static final List<String> ALLOWED_WRITING_MODES = List.of("SUGGESTION", "GUIDANCE");
     private static final List<String> ALLOWED_DIFFICULTY_SCALES = List.of("CEFR", "IELTS");
     private static final List<String> ALLOWED_CEFR_LEVELS = List.of("A1", "A2", "B1", "B2", "C1", "C2");
@@ -119,6 +120,10 @@ public class UserSettingsService {
             settings.setDictationReplayKey(normalizeAllowlistedValue(
                     request.getDictationReplayKey(), ALLOWED_REPLAY_KEYS, "dictationReplayKey"));
         }
+        if (request.getDefaultDictationMode() != null) {
+            settings.setDefaultDictationMode(normalizeAllowlistedValue(
+                    request.getDefaultDictationMode(), ALLOWED_DICTATION_MODES, "defaultDictationMode"));
+        }
         if (request.getDefaultWritingMode() != null) {
             settings.setDefaultWritingMode(normalizeAllowlistedValue(
                     request.getDefaultWritingMode(), ALLOWED_WRITING_MODES, "defaultWritingMode"));
@@ -199,6 +204,7 @@ public class UserSettingsService {
                 .dictationShowTranslation(entity.getDictationShowTranslation())
                 .dictationAutoReplay(entity.getDictationAutoReplay())
                 .dictationReplayKey(entity.getDictationReplayKey())
+                .defaultDictationMode(entity.getDefaultDictationMode())
                 .defaultWritingMode(entity.getDefaultWritingMode())
                 .defaultDifficultyScale(entity.getDefaultDifficultyScale())
                 .defaultTargetLevel(entity.getDefaultTargetLevel())

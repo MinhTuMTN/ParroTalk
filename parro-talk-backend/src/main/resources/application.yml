@@ -24,17 +24,18 @@ spring:
       data-source-properties:
         reWriteBatchedInserts: true
   flyway:
-    enabled: ${FLYWAY_ENABLED:true}
+    # enabled: ${FLYWAY_ENABLED:true}
+    enabled: false
     baseline-on-migrate: true
     baseline-version: "20260912.01"
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
-    show-sql: false
+    show-sql: true
     properties:
       hibernate:
-        format_sql: false
+        format_sql: true
         default_batch_fetch_size: 50
         order_inserts: true
         order_updates: true
@@ -192,5 +193,6 @@ logging:
     org.springframework: INFO
     org.springframework.security: INFO
     org.springframework.web.servlet.handler.HandlerMappingIntrospector: ERROR
-    # org.hibernate.SQL: DEBUG
-    # org.hibernate.orm.jdbc.bind: TRACE
+    com.parrotalk.backend.config.CacheConfig: OFF
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

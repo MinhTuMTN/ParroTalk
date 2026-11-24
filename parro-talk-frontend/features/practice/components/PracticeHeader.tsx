@@ -1,49 +1,78 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Settings, Menu, SlidersHorizontal, ArrowUpRight } from "lucide-react";
+import { Settings, Menu, SlidersHorizontal, ArrowUpRight, Keyboard } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import Switch from "@/components/ui/Switch";
 import { useUserSettings } from "@/features/settings/hooks/useUserSettings";
 import {
+  DICTATION_MODE_OPTIONS,
   PLAYBACK_SPEED_OPTIONS,
   REPLAY_KEY_OPTIONS,
 } from "@/features/settings/types";
 import { useUI } from "@/hooks/useUI";
+import type { DictationMode } from "@/features/lesson/services/lessonService";
+import PracticeModeSelector from "@/features/practice/components/PracticeModeSelector";
 
 interface PracticeHeaderProps {
   currentSentence: number;
   totalSentences: number;
   percent: number;
-  onFinish?: () => void;
-  isAllCompleted?: boolean;
-  canSubmit?: boolean;
+  mode?: DictationMode;
+  onModeChange?: (mode: DictationMode) => void;
+  modeDisabled?: boolean;
 }
 
-export default function PracticeHeader({ currentSentence, totalSentences, percent, onFinish, isAllCompleted, canSubmit }: PracticeHeaderProps) {
+export default function PracticeHeader({
+  currentSentence,
+  totalSentences,
+  percent,
+  mode,
+  onModeChange,
+  modeDisabled,
+}: PracticeHeaderProps) {
   const { user } = useAuth();
   const { openMobileMenu } = useUI();
   const { settings, updateSettings } = useUserSettings();
   const [isQuickSettingsOpen, setIsQuickSettingsOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const shortcutsRef = useRef<HTMLDivElement>(null);
 
   const avatarSrc = user?.avatarUrl?.trim() || "";
   const showAvatarImage = Boolean(avatarSrc) && failedAvatarUrl !== avatarSrc;
   const isEn = settings.uiLanguage === "en";
+  const replayKeyLabel =
+    REPLAY_KEY_OPTIONS.find((k) => k.value === settings.dictationReplayKey)
+      ?.shortLabel ?? "Esc";
 
   useEffect(() => {
-    if (!isQuickSettingsOpen) {
+    if (!isQuickSettingsOpen && !isShortcutsOpen) {
       return;
     }
-    const handleOutsideClick = (event: MouseEvent) => {
+    const closeOutsideContainers = (target: Node | null) => {
       if (
+        isQuickSettingsOpen &&
         popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node)
+        (!target || !popoverRef.current.contains(target))
       ) {
         setIsQuickSettingsOpen(false);
       }
+      if (
+        isShortcutsOpen &&
+        shortcutsRef.current &&
+        (!target || !shortcutsRef.current.contains(target))
+      ) {
+        setIsShortcutsOpen(false);
+      }
+    };
+    const handleOutsideClick = (event: MouseEvent) => {
+      closeOutsideContainers(event.target as Node | null);
+    };
+    const handleFocusIn = (event: FocusEvent) => {
+      closeOutsideContainers(event.target as Node | null);
     };
     const handleEscapeCapture = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -51,15 +80,18 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
         event.stopPropagation();
         event.stopImmediatePropagation();
         setIsQuickSettingsOpen(false);
+        setIsShortcutsOpen(false);
       }
     };
     document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("focusin", handleFocusIn);
     window.addEventListener("keydown", handleEscapeCapture, true);
     return () => {
       document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("focusin", handleFocusIn);
       window.removeEventListener("keydown", handleEscapeCapture, true);
     };
-  }, [isQuickSettingsOpen]);
+  }, [isQuickSettingsOpen, isShortcutsOpen]);
 
   return (
     <header className="h-16 bg-white/90 dark:bg-slate-900/95 border-b border-gray-100 dark:border-slate-800 px-4 md:px-6 flex items-center justify-between sticky top-0 z-50 backdrop-blur-md">
@@ -77,6 +109,16 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
           </div>
           <span className="font-black text-sm text-gray-800 dark:text-slate-100 tracking-tight">ParroTalk</span>
         </Link>
+
+        {mode && onModeChange && (
+          <div className="hidden md:block">
+            <PracticeModeSelector
+              mode={mode}
+              onChange={onModeChange}
+              disabled={modeDisabled}
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 max-w-md px-4 sm:px-10">
@@ -96,16 +138,115 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
       </div>
 
       <div className="flex items-center gap-1 sm:gap-3">
-        {(canSubmit || isAllCompleted) && (
+        <div
+          className="relative hidden sm:block"
+          ref={shortcutsRef}
+          data-shortcuts-open={isShortcutsOpen ? "true" : undefined}
+        >
           <button
             type="button"
-            aria-label="Submit lesson"
-            onClick={onFinish}
-            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-green-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-lg shadow-green-100 dark:shadow-none animate-bounce-subtle active:scale-95 cursor-pointer"
+            aria-label={isEn ? "Keyboard shortcuts" : "Phím tắt"}
+            aria-expanded={isShortcutsOpen}
+            aria-controls="practice-shortcuts-popover"
+            onClick={() => {
+              setIsQuickSettingsOpen(false);
+              setIsShortcutsOpen((prev) => !prev);
+            }}
+            className={`hidden sm:inline-flex p-2 rounded-xl transition-all cursor-pointer ${
+              isShortcutsOpen
+                ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300"
+                : "text-gray-400 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-100 hover:bg-gray-50 dark:hover:bg-slate-800"
+            }`}
           >
-            {isEn ? "Submit" : "Nộp bài"}
+            <Keyboard size={18} aria-hidden="true" />
           </button>
-        )}
+
+          {isShortcutsOpen && (
+            <div
+              id="practice-shortcuts-popover"
+              role="region"
+              aria-label={isEn ? "Keyboard shortcuts" : "Phím tắt"}
+              className="absolute right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700 shadow-2xl p-4 z-50 space-y-3 text-slate-900 dark:text-slate-100"
+            >
+              <div className="flex items-center gap-2 border-b border-gray-100 dark:border-slate-800 pb-2.5 text-xs font-extrabold text-gray-800 dark:text-slate-100">
+                <Keyboard size={14} className="text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                <span>{isEn ? "Keyboard Shortcuts" : "Phím tắt luyện tập"}</span>
+              </div>
+
+              <div className="space-y-2.5 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-gray-700 dark:text-slate-200">
+                    {isEn ? "Replay audio" : "Phát lại âm thanh"}
+                  </span>
+                  <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-[11px] font-mono font-bold text-gray-700 dark:text-slate-200">
+                    {replayKeyLabel}
+                  </kbd>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-gray-700 dark:text-slate-200">
+                    {isEn ? "Continue / Submit after sentence" : "Tiếp tục / Nộp câu"}
+                  </span>
+                  <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-[11px] font-mono font-bold text-gray-700 dark:text-slate-200">
+                    Enter
+                  </kbd>
+                </div>
+
+                {mode && mode !== "FULL" && (
+                  <div className="space-y-2.5 pt-2 border-t border-gray-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-gray-700 dark:text-slate-200">
+                        {isEn ? "Next / Previous blank" : "Ô trống tiếp / trước"}
+                      </span>
+                      <span className="inline-flex items-center gap-1 shrink-0">
+                        <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-[11px] font-mono font-bold text-gray-700 dark:text-slate-200">
+                          Tab
+                        </kbd>
+                        <span className="text-gray-400 dark:text-slate-500">/</span>
+                        <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-[11px] font-mono font-bold text-gray-700 dark:text-slate-200">
+                          Shift + Tab
+                        </kbd>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-gray-700 dark:text-slate-200">
+                        {isEn ? "Check / Next blank" : "Kiểm tra / Ô tiếp theo"}
+                      </span>
+                      <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-[11px] font-mono font-bold text-gray-700 dark:text-slate-200">
+                        Enter
+                      </kbd>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-gray-700 dark:text-slate-200">
+                          {isEn ? "Reveal blank hint" : "Hiện gợi ý ô trống"}
+                        </span>
+                        <span className="text-[10px] text-gray-400 dark:text-slate-400">
+                          {isEn ? "macOS: ⌥ + H" : "macOS: ⌥ + H"}
+                        </span>
+                      </div>
+                      <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-[11px] font-mono font-bold text-gray-700 dark:text-slate-200 shrink-0">
+                        Alt + H
+                      </kbd>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-gray-700 dark:text-slate-200">
+                        {isEn ? "Previous blank (when empty)" : "Ô trước (khi trống)"}
+                      </span>
+                      <kbd className="px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-[11px] font-mono font-bold text-gray-700 dark:text-slate-200">
+                        Backspace
+                      </kbd>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div
           className="relative"
           ref={popoverRef}
@@ -115,7 +256,10 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
             type="button"
             aria-label={isEn ? "Quick settings" : "Cài đặt nhanh"}
             aria-expanded={isQuickSettingsOpen}
-            onClick={() => setIsQuickSettingsOpen((prev) => !prev)}
+            onClick={() => {
+              setIsShortcutsOpen(false);
+              setIsQuickSettingsOpen((prev) => !prev);
+            }}
             className={`flex p-2 rounded-xl transition-all cursor-pointer ${
               isQuickSettingsOpen
                 ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-300"
@@ -237,6 +381,35 @@ export default function PracticeHeader({ currentSentence, totalSentences, percen
                           }`}
                         >
                           {keyOpt.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1 border-t border-gray-100 dark:border-slate-800">
+                  <p className="font-semibold text-gray-700 dark:text-slate-200">
+                    {isEn ? "Default dictation mode" : "Chế độ chép chính tả mặc định"}
+                  </p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {DICTATION_MODE_OPTIONS.map((modeOpt) => {
+                      const active = settings.defaultDictationMode === modeOpt.value;
+                      return (
+                        <button
+                          key={modeOpt.value}
+                          type="button"
+                          onClick={() =>
+                            void updateSettings({
+                              defaultDictationMode: modeOpt.value,
+                            })
+                          }
+                          className={`rounded-lg px-2 py-1.5 text-[11px] font-bold border transition-all cursor-pointer ${
+                            active
+                              ? "border-emerald-500 bg-emerald-500 text-white"
+                              : "border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:border-emerald-300"
+                          }`}
+                        >
+                          {modeOpt.label}
                         </button>
                       );
                     })}

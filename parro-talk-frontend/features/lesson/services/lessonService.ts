@@ -31,6 +31,24 @@ export interface Lesson {
   translationSummary?: TranslationSummary;
 }
 
+export type DictationMode = "EASY" | "MEDIUM" | "HARD" | "FULL";
+
+export interface BlankSlot {
+  wordIndex: number;
+  acceptableAnswers?: string[];
+}
+
+export interface BlankAnswerItem {
+  wordIndex: number;
+  answer: string;
+}
+
+export interface BlankResultItem {
+  wordIndex: number;
+  correct: boolean;
+  expectedAnswer?: string | null;
+}
+
 export interface DraftSegmentResponse {
   segmentId: string;
   userAnswer: string;
@@ -38,12 +56,15 @@ export interface DraftSegmentResponse {
   score: number;
   replayCount: number;
   hintCount: number;
-  updatedAt: string;
+  updatedAt?: string;
+  blankResults?: BlankResultItem[];
+  accuracy?: number | null;
 }
 
 export interface LessonProgressResponse {
   userId: string;
   lessonId: string;
+  mode?: DictationMode;
   currentSegmentId: string;
   lastPositionSeconds: number;
   lastProgress: number;
@@ -58,6 +79,9 @@ export interface Sentence {
   text: string;
   difficulty?: "SHORT" | "MEDIUM" | "LONG";
   translation?: SegmentTranslation | null;
+  wordCount?: number;
+  suitableForBlanks?: boolean;
+  blanks?: Partial<Record<DictationMode, BlankSlot[]>>;
 }
 
 export interface SegmentResultRequest {
@@ -287,9 +311,12 @@ export const lessonService = {
     return response.data;
   },
 
-  async getLessonProgress(lessonId: string) {
+  async getLessonProgress(lessonId: string, mode?: DictationMode) {
     const response = await axiosInstance.get<LessonProgressResponse>(
       `/lessons/${lessonId}/progress`,
+      {
+        params: mode ? { mode } : undefined,
+      },
     );
     return response.data;
   },
@@ -299,6 +326,10 @@ export const lessonService = {
     segmentId: string | number,
     userAnswer: string,
     studySecondsDelta = 0,
+    options?: {
+      mode?: DictationMode;
+      blankAnswers?: BlankAnswerItem[];
+    },
   ) {
     const response = await axiosInstance.post<DraftSegmentResponse>(
       `/lessons/${lessonId}/answer`,
@@ -306,30 +337,56 @@ export const lessonService = {
         segmentId,
         userAnswer,
         studySecondsDelta,
+        ...(options?.mode ? { mode: options.mode } : {}),
+        ...(options?.blankAnswers ? { blankAnswers: options.blankAnswers } : {}),
       },
     );
     return response.data;
   },
 
-  async incrementReplay(lessonId: string, segmentId: string | number) {
+  async incrementReplay(
+    lessonId: string,
+    segmentId: string | number,
+    mode?: DictationMode,
+  ) {
     await axiosInstance.post(
       `/lessons/${lessonId}/segments/${segmentId}/replay`,
+      undefined,
+      {
+        params: mode ? { mode } : undefined,
+      },
     );
   },
 
-  async incrementHint(lessonId: string, segmentId: string | number) {
-    await axiosInstance.post(`/lessons/${lessonId}/segments/${segmentId}/hint`);
+  async incrementHint(
+    lessonId: string,
+    segmentId: string | number,
+    mode?: DictationMode,
+  ) {
+    await axiosInstance.post(
+      `/lessons/${lessonId}/segments/${segmentId}/hint`,
+      undefined,
+      {
+        params: mode ? { mode } : undefined,
+      },
+    );
   },
 
-  async finalLessonSubmit(lessonId: string) {
+  async finalLessonSubmit(lessonId: string, mode?: DictationMode) {
     const response = await axiosInstance.post<SubmitLessonResponse>(
       `/lessons/${lessonId}/submit-lesson`,
+      undefined,
+      {
+        params: mode ? { mode } : undefined,
+      },
     );
     return response.data;
   },
 
-  async resetProgress(lessonId: string) {
-    await axiosInstance.get(`/lessons/${lessonId}/progress/reset`);
+  async resetProgress(lessonId: string, mode?: DictationMode) {
+    await axiosInstance.get(`/lessons/${lessonId}/progress/reset`, {
+      params: mode ? { mode } : undefined,
+    });
   },
 
   async retryLesson(lessonId: string) {

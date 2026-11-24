@@ -6,6 +6,7 @@ import {
   DefaultDifficultyScale,
   DefaultFlashcardDirection,
   DefaultWritingMode,
+  DictationMode,
   DictationReplayKey,
   PreferredAccent,
   ThemePreference,
@@ -39,6 +40,12 @@ const UK_VOICES = new Set<UkVoiceOption>([
   "en-GB-LibbyNeural",
 ]);
 const REPLAY_KEYS = new Set<DictationReplayKey>(["Escape", "Tab", "Control"]);
+const DICTATION_MODES = new Set<DictationMode>([
+  "EASY",
+  "MEDIUM",
+  "HARD",
+  "FULL",
+]);
 const WRITING_MODES = new Set<DefaultWritingMode>(["SUGGESTION", "GUIDANCE"]);
 const DIFFICULTY_SCALES = new Set<DefaultDifficultyScale>(["CEFR", "IELTS"]);
 const CEFR_TARGET_LEVELS = new Set(["A1", "A2", "B1", "B2", "C1", "C2"]);
@@ -161,6 +168,10 @@ export function normalizeUserSettings(
       raw.dictationReplayKey && REPLAY_KEYS.has(raw.dictationReplayKey)
         ? raw.dictationReplayKey
         : DEFAULT_USER_SETTINGS.dictationReplayKey,
+    defaultDictationMode:
+      raw.defaultDictationMode && DICTATION_MODES.has(raw.defaultDictationMode)
+        ? raw.defaultDictationMode
+        : DEFAULT_USER_SETTINGS.defaultDictationMode,
     defaultWritingMode:
       raw.defaultWritingMode && WRITING_MODES.has(raw.defaultWritingMode)
         ? raw.defaultWritingMode
