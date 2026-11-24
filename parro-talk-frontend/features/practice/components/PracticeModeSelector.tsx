@@ -1,7 +1,8 @@
 "use client";
 
 import type { DictationMode } from "@/features/lesson/services/lessonService";
-import { Check, Sparkles } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export interface PracticeModeOption {
   value: DictationMode;
@@ -46,100 +47,160 @@ interface PracticeModeSelectorProps {
   mode: DictationMode;
   onChange: (mode: DictationMode) => void;
   disabled?: boolean;
-  compact?: boolean;
 }
 
 export default function PracticeModeSelector({
   mode,
   onChange,
   disabled = false,
-  compact = false,
 }: PracticeModeSelectorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const open = isOpen && !disabled;
+
   const activeOption =
     PRACTICE_MODE_OPTIONS.find((opt) => opt.value === mode) ??
     PRACTICE_MODE_OPTIONS[3];
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleEscapeCapture = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    window.addEventListener("keydown", handleEscapeCapture, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("keydown", handleEscapeCapture, true);
+    };
+  }, [open]);
+
   return (
     <div
-      className="w-full flex flex-col gap-2"
+      ref={containerRef}
+      className="relative inline-block"
       data-testid="practice-mode-selector"
     >
-      <div
-        role="radiogroup"
-        aria-label="Dictation difficulty mode"
-        className={`grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 ${
-          compact ? "" : "max-w-3xl"
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`Dictation mode: ${activeOption.label} (${activeOption.badge})`}
+        disabled={disabled}
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 min-h-[36px] [@media(pointer:coarse)]:min-h-[44px] text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+          open
+            ? "border-emerald-400 dark:border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/50 text-ink-900 dark:text-slate-100 shadow-xs"
+            : "border-ink-200/80 dark:border-slate-700 bg-white dark:bg-slate-800/90 text-ink-800 dark:text-slate-100 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-ink-50/70 dark:hover:bg-slate-800"
         }`}
       >
-        {PRACTICE_MODE_OPTIONS.map((option) => {
-          const isActive = option.value === mode;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              role="radio"
-              aria-checked={isActive}
-              disabled={disabled}
-              onClick={() => {
-                if (option.value !== mode) {
-                  onChange(option.value);
-                }
-              }}
-              className={`group relative flex flex-col items-start justify-between rounded-xl border px-3 py-2 text-left transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] ${
-                isActive
-                  ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40 text-brand-800 dark:text-brand-100 shadow-xs ring-1 ring-brand-500/30"
-                  : "border-ink-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-ink-700 dark:text-slate-200 hover:border-brand-300 dark:hover:border-brand-700 hover:bg-ink-50/70 dark:hover:bg-slate-800/70"
-              }`}
-            >
-              <div className="w-full flex items-center justify-between gap-1.5">
-                <span className="text-xs font-extrabold tracking-tight flex items-center gap-1">
-                  {isActive && (
-                    <Check
-                      size={13}
-                      className="text-brand-600 dark:text-brand-300 shrink-0"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span>{option.label}</span>
-                </span>
-                <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${
-                    isActive
-                      ? "bg-brand-500 text-white"
-                      : "bg-ink-100 dark:bg-slate-800 text-ink-500 dark:text-slate-400"
-                  }`}
-                >
-                  {option.badge}
-                </span>
-              </div>
-              <span
-                className={`mt-0.5 text-[11px] leading-snug line-clamp-2 ${
-                  isActive
-                    ? "text-brand-700 dark:text-brand-200 font-semibold"
-                    : "text-ink-500 dark:text-slate-400"
-                }`}
-              >
-                {option.description}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex items-center gap-1.5 text-[11px] text-ink-600 dark:text-slate-300 px-0.5">
-        <Sparkles
-          size={12}
-          className="text-brand-500 dark:text-brand-400 shrink-0"
+        <span
+          className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
           aria-hidden="true"
         />
-        <span>
-          Active mode:{" "}
-          <strong className="font-bold text-ink-900 dark:text-slate-100">
-            {activeOption.label}
-          </strong>{" "}
-          — {activeOption.description}
+        <span className="sm:hidden truncate">{activeOption.shortLabel}</span>
+        <span className="hidden sm:inline whitespace-nowrap">
+          {activeOption.label}
         </span>
-      </div>
+        <span
+          className="text-ink-300 dark:text-slate-600 font-normal"
+          aria-hidden="true"
+        >
+          ·
+        </span>
+        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 whitespace-nowrap">
+          {activeOption.badge}
+        </span>
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className={`text-ink-400 dark:text-slate-400 shrink-0 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-white dark:bg-slate-900 border border-ink-200/80 dark:border-slate-700 shadow-xl p-1.5 z-50">
+          <div
+            role="radiogroup"
+            aria-label="Dictation difficulty mode"
+            className="flex flex-col gap-1"
+          >
+            {PRACTICE_MODE_OPTIONS.map((option) => {
+              const isActive = option.value === mode;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={isActive}
+                  onClick={() => {
+                    if (option.value !== mode) {
+                      onChange(option.value);
+                    }
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-start gap-2.5 rounded-xl px-2.5 py-2 min-h-[44px] text-left transition-colors cursor-pointer ${
+                    isActive
+                      ? "bg-emerald-50/90 dark:bg-emerald-950/50 text-emerald-900 dark:text-emerald-100 ring-1 ring-emerald-500/30 dark:ring-emerald-400/30"
+                      : "text-ink-700 dark:text-slate-200 hover:bg-ink-100/70 dark:hover:bg-slate-800/80"
+                  }`}
+                >
+                  <span className="w-4 h-4 mt-0.5 flex items-center justify-center shrink-0">
+                    {isActive && (
+                      <Check
+                        size={14}
+                        className="text-emerald-600 dark:text-emerald-400"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold truncate">
+                        {option.label}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                          isActive
+                            ? "bg-emerald-100 dark:bg-emerald-900/70 text-emerald-700 dark:text-emerald-200"
+                            : "bg-ink-100 dark:bg-slate-800 text-ink-600 dark:text-slate-300"
+                        }`}
+                      >
+                        {option.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-ink-500 dark:text-slate-400 mt-0.5 leading-snug">
+                      {option.description}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

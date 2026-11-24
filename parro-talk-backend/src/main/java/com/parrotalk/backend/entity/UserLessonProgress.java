@@ -4,6 +4,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Persistable;
+
 import com.parrotalk.backend.constant.DictationMode;
 
 import jakarta.persistence.Column;
@@ -42,7 +44,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserLessonProgress extends BaseEntity {
+public class UserLessonProgress extends BaseEntity
+        implements Persistable<UserLessonProgress.UserLessonProgressId> {
 
     @EmbeddedId
     private UserLessonProgressId id;
@@ -69,6 +72,16 @@ public class UserLessonProgress extends BaseEntity {
     @Column(name = "total_segments_completed")
     @Builder.Default
     private Integer totalSegmentsCompleted = 0;
+
+    /**
+     * Indicate whether this entity has not yet been persisted.
+     *
+     * @return True if new, false if already persisted
+     */
+    @Override
+    public boolean isNew() {
+        return createdAt == null;
+    }
 
     @Embeddable
     @Getter

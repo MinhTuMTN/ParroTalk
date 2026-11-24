@@ -3,6 +3,8 @@ package com.parrotalk.backend.entity;
 import java.io.Serializable;
 import java.util.UUID;
 
+import org.springframework.data.domain.Persistable;
+
 import com.parrotalk.backend.constant.DictationMode;
 
 import jakarta.persistence.Column;
@@ -34,7 +36,8 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserLessonDraftSegment extends BaseEntity {
+public class UserLessonDraftSegment extends BaseEntity
+        implements Persistable<UserLessonDraftSegment.UserLessonDraftSegmentId> {
 
     @EmbeddedId
     private UserLessonDraftSegmentId id;
@@ -61,6 +64,16 @@ public class UserLessonDraftSegment extends BaseEntity {
             @JoinColumn(name = "dictation_mode", referencedColumnName = "dictation_mode", insertable = false, updatable = false)
     })
     private UserLessonProgress userLessonProgress;
+
+    /**
+     * Indicate whether this entity has not yet been persisted.
+     *
+     * @return True if new, false if already persisted
+     */
+    @Override
+    public boolean isNew() {
+        return createdAt == null;
+    }
 
     @Embeddable
     @Getter

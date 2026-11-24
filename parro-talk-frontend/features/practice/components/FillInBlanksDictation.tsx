@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, HelpCircle, AlertCircle, Send } from "lucide-react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import { tokenizeWithWordIndex } from "@/lib/tokenizer";
 import type {
   BlankAnswerItem,
   BlankResultItem,
   BlankSlot,
   DictationMode,
-  DraftSegmentResponse,
 } from "@/features/lesson/services/lessonService";
+import { validateSegmentBlanks } from "../utils/blankAnswerValidator";
 import WordDictation from "./WordDictation";
 
 export interface FillInBlanksDraftState {
@@ -17,6 +17,11 @@ export interface FillInBlanksDraftState {
   results: Record<number, BlankResultItem>;
   revealedWordIndices: number[];
   summaryFeedback?: string | null;
+}
+
+export interface SegmentBlankCompletePayload {
+  userAnswer: string;
+  blankAnswers: BlankAnswerItem[];
 }
 
 interface FillInBlanksDictationProps {
@@ -29,11 +34,7 @@ interface FillInBlanksDictationProps {
   fallbackInput?: string;
   onFallbackInputChange?: (val: string) => void;
   onDraftChange?: (next: FillInBlanksDraftState) => void;
-  onSubmitBlanks: (payload: {
-    blankAnswers: BlankAnswerItem[];
-    userAnswer: string;
-  }) => Promise<DraftSegmentResponse>;
-  onSegmentComplete: (response?: DraftSegmentResponse) => void;
+  onSegmentComplete: (payload?: SegmentBlankCompletePayload) => void;
   onHintUsed?: () => void;
 }
 
@@ -49,10 +50,10 @@ export default function FillInBlanksDictation({
   fallbackInput = "",
   onFallbackInputChange,
   onDraftChange,
-  onSubmitBlanks,
   onSegmentComplete,
   onHintUsed,
 }: FillInBlanksDictationProps) {
+  const errorRegionId = useId();
   const tokens = useMemo(() => tokenizeWithWordIndex(sentence), [sentence]);
 
   const sortedBlanks = useMemo(() => {
@@ -91,14 +92,12 @@ export default function FillInBlanksDictation({
   const [localRevealed, setLocalRevealed] = useState<Set<number>>(
     () => new Set(draftState?.revealedWordIndices ?? [])
   );
-  const [summaryFeedback, setSummaryFeedback] = useState<string | null>(
-    () => draftState?.summaryFeedback ?? null
-  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isChecking, setIsChecking] = useState(false);
-  const [focusedWordIndex, setFocusedWordIndex] = useState<number | null>(null);
 
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const hasCompletedRef = useRef(false);
+  const onSegmentCompleteRef = useRef(onSegmentComplete);
+  onSegmentCompleteRef.current = onSegmentComplete;
 
   const answers = draftState ? draftState.answers : localAnswers;
   const results = draftState ? draftState.results : localResults;
@@ -109,9 +108,6 @@ export default function FillInBlanksDictation({
         : localRevealed,
     [draftState, localRevealed]
   );
-  const currentSummary = draftState
-    ? draftState.summaryFeedback ?? null
-    : summaryFeedback;
 
   const syncState = useCallback(
     (
@@ -131,14 +127,15 @@ export default function FillInBlanksDictation({
         setLocalAnswers(nextAnswers);
         setLocalResults(nextResults);
         setLocalRevealed(nextRevealed);
-        setSummaryFeedback(nextSummary);
       }
     },
     [onDraftChange]
   );
 
-  // Focus first editable blank on mount or sentence/mode change
+  // Reset completion guard and focus first editable blank on mount or sentence/mode change
   useEffect(() => {
+    hasCompletedRef.current = false;
+    setErrorMessage(null);
     if (sortedBlanks.length === 0 || isCompleted) return;
     const firstEditable = sortedBlanks.find(
       (b) => !results[b.wordIndex]?.correct && !revealedSet.has(b.wordIndex)
@@ -149,7 +146,7 @@ export default function FillInBlanksDictation({
         el.focus();
       }
     }
-    // Only auto-focus when sentence/mode changes
+    // Only reset/auto-focus when sentence/mode changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sentence, mode]);
 
@@ -190,76 +187,101 @@ export default function FillInBlanksDictation({
     [blankWordIndexSet, tokens]
   );
 
-  const handleCheck = useCallback(async () => {
-    if (isChecking || isCompleted || sortedBlanks.length === 0) return;
+  const validation = useMemo(
+    () => validateSegmentBlanks(sortedBlanks, wordTextByIndex, answers),
+    [answers, sortedBlanks, wordTextByIndex]
+  );
 
-    const blankAnswers: BlankAnswerItem[] = sortedBlanks.map((slot) => ({
-      wordIndex: slot.wordIndex,
-      answer: (answers[slot.wordIndex] ?? "").trim(),
-    }));
-
-    setIsChecking(true);
-    setErrorMessage(null);
-
-    try {
-      const response = await onSubmitBlanks({
+  const completeSegment = useCallback(
+    (currentAnswers: Record<number, string>) => {
+      if (hasCompletedRef.current || isCompleted) return;
+      hasCompletedRef.current = true;
+      const blankAnswers: BlankAnswerItem[] = sortedBlanks.map((slot) => ({
+        wordIndex: slot.wordIndex,
+        answer: (currentAnswers[slot.wordIndex] ?? "").trim(),
+      }));
+      onSegmentCompleteRef.current({
+        userAnswer: buildReconstructedSentence(currentAnswers),
         blankAnswers,
-        userAnswer: buildReconstructedSentence(answers),
       });
+    },
+    [buildReconstructedSentence, isCompleted, sortedBlanks]
+  );
 
-      const nextResults: Record<number, BlankResultItem> = { ...results };
-      const nextAnswers = { ...answers };
+  // Auto-complete after 40ms green glow when all blanks validate client-side
+  useEffect(() => {
+    if (
+      !suitableForBlanks ||
+      sortedBlanks.length === 0 ||
+      !validation.allCorrect ||
+      isCompleted ||
+      hasCompletedRef.current
+    ) {
+      return;
+    }
 
-      if (Array.isArray(response.blankResults)) {
-        for (const item of response.blankResults) {
-          nextResults[item.wordIndex] = item;
-          if (item.correct && item.expectedAnswer) {
-            nextAnswers[item.wordIndex] = item.expectedAnswer;
-          }
-        }
-      } else if (response.correct) {
-        for (const slot of sortedBlanks) {
-          const expected = wordTextByIndex.get(slot.wordIndex) ?? "";
-          nextResults[slot.wordIndex] = {
-            wordIndex: slot.wordIndex,
-            correct: true,
-            expectedAnswer: expected,
-          };
-        }
-      }
+    const timer = window.setTimeout(() => {
+      completeSegment(answers);
+    }, 40);
 
-      const correctCount = sortedBlanks.filter(
-        (slot) => nextResults[slot.wordIndex]?.correct
-      ).length;
-      const totalCount = sortedBlanks.length;
-      const nextSummary = response.correct
-        ? `${totalCount} / ${totalCount} blanks correct`
-        : `${correctCount} / ${totalCount} blanks correct`;
+    return () => window.clearTimeout(timer);
+  }, [
+    answers,
+    completeSegment,
+    isCompleted,
+    sortedBlanks.length,
+    suitableForBlanks,
+    validation.allCorrect,
+  ]);
 
-      syncState(nextAnswers, nextResults, revealedSet, nextSummary);
+  const handleCommitLastBlank = useCallback(() => {
+    if (isCompleted || sortedBlanks.length === 0 || hasCompletedRef.current) return;
 
-      if (response.correct) {
-        onSegmentComplete(response);
+    const checkResult = validateSegmentBlanks(sortedBlanks, wordTextByIndex, answers);
+    if (checkResult.allCorrect) {
+      completeSegment(answers);
+      return;
+    }
+
+    const nextResults: Record<number, BlankResultItem> = { ...results };
+    let wrongCount = 0;
+
+    for (const slot of sortedBlanks) {
+      const slotCorrect = Boolean(checkResult.results[slot.wordIndex]);
+      if (slotCorrect) {
+        const expected = wordTextByIndex.get(slot.wordIndex) ?? "";
+        nextResults[slot.wordIndex] = {
+          wordIndex: slot.wordIndex,
+          correct: true,
+          expectedAnswer: expected,
+        };
       } else {
-        const firstWrong = sortedBlanks.find(
-          (slot) => !nextResults[slot.wordIndex]?.correct
-        );
-        if (firstWrong) {
-          inputRefs.current.get(firstWrong.wordIndex)?.focus();
-        }
+        wrongCount += 1;
+        nextResults[slot.wordIndex] = {
+          wordIndex: slot.wordIndex,
+          correct: false,
+          expectedAnswer: null,
+        };
       }
-    } catch {
-      setErrorMessage("Could not verify your answers. Please try again.");
-    } finally {
-      setIsChecking(false);
+    }
+
+    syncState(answers, nextResults, revealedSet, null);
+    setErrorMessage(
+      wrongCount === 1
+        ? "1 blank is incorrect. Please check and try again."
+        : `${wrongCount} blanks are incorrect. Please check and try again.`
+    );
+
+    const firstWrong = sortedBlanks.find(
+      (slot) => !checkResult.results[slot.wordIndex]
+    );
+    if (firstWrong) {
+      inputRefs.current.get(firstWrong.wordIndex)?.focus();
     }
   }, [
     answers,
-    buildReconstructedSentence,
-    isChecking,
+    completeSegment,
     isCompleted,
-    onSegmentComplete,
-    onSubmitBlanks,
     results,
     revealedSet,
     sortedBlanks,
@@ -267,93 +289,84 @@ export default function FillInBlanksDictation({
     wordTextByIndex,
   ]);
 
-  const handleHint = useCallback(() => {
-    if (isCompleted || sortedBlanks.length === 0) return;
+  const revealBlankHint = useCallback(
+    (wordIndex: number) => {
+      if (isCompleted || isBlankLocked(wordIndex) || hasCompletedRef.current) return;
 
-    // Prefer the currently focused blank if editable/unfilled; otherwise first unfilled/incorrect blank
-    let targetSlot: BlankSlot | undefined;
-    if (
-      focusedWordIndex !== null &&
-      blankWordIndexSet.has(focusedWordIndex) &&
-      !isBlankLocked(focusedWordIndex)
-    ) {
-      targetSlot = sortedBlanks.find((b) => b.wordIndex === focusedWordIndex);
-    }
-    if (!targetSlot) {
-      targetSlot =
+      const expectedWord = wordTextByIndex.get(wordIndex) ?? "";
+      const nextAnswers = { ...answers, [wordIndex]: expectedWord };
+      const nextResults: Record<number, BlankResultItem> = {
+        ...results,
+        [wordIndex]: {
+          wordIndex,
+          correct: true,
+          expectedAnswer: expectedWord,
+        },
+      };
+      const nextRevealed = new Set(revealedSet);
+      nextRevealed.add(wordIndex);
+
+      setErrorMessage(null);
+      syncState(nextAnswers, nextResults, nextRevealed, null);
+      onHintUsed?.();
+
+      const idx = sortedBlanks.findIndex((b) => b.wordIndex === wordIndex);
+      const nextEditable =
+        sortedBlanks
+          .slice(idx + 1)
+          .find(
+            (b) =>
+              !nextResults[b.wordIndex]?.correct &&
+              !nextRevealed.has(b.wordIndex)
+          ) ??
         sortedBlanks.find(
           (b) =>
-            !isBlankLocked(b.wordIndex) && !(answers[b.wordIndex] ?? "").trim()
-        ) ?? sortedBlanks.find((b) => !isBlankLocked(b.wordIndex));
-    }
+            b.wordIndex !== wordIndex &&
+            !nextResults[b.wordIndex]?.correct &&
+            !nextRevealed.has(b.wordIndex)
+        );
 
-    if (!targetSlot) return;
-
-    const expectedWord = wordTextByIndex.get(targetSlot.wordIndex) ?? "";
-    const nextAnswers = { ...answers, [targetSlot.wordIndex]: expectedWord };
-    const nextResults: Record<number, BlankResultItem> = {
-      ...results,
-      [targetSlot.wordIndex]: {
-        wordIndex: targetSlot.wordIndex,
-        correct: true,
-        expectedAnswer: expectedWord,
-      },
-    };
-    const nextRevealed = new Set(revealedSet);
-    nextRevealed.add(targetSlot.wordIndex);
-
-    const correctCount = sortedBlanks.filter(
-      (slot) => nextResults[slot.wordIndex]?.correct
-    ).length;
-    const nextSummary = `${correctCount} / ${sortedBlanks.length} blanks correct`;
-
-    syncState(nextAnswers, nextResults, nextRevealed, nextSummary);
-    onHintUsed?.();
-
-    const nextEditable = sortedBlanks.find(
-      (b) =>
-        b.wordIndex !== targetSlot!.wordIndex &&
-        !nextResults[b.wordIndex]?.correct &&
-        !nextRevealed.has(b.wordIndex)
-    );
-    if (nextEditable) {
-      inputRefs.current.get(nextEditable.wordIndex)?.focus();
-    }
-  }, [
-    answers,
-    blankWordIndexSet,
-    focusedWordIndex,
-    isBlankLocked,
-    isCompleted,
-    onHintUsed,
-    results,
-    revealedSet,
-    sortedBlanks,
-    syncState,
-    wordTextByIndex,
-  ]);
+      if (nextEditable) {
+        inputRefs.current.get(nextEditable.wordIndex)?.focus();
+      }
+    },
+    [
+      answers,
+      isBlankLocked,
+      isCompleted,
+      onHintUsed,
+      results,
+      revealedSet,
+      sortedBlanks,
+      syncState,
+      wordTextByIndex,
+    ]
+  );
 
   const handleKeyDown = useCallback(
     (wordIndex: number, e: React.KeyboardEvent<HTMLInputElement>) => {
       const idx = sortedBlanks.findIndex((b) => b.wordIndex === wordIndex);
       if (idx === -1) return;
 
+      if (e.altKey && (e.key === "h" || e.key === "H" || e.code === "KeyH")) {
+        e.preventDefault();
+        revealBlankHint(wordIndex);
+        return;
+      }
+
       if (e.key === "Enter") {
         e.preventDefault();
-        const nextUnfilled = sortedBlanks
+        if (e.nativeEvent.isComposing || e.keyCode === 229) {
+          return;
+        }
+        const nextEditable = sortedBlanks
           .slice(idx + 1)
-          .find(
-            (b) =>
-              !isBlankLocked(b.wordIndex) && !(answers[b.wordIndex] ?? "").trim()
-          );
-        const nextEditable =
-          nextUnfilled ??
-          sortedBlanks.slice(idx + 1).find((b) => !isBlankLocked(b.wordIndex));
+          .find((b) => !isBlankLocked(b.wordIndex));
 
         if (nextEditable) {
           inputRefs.current.get(nextEditable.wordIndex)?.focus();
         } else {
-          void handleCheck();
+          handleCommitLastBlank();
         }
         return;
       }
@@ -393,8 +406,30 @@ export default function FillInBlanksDictation({
         }
       }
     },
-    [answers, handleCheck, isBlankLocked, sortedBlanks]
+    [
+      answers,
+      handleCommitLastBlank,
+      isBlankLocked,
+      revealBlankHint,
+      sortedBlanks,
+    ]
   );
+
+  const handleFallbackComplete = useCallback(() => {
+    onSegmentCompleteRef.current();
+  }, []);
+
+  const editableWordIndices = useMemo(
+    () =>
+      sortedBlanks
+        .filter((b) => !isBlankLocked(b.wordIndex))
+        .map((b) => b.wordIndex),
+    [isBlankLocked, sortedBlanks]
+  );
+  const lastEditableWordIndex =
+    editableWordIndices.length > 0
+      ? editableWordIndices[editableWordIndices.length - 1]
+      : null;
 
   // Fallback when segment is unsuitable or has no blanks for this mode
   if (!suitableForBlanks || sortedBlanks.length === 0) {
@@ -412,7 +447,7 @@ export default function FillInBlanksDictation({
           sentence={sentence}
           fullInput={fallbackInput}
           onInputChange={onFallbackInputChange ?? (() => {})}
-          onSentenceComplete={() => onSegmentComplete()}
+          onSentenceComplete={handleFallbackComplete}
           onHintUsed={onHintUsed}
           isCompleted={isCompleted}
         />
@@ -420,32 +455,35 @@ export default function FillInBlanksDictation({
     );
   }
 
-  const allEditableLocked = sortedBlanks.every((b) => isBlankLocked(b.wordIndex));
-  const correctBlankCount = sortedBlanks.filter(
-    (b) => results[b.wordIndex]?.correct
-  ).length;
-
   return (
     <div
-      className="w-full max-w-4xl mx-auto flex flex-col gap-3 [padding-bottom:env(safe-area-inset-bottom)]"
+      className="w-full max-w-4xl mx-auto flex flex-col gap-2 [padding-bottom:env(safe-area-inset-bottom)]"
       data-testid="fill-in-blanks-dictation"
     >
       {/* Inline sentence with uniform-width blank inputs */}
-      <div className="rounded-2xl border border-ink-200/80 dark:border-slate-700 bg-ink-50/60 dark:bg-slate-900/90 px-4 py-3.5 sm:px-5 sm:py-4 leading-[2.75rem] text-base sm:text-lg font-medium text-ink-900 dark:text-slate-100 flex flex-wrap items-baseline gap-y-2">
+      <div className="rounded-2xl border border-ink-200/80 dark:border-slate-700 bg-ink-50/60 dark:bg-slate-900/90 px-3.5 py-2.5 sm:px-5 sm:py-4 leading-9 sm:leading-[2.75rem] text-base sm:text-lg font-medium text-ink-900 dark:text-slate-100 flex flex-wrap items-baseline gap-y-1.5 sm:gap-y-2">
         {tokens.map((tok) => {
           if (tok.isWord && blankWordIndexSet.has(tok.wordIndex)) {
             const blankOrder =
               sortedBlanks.findIndex((b) => b.wordIndex === tok.wordIndex) + 1;
             const result = results[tok.wordIndex];
-            const isCorrect = Boolean(result?.correct);
-            const isIncorrect = Boolean(result && !result.correct);
+            const isAllMatched = validation.allCorrect && !isCompleted;
+            const isCorrect = Boolean(result?.correct) || isAllMatched;
+            const isIncorrect = !isAllMatched && Boolean(result && !result.correct);
             const locked = isBlankLocked(tok.wordIndex);
-            const value = answers[tok.wordIndex] ?? "";
+            const isLastEditable = lastEditableWordIndex === tok.wordIndex;
+            const rawAnswer = answers[tok.wordIndex];
+            const value =
+              rawAnswer && rawAnswer.length > 0
+                ? rawAnswer
+                : isCompleted
+                  ? (wordTextByIndex.get(tok.wordIndex) ?? "")
+                  : "";
 
             return (
               <span
                 key={`blank-${tok.tokenIndex}-${tok.wordIndex}`}
-                className="inline-flex items-center mx-1 align-baseline"
+                className="relative inline-flex items-center mx-1 align-baseline"
               >
                 <input
                   ref={(el) => {
@@ -456,26 +494,47 @@ export default function FillInBlanksDictation({
                     }
                   }}
                   type="text"
+                  inputMode="text"
+                  enterKeyHint={isLastEditable ? "done" : "next"}
                   value={value}
                   readOnly={locked}
                   aria-label={`Blank ${blankOrder}`}
-                  aria-invalid={isIncorrect}
+                  aria-invalid={isIncorrect ? "true" : "false"}
+                  aria-describedby={
+                    isIncorrect && errorMessage ? errorRegionId : undefined
+                  }
                   data-word-index={tok.wordIndex}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  onFocus={() => setFocusedWordIndex(tok.wordIndex)}
                   onChange={(e) => handleBlankChange(tok.wordIndex, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(tok.wordIndex, e)}
-                  className={`w-[6.75rem] sm:w-[7.5rem] min-h-[44px] sm:min-h-[38px] px-2.5 py-1 text-center text-sm sm:text-base font-bold rounded-xl border-2 outline-none transition-all ${
-                    isCorrect
-                      ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 cursor-default"
-                      : isIncorrect
-                        ? "border-coral-500 bg-coral-50 dark:bg-rose-950/40 text-coral-700 dark:text-rose-200 focus:ring-4 focus:ring-coral-100 dark:focus:ring-rose-950/40"
-                        : "border-ink-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-900 dark:text-slate-100 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70 dark:focus:ring-brand-900/40"
+                  className={`w-[6.75rem] sm:w-[7.5rem] h-9 sm:min-h-[38px] ${
+                    locked ? "px-2.5 text-center" : "pl-3 pr-8 text-left"
+                  } py-1 text-base font-bold rounded-xl border-2 outline-none transition-all ${
+                    isAllMatched
+                      ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 ring-4 ring-brand-100/80 dark:ring-brand-900/40 shadow-sm"
+                      : isCorrect
+                        ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 cursor-default"
+                        : isIncorrect
+                          ? "border-coral-500 bg-coral-50 dark:bg-rose-950/40 text-coral-700 dark:text-rose-200 focus:ring-4 focus:ring-coral-100 dark:focus:ring-rose-950/40"
+                          : "border-ink-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-900 dark:text-slate-100 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70 dark:focus:ring-brand-900/40"
                   }`}
                 />
+                {!locked && (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={`Reveal hint for blank ${blankOrder}`}
+                    title="Reveal hint (Alt+H)"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => revealBlankHint(tok.wordIndex)}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md inline-flex items-center justify-center text-xs font-extrabold text-ink-400 dark:text-slate-400 hover:text-honey-600 dark:hover:text-amber-300 hover:bg-honey-50 dark:hover:bg-amber-950/60 focus-visible:outline-2 focus-visible:outline-brand-500 transition-colors cursor-pointer"
+                  >
+                    ?
+                  </button>
+                )}
               </span>
             );
           }
@@ -491,63 +550,18 @@ export default function FillInBlanksDictation({
         })}
       </div>
 
-      {/* Controls & Feedback row */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs font-semibold">
-          {currentSummary ? (
-            <span
-              role="status"
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 border ${
-                correctBlankCount === sortedBlanks.length
-                  ? "bg-brand-50 dark:bg-brand-900/40 border-brand-200 dark:border-brand-700 text-brand-700 dark:text-brand-200"
-                  : "bg-coral-50 dark:bg-rose-950/40 border-coral-200 dark:border-rose-800 text-coral-700 dark:text-rose-200"
-              }`}
-            >
-              {correctBlankCount === sortedBlanks.length ? (
-                <CheckCircle2 size={14} aria-hidden="true" />
-              ) : (
-                <AlertCircle size={14} aria-hidden="true" />
-              )}
-              <span>{currentSummary}</span>
-            </span>
-          ) : (
-            <span className="text-ink-500 dark:text-slate-400">
-              {sortedBlanks.length}{" "}
-              {sortedBlanks.length === 1 ? "blank" : "blanks"} in this sentence
-            </span>
-          )}
-
-          {errorMessage && (
-            <span
-              role="alert"
-              className="text-coral-600 dark:text-rose-300 font-bold"
-            >
-              {errorMessage}
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 ml-auto">
-          <button
-            type="button"
-            onClick={handleHint}
-            disabled={isCompleted || allEditableLocked}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-honey-100 dark:border-amber-800 bg-honey-50 dark:bg-amber-950/50 text-honey-600 dark:text-amber-200 hover:bg-honey-100 dark:hover:bg-amber-900/50 px-3.5 py-2 min-h-[44px] sm:min-h-[38px] text-xs font-extrabold uppercase tracking-wider transition-all disabled:opacity-40 cursor-pointer active:scale-95"
-          >
-            <HelpCircle size={15} aria-hidden="true" />
-            <span>Hint</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void handleCheck()}
-            disabled={isChecking || isCompleted}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 min-h-[44px] sm:min-h-[38px] text-xs font-extrabold uppercase tracking-wider shadow-sm transition-all disabled:opacity-50 cursor-pointer active:scale-95"
-          >
-            <Send size={14} aria-hidden="true" />
-            <span>{isChecking ? "Checking..." : "Check"}</span>
-          </button>
-        </div>
+      {/* Single mounted polite live region for commit-time validation feedback */}
+      <div
+        id={errorRegionId}
+        aria-live="polite"
+        className="min-h-[1.25rem] flex items-center justify-center text-xs font-semibold"
+      >
+        {errorMessage && (
+          <span className="inline-flex items-center gap-1.5 text-coral-600 dark:text-rose-300">
+            <AlertCircle size={14} aria-hidden="true" />
+            <span>{errorMessage}</span>
+          </span>
+        )}
       </div>
     </div>
   );

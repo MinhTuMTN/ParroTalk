@@ -35,7 +35,7 @@ import com.parrotalk.backend.repository.LessonRepository;
 import com.parrotalk.backend.repository.SegmentTranslationRepository;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
 import com.parrotalk.backend.service.dictation.DictationBlankGenerator;
-import com.parrotalk.backend.service.dictation.SegmentBlanksCodec;
+import com.parrotalk.backend.util.SegmentBlanksCodec;
 
 class LessonServiceTranslationStatusTest {
 

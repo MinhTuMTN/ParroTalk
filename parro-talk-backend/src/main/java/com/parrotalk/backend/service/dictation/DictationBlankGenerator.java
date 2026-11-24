@@ -406,7 +406,7 @@ public class DictationBlankGenerator {
         }
         return Set.of(
                 "give", "gave", "given", "take", "took", "taken", "put", "puts", "set", "sets",
-                "get", "got", "gotten", "turn", "turned", "look", "looked", "look", "bring", "brought",
+                "get", "got", "gotten", "turn", "turned", "look", "looked", "bring", "brought",
                 "come", "came", "go", "went", "gone", "pick", "picked", "find", "found",
                 "work", "worked", "figure", "figured", "carry", "carried", "keep", "kept",
                 "break", "broke", "broken", "call", "called", "run", "ran", "check", "checked",

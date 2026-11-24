@@ -109,7 +109,7 @@ export default function ContinueLearningCard({
         {/* Progress Tracker */}
         <div className="pt-1 mt-auto">
           <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
-            <span className="font-medium">Đã hoàn thành</span>
+            <span className="font-medium">Tiến độ</span>
             <span className="font-bold text-emerald-700">{clampedProgress}%</span>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">

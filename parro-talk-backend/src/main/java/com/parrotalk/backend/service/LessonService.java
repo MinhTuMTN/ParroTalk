@@ -17,6 +17,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hibernate.Hibernate;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -47,6 +48,7 @@ import com.parrotalk.backend.dto.LessonResponse;
 import com.parrotalk.backend.dto.LessonSearchRequest;
 import com.parrotalk.backend.dto.LessonWithProgressDTO;
 import com.parrotalk.backend.dto.PageResponse;
+import com.parrotalk.backend.dto.SegmentBuildResult;
 import com.parrotalk.backend.dto.TranscriptionResponse;
 import com.parrotalk.backend.dto.SegmentTranslationResponse;
 import com.parrotalk.backend.dto.TranslationSummaryResponse;
@@ -65,7 +67,7 @@ import com.parrotalk.backend.repository.LessonRepository;
 import com.parrotalk.backend.repository.TranscriptionSegmentRepository;
 import com.parrotalk.backend.repository.SegmentTranslationRepository;
 import com.parrotalk.backend.service.dictation.DictationBlankGenerator;
-import com.parrotalk.backend.service.dictation.SegmentBlanksCodec;
+import com.parrotalk.backend.util.SegmentBlanksCodec;
 import com.parrotalk.backend.util.SentenceUtil;
 import com.parrotalk.backend.util.YoutubeUtil;
 
@@ -158,19 +160,30 @@ public class LessonService {
      * @param lessonId Lesson id
      * @return Lesson response
      */
-    @Cacheable(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
+    /**
+     * Get lesson detail by ID, caching only completed public lessons.
+     *
+     * @param lessonId Lesson ID
+     * @return Lesson detail response
+     */
+    @Cacheable(
+            value = CacheNames.LESSON_DETAIL_CACHE,
+            key = "#lessonId",
+            unless = "#result == null || #result.visibilityStatus != T(com.parrotalk.backend.constant.LessonVisibilityStatus).PUBLISHED || #result.status != T(com.parrotalk.backend.constant.LessonStatus).DONE")
     @Transactional
     public LessonResponse getLessonDetail(UUID lessonId) {
-        Lesson lesson = lessonRepository.findById(lessonId)
+        Lesson lesson = lessonRepository.findWithSegmentsById(lessonId)
                 .orElseThrow(() -> new RuntimeException("Lesson not found"));
 
-        List<TranscriptionSegment> lessonSegments = transcriptionSegmentRepository
-                .findByLessonIdOrderByDisplayOrderAsc(lessonId);
-        List<TranscriptionResponse> segments = buildSegmentResponses(lessonSegments);
+        List<TranscriptionSegment> lessonSegments = lesson.getSegments() != null
+                ? lesson.getSegments()
+                : List.of();
+        SegmentBuildResult segmentResult = buildSegmentResponsesInternal(lessonSegments, true);
 
         LessonResponse lessonResponse = lessonMapper.toLessonResponse(lesson);
-        lessonResponse.setSegments(segments);
-        lessonResponse.setTranslationSummary(buildTranslationSummary(lesson.getId(), lessonSegments.size()));
+        lessonResponse.setSegments(segmentResult.segments());
+        lessonResponse.setTranslationSummary(
+                buildTranslationSummaryFromCount(segmentResult.translatedCount(), lessonSegments.size()));
 
         return lessonResponse;
     }
@@ -261,7 +274,10 @@ public class LessonService {
     }
 
     @Transactional
-    @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
+    })
     public void deleteLesson(UUID lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId).orElseThrow(() -> new RuntimeException("Lesson not found"));
         segmentTranslationRepository.deleteBySegmentLessonId(lessonId);
@@ -348,7 +364,10 @@ public class LessonService {
      * @return Updated lesson response
      */
     @Transactional
-    @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
+    })
     public LessonResponse updateGeneralInformation(UUID lessonId, UpdateLessonInfoRequest request) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
@@ -380,11 +399,12 @@ public class LessonService {
 
         List<TranscriptionSegment> lessonSegments = transcriptionSegmentRepository
                 .findByLessonIdOrderByDisplayOrderAsc(lessonId);
-        List<TranscriptionResponse> segments = buildSegmentResponses(lessonSegments);
+        SegmentBuildResult segmentResult = buildSegmentResponsesInternal(lessonSegments, true);
 
         LessonResponse response = toAdminLessonResponse(lesson);
-        response.setSegments(segments);
-        response.setTranslationSummary(buildTranslationSummary(lessonId, lessonSegments.size()));
+        response.setSegments(segmentResult.segments());
+        response.setTranslationSummary(
+                buildTranslationSummaryFromCount(segmentResult.translatedCount(), lessonSegments.size()));
         return response;
     }
 
@@ -396,7 +416,10 @@ public class LessonService {
      * @return Lesson response.
      */
     @Transactional
-    @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.FEATURED_LESSONS_CACHE, allEntries = true),
+            @CacheEvict(value = CacheNames.LESSON_DETAIL_CACHE, key = "#lessonId")
+    })
     public LessonResponse updateLessonVisibility(UUID lessonId, LessonVisibilityStatus status) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
@@ -516,23 +539,27 @@ public class LessonService {
     }
 
     /**
-     * Get accessible lesson detail.
-     * 
+     * Get accessible lesson detail, caching only completed public lessons.
+     *
      * @param lessonId Lesson ID
-     * @param user     User
-     * @return Lesson
+     * @param user     Authenticated user, or null for guests
+     * @return Accessible lesson detail response
      */
-    @Transactional
+    @Cacheable(
+            value = CacheNames.LESSON_DETAIL_CACHE,
+            key = "#lessonId",
+            unless = "#result == null || #result.visibilityStatus != T(com.parrotalk.backend.constant.LessonVisibilityStatus).PUBLISHED || #result.status != T(com.parrotalk.backend.constant.LessonStatus).DONE")
     public LessonResponse getAccessibleLessonDetail(UUID lessonId, User user) {
         Lesson lesson = findAccessibleLesson(lessonId, user);
-
-        List<TranscriptionSegment> lessonSegments = transcriptionSegmentRepository
-                .findByLessonIdOrderByDisplayOrderAsc(lessonId);
-        List<TranscriptionResponse> segments = buildSegmentResponses(lessonSegments);
+        List<TranscriptionSegment> lessonSegments = lesson.getSegments() != null
+                ? lesson.getSegments()
+                : List.of();
+        SegmentBuildResult segmentResult = buildSegmentResponsesInternal(lessonSegments, true);
 
         LessonResponse response = lessonMapper.toLessonResponse(lesson);
-        response.setSegments(segments);
-        response.setTranslationSummary(buildTranslationSummary(lessonId, lessonSegments.size()));
+        response.setSegments(segmentResult.segments());
+        response.setTranslationSummary(
+                buildTranslationSummaryFromCount(segmentResult.translatedCount(), lessonSegments.size()));
         return response;
     }
 
@@ -606,6 +633,27 @@ public class LessonService {
     }
 
     /**
+     * Check whether a non-deleted lesson exists by id without loading entity associations.
+     *
+     * @param lessonId Lesson id
+     * @return True if the lesson exists, false otherwise
+     */
+    public boolean existsById(UUID lessonId) {
+        return lessonRepository.existsById(lessonId);
+    }
+
+    /**
+     * Verify that a non-deleted lesson exists by id, throwing 404 if not found.
+     *
+     * @param lessonId Lesson id
+     */
+    public void verifyExistsById(UUID lessonId) {
+        if (!lessonRepository.existsById(lessonId)) {
+            throw new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404));
+        }
+    }
+
+    /**
      * Save lesson.
      * 
      * @param lesson Lesson
@@ -648,9 +696,18 @@ public class LessonService {
                 .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatus.NOT_FOUND));
     }
 
-    private List<TranscriptionResponse> buildSegmentResponses(List<TranscriptionSegment> segments) {
+    /**
+     * Build transcription segment responses and resolve translation count.
+     *
+     * @param segments          Ordered transcription segments
+     * @param saveMissingInline Whether to persist newly generated blanks inline
+     * @return Built segment responses and translation count
+     */
+    private SegmentBuildResult buildSegmentResponsesInternal(
+            List<TranscriptionSegment> segments,
+            boolean saveMissingInline) {
         if (segments.isEmpty()) {
-            return List.of();
+            return new SegmentBuildResult(List.of(), List.of(), 0);
         }
 
         List<TranscriptionSegment> missingSegments = new ArrayList<>();
@@ -676,17 +733,19 @@ public class LessonService {
                     segments.get(i).setBlanksJson(segmentBlanksCodec.serialize(payload));
                 }
             }
-            transcriptionSegmentRepository.saveAll(missingSegments);
+            if (saveMissingInline) {
+                transcriptionSegmentRepository.saveAll(missingSegments);
+            }
         }
 
         List<UUID> segmentIds = segments.stream()
                 .map(TranscriptionSegment::getId)
                 .toList();
         Map<UUID, SegmentTranslationResponse> translationsBySegmentId = segmentTranslationRepository
-                .findBySegmentIdInAndTargetLanguage(segmentIds, TranslationLanguage.VIETNAMESE.getCode())
+                .findTranslationsBySegmentIdsAndTargetLanguage(segmentIds, TranslationLanguage.VIETNAMESE.getCode())
                 .stream()
                 .collect(Collectors.toMap(
-                        translation -> translation.getSegment().getId(),
+                        SegmentTranslationRepository.SegmentTranslationProjection::getSegmentId,
                         translation -> new SegmentTranslationResponse(
                                 translation.getTargetLanguage(),
                                 translation.getTranslatedText())));
@@ -712,19 +771,37 @@ public class LessonService {
                     .blanks(blanksMap)
                     .build());
         }
-        return responses;
+        return new SegmentBuildResult(responses, missingSegments, translationsBySegmentId.size());
     }
 
-    private TranslationSummaryResponse buildTranslationSummary(UUID lessonId, int totalSegments) {
-        long translatedCount = segmentTranslationRepository.countBySegmentLessonIdAndTargetLanguage(
-                lessonId,
-                TranslationLanguage.VIETNAMESE.getCode());
+    /**
+     * Build translation summary from an already known translated segment count.
+     *
+     * @param translatedCount Number of translated segments
+     * @param totalSegments   Total number of segments
+     * @return Translation summary response
+     */
+    private TranslationSummaryResponse buildTranslationSummaryFromCount(long translatedCount, int totalSegments) {
         TranslationStatus status = resolveTranslationStatus(translatedCount, totalSegments);
         return new TranslationSummaryResponse(
                 TranslationLanguage.VIETNAMESE.getCode(),
                 status,
                 translatedCount,
                 totalSegments);
+    }
+
+    /**
+     * Build translation summary by counting translated segments in the database.
+     *
+     * @param lessonId      Lesson ID
+     * @param totalSegments Total number of segments
+     * @return Translation summary response
+     */
+    private TranslationSummaryResponse buildTranslationSummary(UUID lessonId, int totalSegments) {
+        long translatedCount = segmentTranslationRepository.countBySegmentLessonIdAndTargetLanguage(
+                lessonId,
+                TranslationLanguage.VIETNAMESE.getCode());
+        return buildTranslationSummaryFromCount(translatedCount, totalSegments);
     }
 
     TranslationStatus resolveTranslationStatus(long translatedCount, int totalSegments) {
@@ -746,10 +823,18 @@ public class LessonService {
         });
     }
 
+    /**
+     * Find an accessible lesson for the given user or guest.
+     *
+     * @param lessonId Lesson ID
+     * @param user     Authenticated user, or null for guests
+     * @return Accessible lesson entity
+     */
     private Lesson findAccessibleLesson(UUID lessonId, User user) {
-        return lessonRepository.findByIdAndVisibilityStatus(lessonId, LessonVisibilityStatus.PUBLISHED)
-                .or(() -> user != null ? lessonRepository.findByIdAndOwnerId(lessonId, user.getId()) : Optional.empty())
-                .orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
+        Optional<Lesson> lesson = user != null
+                ? lessonRepository.findAccessibleByIdAndOwnerId(lessonId, user.getId())
+                : lessonRepository.findByIdAndVisibilityStatus(lessonId, LessonVisibilityStatus.PUBLISHED);
+        return lesson.orElseThrow(() -> new ParroTalkException("Lesson not found", HttpStatusCode.valueOf(404)));
     }
 
     private TranslationSummaryResponse requestTranslationGeneration(Lesson lesson) {

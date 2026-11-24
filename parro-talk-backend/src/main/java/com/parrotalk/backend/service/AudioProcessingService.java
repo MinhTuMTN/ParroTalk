@@ -17,7 +17,7 @@ import com.parrotalk.backend.entity.Lesson;
 import com.parrotalk.backend.entity.TranscriptionSegment;
 import com.parrotalk.backend.exception.ParroTalkException;
 import com.parrotalk.backend.service.dictation.DictationBlankGenerator;
-import com.parrotalk.backend.service.dictation.SegmentBlanksCodec;
+import com.parrotalk.backend.util.SegmentBlanksCodec;
 import com.parrotalk.backend.util.SentenceUtil;
 
 import lombok.RequiredArgsConstructor;

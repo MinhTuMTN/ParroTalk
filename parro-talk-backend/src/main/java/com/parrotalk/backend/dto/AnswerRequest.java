@@ -19,6 +19,7 @@ public class AnswerRequest {
     private UUID segmentId;
     private String userAnswer;
     private Integer studySecondsDelta;
-    private DictationMode mode;
+    @Builder.Default
+    private DictationMode mode = DictationMode.FULL;
     private List<BlankAnswerItem> blankAnswers;
 }

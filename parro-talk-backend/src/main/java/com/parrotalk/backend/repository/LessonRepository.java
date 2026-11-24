@@ -89,6 +89,7 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
      * @param visibilityStatus Visibility status
      * @return Lesson
      */
+    @EntityGraph(attributePaths = { "segments" })
     Optional<Lesson> findByIdAndVisibilityStatus(UUID id, LessonVisibilityStatus visibilityStatus);
 
     /**
@@ -190,6 +191,16 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
     Optional<Lesson> findById(UUID lessonId);
 
     /**
+     * Find lesson by id with its ordered transcription segments loaded in a single query.
+     *
+     * @param lessonId Lesson id
+     * @return Lesson with segments if found
+     */
+    @EntityGraph(attributePaths = { "segments" })
+    @Query("SELECT l FROM Lesson l WHERE l.id = :lessonId")
+    Optional<Lesson> findWithSegmentsById(@Param("lessonId") UUID lessonId);
+
+    /**
      * Find lesson by id for update.
      * 
      * @param lessonId Lesson id
@@ -200,6 +211,24 @@ public interface LessonRepository extends JpaRepository<Lesson, UUID>, JpaSpecif
     Optional<Lesson> findByIdForUpdate(UUID lessonId);
 
     Optional<Lesson> findByIdAndOwnerId(UUID id, UUID ownerId);
+
+    /**
+     * Find lesson by id if it is published or owned by the given user.
+     *
+     * @param lessonId Lesson ID
+     * @param ownerId  Owner user ID
+     * @return Accessible lesson if found
+     */
+    @EntityGraph(attributePaths = { "segments" })
+    @Query("""
+            SELECT l FROM Lesson l
+            WHERE l.id = :lessonId
+              AND (l.visibilityStatus = com.parrotalk.backend.constant.LessonVisibilityStatus.PUBLISHED
+                   OR l.ownerId = :ownerId)
+            """)
+    Optional<Lesson> findAccessibleByIdAndOwnerId(
+            @Param("lessonId") UUID lessonId,
+            @Param("ownerId") UUID ownerId);
 
     /**
      * Find lessons in progress for user.

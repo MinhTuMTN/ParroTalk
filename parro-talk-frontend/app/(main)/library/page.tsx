@@ -222,12 +222,11 @@ function LibraryContent() {
         if (activeTab === "my-lessons") {
           tabPromise = lessonService.getMyLessons(0, 50);
         } else {
-          // Reuse early promise if within 2 seconds. This allows React Strict Mode
-          // (which mounts twice rapidly) to share the same promise, preventing a
-          // duplicate network request.
+          // Reuse early promise if within 2 seconds, then clear it so subsequent
+          // refreshes (e.g. tab visibility or retries) always fetch fresh data.
           if (earlyLibraryPromise && Date.now() - earlyFetchTime < 2000) {
             tabPromise = earlyLibraryPromise;
-            if (process.env.NODE_ENV !== "development") earlyLibraryPromise = null; // consume in prod
+            earlyLibraryPromise = null;
           } else {
             if (process.env.NODE_ENV === "development") performance.mark("library-request-start");
             tabPromise = lessonService.getLibrarySections().then(res => {
@@ -357,6 +356,26 @@ function LibraryContent() {
       }
     }
   }, [sections]);
+
+  // Refresh library data in the background when the user returns to the tab.
+  // Skip when the active-jobs polling effect below already handles visibilitychange.
+  useEffect(() => {
+    const hasActiveJobs = processingJobs.some(
+      (j) => j.status === "PROCESSING" || j.status === "PENDING"
+    );
+    if (!isAuthenticated || hasActiveJobs) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchLibraryData({ isBackground: true });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchLibraryData, isAuthenticated, processingJobs]);
 
   // Periodic polling for active background processing jobs (every 10s if any job is
   // active). Pauses automatically while the tab isn't visible, and catches up with a

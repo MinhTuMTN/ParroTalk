@@ -65,7 +65,9 @@ import com.parrotalk.backend.security.JwtUtils;
 import com.parrotalk.backend.service.AudioProcessingService;
 import com.parrotalk.backend.service.dictation.DictationTokenizationService;
 import com.parrotalk.backend.service.dictation.DictationTokenizationService.DictationToken;
-import com.parrotalk.backend.service.dictation.SegmentBlanksCodec;
+import com.parrotalk.backend.util.SegmentBlanksCodec;
+
+import jakarta.persistence.EntityManager;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -122,6 +124,9 @@ class DictationFillBlankIntegrationTest {
 
     @Autowired(required = false)
     private CacheManager cacheManager;
+
+    @Autowired
+    private EntityManager entityManager;
 
     private MockMvc mockMvc;
     private User learner;
@@ -227,6 +232,8 @@ class DictationFillBlankIntegrationTest {
                 .blanksJson(null)
                 .build());
 
+        entityManager.clear();
+
         mockMvc.perform(get("/api/lessons/" + lesson.getId())
                         .header("Authorization", "Bearer " + learnerToken))
                 .andExpect(status().isOk())
@@ -292,6 +299,8 @@ class DictationFillBlankIntegrationTest {
                 .displayOrder(2)
                 .difficulty(Difficulty.MEDIUM)
                 .build());
+
+        entityManager.clear();
 
         // 1. Trigger lazy blanks generation via GET /api/lessons/{id}
         mockMvc.perform(get("/api/lessons/" + lesson.getId())
@@ -400,7 +409,67 @@ class DictationFillBlankIntegrationTest {
         List<SectionLessonProjection> batchUserLessons = lessonRepository.findBatchUserLessons(learner.getId(), 10);
         assertThat(batchUserLessons).hasSize(1);
 
-        // 7. Submit lesson in MEDIUM mode only cleans up MEDIUM drafts and records MEDIUM history
+        // 7. Submitting an incomplete lesson (only 1 of 2 segments completed) must fail with HTTP 400
+        mockMvc.perform(post("/api/lessons/" + lesson.getId() + "/submit-lesson")
+                        .param("mode", "MEDIUM")
+                        .header("Authorization", "Bearer " + learnerToken))
+                .andExpect(status().isBadRequest());
+
+        // 8. Answering segment 2 incorrectly still leaves the lesson incomplete -> HTTP 400 on submit-lesson
+        TranscriptionSegment loadedSeg2 = segmentRepository.findById(seg2.getId()).orElseThrow();
+        SegmentBlanksPayload payload2 = segmentBlanksCodec.deserialize(loadedSeg2.getBlanksJson());
+        List<BlankSlotDto> mediumBlanks2 = payload2.getLevels().get(DictationMode.MEDIUM);
+        assertThat(mediumBlanks2).isNotEmpty();
+
+        List<BlankAnswerItem> wrongMediumAnswers2 = mediumBlanks2.stream()
+                .map(slot -> BlankAnswerItem.builder()
+                        .wordIndex(slot.getWordIndex())
+                        .answer("wrongword")
+                        .build())
+                .toList();
+
+        AnswerRequest wrongMediumReq2 = AnswerRequest.builder()
+                .segmentId(seg2.getId())
+                .mode(DictationMode.MEDIUM)
+                .blankAnswers(wrongMediumAnswers2)
+                .build();
+
+        mockMvc.perform(post("/api/lessons/" + lesson.getId() + "/answer")
+                        .header("Authorization", "Bearer " + learnerToken)
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(wrongMediumReq2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.correct").value(false));
+
+        mockMvc.perform(post("/api/lessons/" + lesson.getId() + "/submit-lesson")
+                        .param("mode", "MEDIUM")
+                        .header("Authorization", "Bearer " + learnerToken))
+                .andExpect(status().isBadRequest());
+
+        assertThat(historyRepository.findByUserId(learner.getId())).isEmpty();
+
+        // 9. Complete segment 2 correctly in MEDIUM mode, then submit lesson -> HTTP 200 and cleans up only MEDIUM drafts
+        List<DictationToken> words2 = tokenizationService.extractWordTokens(seg2.getText());
+        List<BlankAnswerItem> correctMediumAnswers2 = mediumBlanks2.stream()
+                .map(slot -> BlankAnswerItem.builder()
+                        .wordIndex(slot.getWordIndex())
+                        .answer(words2.get(slot.getWordIndex()).getText())
+                        .build())
+                .toList();
+
+        AnswerRequest correctMediumReq2 = AnswerRequest.builder()
+                .segmentId(seg2.getId())
+                .mode(DictationMode.MEDIUM)
+                .blankAnswers(correctMediumAnswers2)
+                .build();
+
+        mockMvc.perform(post("/api/lessons/" + lesson.getId() + "/answer")
+                        .header("Authorization", "Bearer " + learnerToken)
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(correctMediumReq2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.correct").value(true));
+
         mockMvc.perform(post("/api/lessons/" + lesson.getId() + "/submit-lesson")
                         .param("mode", "MEDIUM")
                         .header("Authorization", "Bearer " + learnerToken))
@@ -414,7 +483,7 @@ class DictationFillBlankIntegrationTest {
         assertThat(histories).hasSize(1);
         assertThat(histories.get(0).getDictationMode()).isEqualTo(DictationMode.MEDIUM);
 
-        // 8. Reset FULL mode progress
+        // 10. Reset FULL mode progress
         mockMvc.perform(get("/api/lessons/" + lesson.getId() + "/progress/reset")
                         .param("mode", "FULL")
                         .header("Authorization", "Bearer " + learnerToken))

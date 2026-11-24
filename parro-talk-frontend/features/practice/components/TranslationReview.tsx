@@ -11,6 +11,7 @@ type TranslationReviewProps = {
   onContinue: () => void;
   onWordClick?: (word: string) => void;
   isLastSegment?: boolean;
+  isAllCompleted?: boolean;
   uncompletedCount?: number;
   onSubmitLesson?: () => void;
   onReviewSkipped?: () => void;
@@ -23,6 +24,7 @@ export default function TranslationReview({
   onContinue,
   onWordClick,
   isLastSegment = false,
+  isAllCompleted,
   uncompletedCount = 0,
   onSubmitLesson,
   onReviewSkipped,
@@ -78,38 +80,29 @@ export default function TranslationReview({
           </div>
         )}
 
-        {isLastSegment ? (
-          uncompletedCount > 0 ? (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={onSubmitLesson || onContinue}
-                className="flex-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 font-bold text-white shadow-md hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer"
-              >
-                Submit Lesson
-                <CheckCircle2 className="h-4 w-4" />
-              </button>
-              {onReviewSkipped && (
-                <button
-                  type="button"
-                  onClick={onReviewSkipped}
-                  className="flex-1 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 border-amber-300 bg-amber-50 px-5 py-2.5 font-bold text-amber-900 hover:bg-amber-100 active:scale-[0.98] transition-all cursor-pointer"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Review Skipped ({uncompletedCount})
-                </button>
-              )}
-            </div>
-          ) : (
+        {isAllCompleted || (isAllCompleted === undefined && isLastSegment && uncompletedCount === 0) ? (
+          <button
+            type="button"
+            onClick={onSubmitLesson || onContinue}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 font-bold text-white shadow-md hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Submit Lesson
+            <CheckCircle2 className="h-4 w-4" />
+          </button>
+        ) : isLastSegment && uncompletedCount > 0 ? (
+          <div className="flex flex-col gap-2">
             <button
               type="button"
-              onClick={onSubmitLesson || onContinue}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 font-bold text-white shadow-md hover:bg-emerald-600 active:scale-[0.98] transition-all cursor-pointer"
+              onClick={onReviewSkipped || onContinue}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 font-bold text-white shadow-md hover:bg-amber-600 active:scale-[0.98] transition-all cursor-pointer"
             >
-              Complete & Submit Lesson
-              <CheckCircle2 className="h-4 w-4" />
+              <RotateCcw className="h-4 w-4" />
+              Review Skipped ({uncompletedCount})
             </button>
-          )
+            <p className="text-center text-xs font-medium text-gray-500 dark:text-slate-400">
+              Complete all remaining sentences to submit
+            </p>
+          </div>
         ) : (
           <button
             type="button"

@@ -55,6 +55,12 @@ public class DictationAnswerValidator {
 
     private static final Map<String, String> NUMBER_WORDS = buildNumberWords();
 
+    private static final Set<String> VALID_TENS = Set.of(
+            "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety");
+
+    private static final Set<String> VALID_ONES = Set.of(
+            "one", "two", "three", "four", "five", "six", "seven", "eight", "nine");
+
     private static Map<String, String> buildUnambiguousMap() {
         Map<String, String> map = new HashMap<>();
         for (String contraction : UNAMBIGUOUS_CONTRACTIONS) {
@@ -152,12 +158,14 @@ public class DictationAnswerValidator {
                     .build();
         }
 
+        // 1. Index expected word tokens from the reference segment text by wordIndex
         List<DictationToken> wordTokens = tokenizationService.extractWordTokens(segmentText);
         Map<Integer, DictationToken> tokenByWordIndex = new HashMap<>();
         for (DictationToken token : wordTokens) {
             tokenByWordIndex.put(token.getWordIndex(), token);
         }
 
+        // 2. Index user-submitted answers by wordIndex for O(1) lookup per blank slot
         Map<Integer, String> submittedByWordIndex = new HashMap<>();
         if (submittedAnswers != null) {
             for (BlankAnswerItem item : submittedAnswers) {
@@ -167,6 +175,7 @@ public class DictationAnswerValidator {
             }
         }
 
+        // 3. Evaluate each blank independently against the expected word and acceptable variants
         List<Boolean> correctnessFlags = new ArrayList<>(blanks.size());
         List<String> expectedWords = new ArrayList<>(blanks.size());
         int correctCount = 0;
@@ -183,6 +192,7 @@ public class DictationAnswerValidator {
             }
         }
 
+        // 4. Build per-blank result items; reveal expectedAnswer only if the blank passed or all blanks passed
         boolean allCorrect = correctCount == blanks.size();
         List<BlankResultItem> results = new ArrayList<>(blanks.size());
         for (int i = 0; i < blanks.size(); i++) {
@@ -195,6 +205,7 @@ public class DictationAnswerValidator {
                     .build());
         }
 
+        // 5. Compute accuracy rounded to 4 decimal places
         double accuracy = Math.round(((double) correctCount / blanks.size()) * 10000.0) / 10000.0;
         return SegmentValidationResult.builder()
                 .allCorrect(allCorrect)
@@ -323,10 +334,8 @@ public class DictationAnswerValidator {
         }
         String tens = parts[0];
         String ones = parts[1];
-        boolean validTens = Set.of("twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
-                .contains(tens);
-        boolean validOnes = Set.of("one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
-                .contains(ones);
+        boolean validTens = VALID_TENS.contains(tens);
+        boolean validOnes = VALID_ONES.contains(ones);
         return (validTens && validOnes) ? (tens + "-" + ones) : null;
     }
 
