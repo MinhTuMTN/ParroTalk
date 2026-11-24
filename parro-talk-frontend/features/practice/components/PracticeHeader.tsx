@@ -103,13 +103,6 @@ export default function PracticeHeader({
           <Menu size={24} />
         </button>
 
-        <Link href="/library" className="hidden sm:flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-green-100 dark:shadow-none group-hover:scale-110 transition-transform">
-            <span className="font-black text-xs">P</span>
-          </div>
-          <span className="font-black text-sm text-gray-800 dark:text-slate-100 tracking-tight">ParroTalk</span>
-        </Link>
-
         {mode && onModeChange && (
           <div className="hidden md:block">
             <PracticeModeSelector

@@ -690,7 +690,7 @@ export default function PracticePage() {
           </div>
         )}
 
-        <div className="flex-1 p-3 sm:p-6 lg:p-8 flex flex-col md:flex-row gap-5 lg:gap-8 items-stretch relative overflow-y-auto md:overflow-hidden min-h-0">
+        <div className="flex-1 p-3 sm:px-6 sm:py-4 lg:px-8 lg:py-4 flex flex-col md:flex-row gap-5 lg:gap-8 items-stretch relative overflow-y-auto md:overflow-hidden min-h-0">
 
           {/* Left Column: Player and Controls */}
           <div className={`
@@ -758,8 +758,8 @@ export default function PracticePage() {
             }}
           />
         ) : (
-          <div className="relative bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 z-10 shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] py-2 px-3 sm:py-4 sm:px-4">
-            <div className="flex flex-col gap-3">
+          <div className="relative bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 z-10 shrink-0 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] py-2 px-3 sm:py-2.5 sm:px-4">
+            <div className="flex flex-col gap-2">
               {/* Practice Toolbar (Both Desktop and Mobile) */}
               <div className="flex items-center justify-between gap-2 w-full max-w-2xl mx-auto">
                 {/* Left: Prev + Replay */}

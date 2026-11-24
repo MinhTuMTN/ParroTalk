@@ -457,11 +457,11 @@ export default function FillInBlanksDictation({
 
   return (
     <div
-      className="w-full max-w-4xl mx-auto flex flex-col gap-2 [padding-bottom:env(safe-area-inset-bottom)]"
+      className="w-full max-w-3xl mx-auto flex flex-col gap-1.5 [padding-bottom:env(safe-area-inset-bottom)]"
       data-testid="fill-in-blanks-dictation"
     >
       {/* Inline sentence with uniform-width blank inputs */}
-      <div className="rounded-2xl border border-ink-200/80 dark:border-slate-700 bg-ink-50/60 dark:bg-slate-900/90 px-3.5 py-2.5 sm:px-5 sm:py-4 leading-9 sm:leading-[2.75rem] text-base sm:text-lg font-medium text-ink-900 dark:text-slate-100 flex flex-wrap items-baseline gap-y-1.5 sm:gap-y-2">
+      <div className="rounded-xl border border-ink-200/80 dark:border-slate-700 bg-ink-50/60 dark:bg-slate-900/90 px-3 py-1.5 sm:px-4 sm:py-2 leading-8 sm:leading-9 text-sm sm:text-[15px] font-medium text-ink-900 dark:text-slate-100 flex flex-wrap items-baseline gap-y-1">
         {tokens.map((tok) => {
           if (tok.isWord && blankWordIndexSet.has(tok.wordIndex)) {
             const blankOrder =
@@ -510,9 +510,9 @@ export default function FillInBlanksDictation({
                   spellCheck={false}
                   onChange={(e) => handleBlankChange(tok.wordIndex, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(tok.wordIndex, e)}
-                  className={`w-[6.75rem] sm:w-[7.5rem] h-9 sm:min-h-[38px] ${
-                    locked ? "px-2.5 text-center" : "pl-3 pr-8 text-left"
-                  } py-1 text-base font-bold rounded-xl border-2 outline-none transition-all ${
+                  className={`w-[5.25rem] sm:w-[6rem] h-7 sm:h-8 ${
+                    locked ? "px-2 text-center" : "pl-2.5 pr-6 text-left"
+                  } py-0.5 text-sm font-bold rounded-lg border-2 outline-none transition-all ${
                     isAllMatched
                       ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 ring-4 ring-brand-100/80 dark:ring-brand-900/40 shadow-sm"
                       : isCorrect
@@ -530,7 +530,7 @@ export default function FillInBlanksDictation({
                     title="Reveal hint (Alt+H)"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => revealBlankHint(tok.wordIndex)}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md inline-flex items-center justify-center text-xs font-extrabold text-ink-400 dark:text-slate-400 hover:text-honey-600 dark:hover:text-amber-300 hover:bg-honey-50 dark:hover:bg-amber-950/60 focus-visible:outline-2 focus-visible:outline-brand-500 transition-colors cursor-pointer"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md inline-flex items-center justify-center text-[11px] font-extrabold text-ink-400 dark:text-slate-400 hover:text-honey-600 dark:hover:text-amber-300 hover:bg-honey-50 dark:hover:bg-amber-950/60 focus-visible:outline-2 focus-visible:outline-brand-500 transition-colors cursor-pointer"
                   >
                     ?
                   </button>
@@ -554,7 +554,7 @@ export default function FillInBlanksDictation({
       <div
         id={errorRegionId}
         aria-live="polite"
-        className="min-h-[1.25rem] flex items-center justify-center text-xs font-semibold"
+        className={`${errorMessage ? "min-h-[1.25rem]" : "min-h-0"} flex items-center justify-center text-xs font-semibold`}
       >
         {errorMessage && (
           <span className="inline-flex items-center gap-1.5 text-coral-600 dark:text-rose-300">
