@@ -505,7 +505,7 @@ export default function VideoPlayer({
 
   return (
     <div className="flex flex-col gap-3 w-full max-w-[480px] shrink-0">
-      <div className="relative aspect-[4/3] bg-gray-950 rounded-3xl overflow-hidden group shadow-xl border border-gray-100 dark:border-slate-800">
+      <div className="relative aspect-video bg-gray-950 rounded-2xl overflow-hidden group shadow-xl border border-gray-100 dark:border-slate-800">
         {src ? (
           isYoutube ? (
             <div className="absolute inset-0 w-full h-full">
@@ -596,10 +596,10 @@ export default function VideoPlayer({
         </div>
       </div>
       {/* Compact Controls Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col gap-2.5">
         {/* Lesson Info Section */}
         {lessonTitle && (
-          <div className="flex flex-col gap-1 pb-3 border-b border-gray-100 dark:border-slate-800">
+          <div className="flex flex-col gap-1 pb-2 border-b border-gray-100 dark:border-slate-800">
             <h3 className="text-sm font-black text-gray-800 dark:text-slate-100 leading-snug tracking-tight">
               {lessonTitle}
             </h3>
