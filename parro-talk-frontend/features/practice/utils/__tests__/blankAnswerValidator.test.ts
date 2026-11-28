@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  getBlankLiveState,
   isBlankAnswerCorrect,
   normalizeBlankInput,
   validateSegmentBlanks,
@@ -200,6 +201,57 @@ describe("blankAnswerValidator", () => {
           1: false,
         },
       });
+    });
+  });
+
+  describe("getBlankLiveState", () => {
+    it("evaluates empty, typing, wrong, and correct states for standard words", () => {
+      expect(getBlankLiveState("", "work")).toBe("empty");
+      expect(getBlankLiveState("   ", "work")).toBe("empty");
+      expect(getBlankLiveState("wor", "work")).toBe("typing");
+      expect(getBlankLiveState("wox", "work")).toBe("wrong");
+      expect(getBlankLiveState("work", "work")).toBe("correct");
+      expect(getBlankLiveState("Work,", "work")).toBe("correct");
+    });
+
+    it("handles unambiguous and ambiguous contractions", () => {
+      expect(getBlankLiveState("don", "don't")).toBe("typing");
+      expect(getBlankLiveState("dont", "don't")).toBe("correct");
+      expect(getBlankLiveState("it", "it's")).toBe("typing");
+      expect(getBlankLiveState("its", "it's")).toBe("wrong");
+      expect(getBlankLiveState("it's", "it's")).toBe("correct");
+    });
+
+    it("handles number digit and word equivalents including compound numbers", () => {
+      expect(getBlankLiveState("5", "five")).toBe("correct");
+      expect(getBlankLiveState("fi", "five")).toBe("typing");
+      expect(getBlankLiveState("21", "twenty-one")).toBe("correct");
+      expect(getBlankLiveState("twenty o", "twenty-one")).toBe("typing");
+      expect(getBlankLiveState("2", "twenty-one")).toBe("typing");
+    });
+
+    it("handles hyphenated words and variants", () => {
+      expect(getBlankLiveState("cow", "co-worker")).toBe("typing");
+      expect(getBlankLiveState("co w", "co-worker")).toBe("typing");
+      expect(getBlankLiveState("coworker", "co-worker")).toBe("correct");
+      expect(getBlankLiveState("cox", "co-worker")).toBe("wrong");
+    });
+
+    it("supports acceptableAnswers", () => {
+      expect(getBlankLiveState("col", "color", ["colour"])).toBe("typing");
+      expect(getBlankLiveState("colour", "color", ["colour"])).toBe("correct");
+    });
+
+    it("handles curly apostrophes, outer punctuation, and mixed hyphen/space typing", () => {
+      expect(getBlankLiveState("don\u2019", "don't")).toBe("typing");
+      expect(getBlankLiveState("don\u2019t", "don't")).toBe("correct");
+      expect(getBlankLiveState("it\u2019s", "it's")).toBe("correct");
+
+      expect(getBlankLiveState("(wor", "work")).toBe("typing");
+      expect(getBlankLiveState("wor,", "work")).toBe("typing");
+      expect(getBlankLiveState("...", "work")).toBe("empty");
+
+      expect(getBlankLiveState("state-of ", "state-of-the-art")).toBe("typing");
     });
   });
 });

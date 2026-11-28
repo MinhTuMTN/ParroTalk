@@ -7,10 +7,10 @@ describe("FillInBlanksDictation", () => {
     vi.useRealTimers();
   });
 
-  it("renders exact blank count with uniform width, default aria-invalid='false', and no bottom Hint/Check buttons", () => {
+  it("scales blank width with word length, renders mask overlay bullets, sets default aria-invalid='false', and omits bottom Hint/Check buttons", () => {
     const sentence = "I extraordinary went to hippopotamus yesterday!";
     // wordIndex 0="I" (len 1), 1="extraordinary" (len 13), 4="hippopotamus" (len 12)
-    render(
+    const { container } = render(
       <FillInBlanksDictation
         sentence={sentence}
         mode="MEDIUM"
@@ -25,15 +25,36 @@ describe("FillInBlanksDictation", () => {
 
     for (const input of inputs) {
       expect(input).not.toHaveAttribute("size");
+      expect(input).not.toHaveAttribute("maxlength");
       expect(input).not.toHaveAttribute("placeholder");
       expect(input).toHaveAttribute("aria-invalid", "false");
       expect(input).toHaveAttribute("inputmode", "text");
-      expect(input.className).toContain("w-[6.75rem]");
-      expect(input.className).toContain("sm:w-[7.5rem]");
+      expect(input.className).not.toContain("w-[5.25rem]");
+      expect(input.className).not.toContain("sm:w-[6rem]");
+      expect(input.className).toContain("max-w-full");
+      expect(input.className).toContain("font-mono");
+      expect(input.className).toContain("bg-transparent");
       expect(input.className).toContain("text-base");
       expect(input.className).toContain("h-9");
       expect(input.className).toContain("text-left");
     }
+
+    // Width scales with word length (min 2ch)
+    expect(inputs[0].style.width).toContain("2ch");
+    expect(inputs[1].style.width).toContain("13ch");
+    expect(inputs[2].style.width).toContain("12ch");
+
+    // Mask overlay shows exact count of bullets matching alphanumeric characters
+    const overlays = container.querySelectorAll('[aria-hidden="true"].font-mono');
+    expect(overlays).toHaveLength(3);
+    expect(overlays[0].textContent).toBe("•");
+    expect(overlays[1].textContent).toBe("•".repeat(13));
+    expect(overlays[2].textContent).toBe("•".repeat(12));
+
+    // Typing shrinks the visible bullet tail while preserving typed prefix in invisible span
+    fireEvent.change(inputs[1], { target: { value: "ext" } });
+    expect(overlays[1].querySelector(".invisible")?.textContent).toBe("ext");
+    expect(overlays[1].textContent).toBe(`ext${"•".repeat(10)}`);
 
     expect(inputs[0]).toHaveAttribute("enterkeyhint", "next");
     expect(inputs[1]).toHaveAttribute("enterkeyhint", "next");
@@ -78,7 +99,7 @@ describe("FillInBlanksDictation", () => {
     expect(inputs[1]).toHaveValue("second");
   });
 
-  it("auto-completes after 40ms when all blanks are valid and does not auto-jump focus mid-typing", () => {
+  it("auto-completes after 40ms when all blanks are valid and auto-jumps focus on completing a non-last blank", () => {
     vi.useFakeTimers();
     const onSegmentComplete = vi.fn();
 
@@ -95,11 +116,11 @@ describe("FillInBlanksDictation", () => {
     const inputs = screen.getAllByRole("textbox");
     inputs[0].focus();
     fireEvent.change(inputs[0], { target: { value: "don't" } });
-    // Should NOT auto-jump focus mid-typing when first blank matches
-    expect(document.activeElement).toBe(inputs[0]);
+    // D3 auto-jump moves focus to next editable blank without locking the first blank
+    expect(document.activeElement).toBe(inputs[1]);
+    expect(inputs[0]).not.toHaveAttribute("readonly");
     expect(onSegmentComplete).not.toHaveBeenCalled();
 
-    inputs[1].focus();
     fireEvent.change(inputs[1], { target: { value: "later" } });
 
     // Green glow applied immediately, callback fires after 40ms
@@ -185,7 +206,8 @@ describe("FillInBlanksDictation", () => {
     // Enter on non-last blank moves focus to next editable blank
     first.focus();
     fireEvent.change(first, { target: { value: "wrng1" } });
-    expect(first).toHaveAttribute("aria-invalid", "false");
+    expect(first).toHaveAttribute("aria-invalid", "true");
+    expect(first.className).not.toContain("border-coral-500");
     fireEvent.keyDown(first, { key: "Enter" });
     expect(document.activeElement).toBe(second);
 
@@ -275,5 +297,117 @@ describe("FillInBlanksDictation", () => {
     expect(
       screen.getByPlaceholderText("Type what you hear...")
     ).toBeInTheDocument();
+  });
+
+  it("marks wrong characters with aria-invalid='true' and red styling immediately without Enter", () => {
+    render(
+      <FillInBlanksDictation
+        sentence="Work hard today."
+        mode="EASY"
+        blanks={[{ wordIndex: 0 }, { wordIndex: 2 }]}
+        suitableForBlanks
+        onSegmentComplete={vi.fn()}
+      />
+    );
+
+    const [first] = screen.getAllByRole("textbox");
+    fireEvent.change(first, { target: { value: "wo" } });
+    expect(first).toHaveAttribute("aria-invalid", "false");
+    expect(first.className).not.toContain("border-red-400");
+
+    fireEvent.change(first, { target: { value: "wox" } });
+    expect(first).toHaveAttribute("aria-invalid", "true");
+    expect(first.className).toContain("border-red-400");
+    expect(first.className).toContain("text-red-600");
+  });
+
+  it("moves focus to the next editable blank when a word becomes correct without locking it", () => {
+    render(
+      <FillInBlanksDictation
+        sentence="I work hard today."
+        mode="MEDIUM"
+        blanks={[{ wordIndex: 1 }, { wordIndex: 3 }]}
+        suitableForBlanks
+        onSegmentComplete={vi.fn()}
+      />
+    );
+
+    const [first, second] = screen.getAllByRole("textbox");
+    first.focus();
+    fireEvent.change(first, { target: { value: "wor" } });
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.change(first, { target: { value: "work" } });
+    expect(document.activeElement).toBe(second);
+    expect(first).not.toHaveAttribute("readonly");
+    expect(first.className).toContain("border-brand-500");
+  });
+
+  it("treats 'dont' for \"don't\" as valid green and not red", () => {
+    render(
+      <FillInBlanksDictation
+        sentence="I don’t leave later."
+        mode="MEDIUM"
+        blanks={[{ wordIndex: 1 }, { wordIndex: 3 }]}
+        suitableForBlanks
+        onSegmentComplete={vi.fn()}
+      />
+    );
+
+    const [first] = screen.getAllByRole("textbox");
+    fireEvent.change(first, { target: { value: "dont" } });
+    expect(first).toHaveAttribute("aria-invalid", "false");
+    expect(first.className).not.toContain("border-red-400");
+    expect(first.className).not.toContain("border-coral-500");
+    expect(first.className).toContain("border-brand-500");
+  });
+
+  it("suppresses wrong styling and auto-jump during IME composition and auto-jumps on compositionEnd when correct", () => {
+    render(
+      <FillInBlanksDictation
+        sentence="I work hard today."
+        mode="MEDIUM"
+        blanks={[{ wordIndex: 1 }, { wordIndex: 3 }]}
+        suitableForBlanks
+        onSegmentComplete={vi.fn()}
+      />
+    );
+
+    const [first, second] = screen.getAllByRole("textbox");
+    first.focus();
+
+    fireEvent.compositionStart(first);
+    fireEvent.change(first, { target: { value: "wox" } });
+    expect(first).toHaveAttribute("aria-invalid", "false");
+    expect(first.className).not.toContain("border-red-400");
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.change(first, { target: { value: "work" } });
+    expect(document.activeElement).toBe(first);
+
+    fireEvent.compositionEnd(first, { target: { value: "work" } });
+    expect(document.activeElement).toBe(second);
+    expect(first).not.toHaveAttribute("readonly");
+    expect(first.className).toContain("border-brand-500");
+  });
+
+  it("hides remaining mask bullets when a shorter valid equivalent is entered", () => {
+    const { container } = render(
+      <FillInBlanksDictation
+        sentence="Wait twenty-one minutes today."
+        mode="MEDIUM"
+        blanks={[{ wordIndex: 1 }, { wordIndex: 3 }]}
+        suitableForBlanks
+        onSegmentComplete={vi.fn()}
+      />
+    );
+
+    const [first] = screen.getAllByRole("textbox");
+    const overlays = container.querySelectorAll('[aria-hidden="true"].font-mono');
+    expect(overlays[0].textContent).toBe("••••••-•••");
+
+    fireEvent.change(first, { target: { value: "21" } });
+    expect(overlays[0].textContent).toBe("21");
+    expect(overlays[0].textContent).not.toContain("•");
   });
 });

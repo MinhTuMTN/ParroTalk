@@ -63,6 +63,9 @@ const NUMBER_WORDS = new Map<string, string>([
 ]);
 
 const NUMBER_WORD_VALUES = new Set<string>(NUMBER_WORDS.values());
+const WORD_TO_NUMBER = new Map<string, string>(
+  Array.from(NUMBER_WORDS, ([digit, word]) => [word, digit])
+);
 
 const VALID_TENS = new Set<string>([
   "twenty",
@@ -86,6 +89,8 @@ const VALID_ONES = new Set<string>([
   "eight",
   "nine",
 ]);
+
+export type BlankLiveState = "empty" | "typing" | "wrong" | "correct";
 
 export interface BlankValidationSlot {
   wordIndex: number;
@@ -238,6 +243,135 @@ function matchesCandidate(userNorm: string, expectedNorm: string): boolean {
     return true;
   }
   return matchesNumberEquivalent(userNorm, expectedNorm);
+}
+
+function canonicalNumberToDigits(canonical: string): string | null {
+  const direct = WORD_TO_NUMBER.get(canonical);
+  if (direct !== undefined) {
+    return direct;
+  }
+  const parts = canonical.split("-");
+  if (parts.length !== 2) {
+    return null;
+  }
+  const tensDigit = WORD_TO_NUMBER.get(parts[0]);
+  const onesDigit = WORD_TO_NUMBER.get(parts[1]);
+  if (tensDigit === undefined || onesDigit === undefined) {
+    return null;
+  }
+  const sum = Number.parseInt(tensDigit, 10) + Number.parseInt(onesDigit, 10);
+  return Number.isNaN(sum) ? null : String(sum);
+}
+
+function addLenientForm(candidates: Set<string>, form: string): void {
+  if (form.length === 0) {
+    return;
+  }
+  candidates.add(form);
+  const noApos = form.replace(/'/g, "");
+  if (noApos.length > 0) {
+    candidates.add(noApos);
+  }
+  for (const base of [form, noApos]) {
+    if (base.includes("-")) {
+      const noHyphen = base.replace(/-/g, "");
+      const spaceHyphen = base.replace(/-/g, " ").replace(MULTI_WHITESPACE, " ").trim();
+      if (noHyphen.length > 0) candidates.add(noHyphen);
+      if (spaceHyphen.length > 0) candidates.add(spaceHyphen);
+    }
+    if (base.includes(" ")) {
+      const hyphenated = base.replace(/ /g, "-");
+      const squashed = base.replace(/ /g, "");
+      if (hyphenated.length > 0) candidates.add(hyphenated);
+      if (squashed.length > 0) candidates.add(squashed);
+    }
+  }
+}
+
+function buildLenientLiveCandidates(
+  expectedWord: string,
+  acceptableAnswers?: string[] | null
+): Set<string> {
+  const candidates = new Set<string>();
+  const rawList: string[] = [];
+  if (expectedWord != null && expectedWord.trim().length > 0) {
+    rawList.push(expectedWord);
+  }
+  if (acceptableAnswers != null) {
+    for (const alt of acceptableAnswers) {
+      if (alt != null && alt.trim().length > 0) {
+        rawList.push(alt);
+      }
+    }
+  }
+
+  for (const raw of rawList) {
+    const norm = normalizeBlankInput(raw);
+    if (norm.length === 0) {
+      continue;
+    }
+    addLenientForm(candidates, norm);
+
+    const canonicalNum = toCanonicalNumber(norm);
+    if (canonicalNum !== null) {
+      addLenientForm(candidates, canonicalNum);
+      const digits = canonicalNumberToDigits(canonicalNum);
+      if (digits !== null) {
+        candidates.add(digits);
+      }
+    }
+  }
+
+  return candidates;
+}
+
+function normalizeUserForPrefix(value: string | null | undefined): string {
+  if (value == null) {
+    return "";
+  }
+  const base = value
+    .replace(/\u2019/g, "'")
+    .replace(/\u2018/g, "'")
+    .toLowerCase()
+    .replace(MULTI_WHITESPACE, " ")
+    .replace(/^[^a-z0-9']+/, "");
+  const strippedTrailing = base.replace(/[^a-z0-9'\s]+$/, "");
+  return strippedTrailing.length > 0 ? strippedTrailing : base;
+}
+
+/**
+ * Computes real-time validation state for a single blank input while typing.
+ */
+export function getBlankLiveState(
+  value: string,
+  expected: string,
+  acceptableAnswers?: string[] | null
+): BlankLiveState {
+  const normalizedUser = normalizeUserForPrefix(value);
+  if (normalizedUser.length === 0) {
+    return "empty";
+  }
+
+  if (isBlankAnswerCorrect(value, expected, acceptableAnswers)) {
+    return "correct";
+  }
+
+  const candidates = buildLenientLiveCandidates(expected, acceptableAnswers);
+  const normalizedUserSpace = normalizedUser.replace(/-/g, " ");
+  for (const candidate of candidates) {
+    const candidateMatchesPrefix =
+      candidate.startsWith(normalizedUser) ||
+      ((candidate.includes("-") || candidate.includes(" ")) &&
+        candidate.replace(/-/g, " ").startsWith(normalizedUserSpace));
+    if (
+      candidateMatchesPrefix &&
+      normalizedUser.length < candidate.length
+    ) {
+      return "typing";
+    }
+  }
+
+  return "wrong";
 }
 
 /**

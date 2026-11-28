@@ -9,7 +9,11 @@ import type {
   BlankSlot,
   DictationMode,
 } from "@/features/lesson/services/lessonService";
-import { validateSegmentBlanks } from "../utils/blankAnswerValidator";
+import {
+  type BlankLiveState,
+  getBlankLiveState,
+  validateSegmentBlanks,
+} from "../utils/blankAnswerValidator";
 import WordDictation from "./WordDictation";
 
 export interface FillInBlanksDraftState {
@@ -93,8 +97,11 @@ export default function FillInBlanksDictation({
     () => new Set(draftState?.revealedWordIndices ?? [])
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [composingSet, setComposingSet] = useState<Set<number>>(() => new Set());
 
   const inputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+  const composingRef = useRef<Set<number>>(new Set());
+  const preCompositionStateRef = useRef<Map<number, BlankLiveState>>(new Map());
   const hasCompletedRef = useRef(false);
   const onSegmentCompleteRef = useRef(onSegmentComplete);
   onSegmentCompleteRef.current = onSegmentComplete;
@@ -135,6 +142,9 @@ export default function FillInBlanksDictation({
   // Reset completion guard and focus first editable blank on mount or sentence/mode change
   useEffect(() => {
     hasCompletedRef.current = false;
+    composingRef.current = new Set();
+    preCompositionStateRef.current = new Map();
+    setComposingSet(new Set());
     setErrorMessage(null);
     if (sortedBlanks.length === 0 || isCompleted) return;
     const firstEditable = sortedBlanks.find(
@@ -156,9 +166,130 @@ export default function FillInBlanksDictation({
     [isCompleted, results, revealedSet]
   );
 
-  const handleBlankChange = useCallback(
-    (wordIndex: number, value: string) => {
+  const findNextEditableBlank = useCallback(
+    (fromSlotIndex: number) =>
+      sortedBlanks
+        .slice(fromSlotIndex + 1)
+        .find((b) => !isBlankLocked(b.wordIndex)),
+    [isBlankLocked, sortedBlanks]
+  );
+
+  const findPrevEditableBlank = useCallback(
+    (fromSlotIndex: number) =>
+      [...sortedBlanks.slice(0, fromSlotIndex)]
+        .reverse()
+        .find((b) => !isBlankLocked(b.wordIndex)),
+    [isBlankLocked, sortedBlanks]
+  );
+
+  const handleCompositionStart = useCallback(
+    (wordIndex: number) => {
+      const slot = sortedBlanks.find((b) => b.wordIndex === wordIndex);
+      const expected = wordTextByIndex.get(wordIndex) ?? "";
+      const preState = getBlankLiveState(
+        answers[wordIndex] ?? "",
+        expected,
+        slot?.acceptableAnswers
+      );
+      preCompositionStateRef.current.set(wordIndex, preState);
+      composingRef.current.add(wordIndex);
+      setComposingSet((prev) => {
+        if (prev.has(wordIndex)) return prev;
+        const next = new Set(prev);
+        next.add(wordIndex);
+        return next;
+      });
+    },
+    [answers, sortedBlanks, wordTextByIndex]
+  );
+
+  const handleCompositionEnd = useCallback(
+    (wordIndex: number, e: React.CompositionEvent<HTMLInputElement>) => {
+      composingRef.current.delete(wordIndex);
+      setComposingSet((prev) => {
+        if (!prev.has(wordIndex)) return prev;
+        const next = new Set(prev);
+        next.delete(wordIndex);
+        return next;
+      });
+
+      const preCompState = preCompositionStateRef.current.get(wordIndex);
+      preCompositionStateRef.current.delete(wordIndex);
+
       if (isBlankLocked(wordIndex)) return;
+
+      const finalValue = e.currentTarget.value;
+      const currentAnswer = answers[wordIndex] ?? "";
+      let nextAnswers = answers;
+      if (finalValue !== currentAnswer) {
+        nextAnswers = { ...answers, [wordIndex]: finalValue };
+        const nextResults = { ...results };
+        if (nextResults[wordIndex] && !nextResults[wordIndex].correct) {
+          delete nextResults[wordIndex];
+        }
+        setErrorMessage(null);
+        syncState(nextAnswers, nextResults, revealedSet, null);
+      }
+
+      const slotIndex = sortedBlanks.findIndex((b) => b.wordIndex === wordIndex);
+      if (slotIndex === -1) return;
+
+      const slot = sortedBlanks[slotIndex];
+      const expected = wordTextByIndex.get(wordIndex) ?? "";
+      const nextLiveState = getBlankLiveState(
+        finalValue,
+        expected,
+        slot.acceptableAnswers
+      );
+      const nextValidation = validateSegmentBlanks(
+        sortedBlanks,
+        wordTextByIndex,
+        nextAnswers
+      );
+
+      if (
+        document.activeElement === e.currentTarget &&
+        preCompState !== "correct" &&
+        nextLiveState === "correct" &&
+        (!suitableForBlanks || !nextValidation.allCorrect)
+      ) {
+        const nextEditable = findNextEditableBlank(slotIndex);
+        if (nextEditable) {
+          inputRefs.current.get(nextEditable.wordIndex)?.focus();
+        }
+      }
+    },
+    [
+      answers,
+      findNextEditableBlank,
+      isBlankLocked,
+      results,
+      revealedSet,
+      sortedBlanks,
+      suitableForBlanks,
+      syncState,
+      wordTextByIndex,
+    ]
+  );
+
+  const handleBlankChange = useCallback(
+    (wordIndex: number, value: string, isNativeComposing = false) => {
+      if (isBlankLocked(wordIndex)) return;
+
+      const slotIndex = sortedBlanks.findIndex((b) => b.wordIndex === wordIndex);
+      const slot = slotIndex !== -1 ? sortedBlanks[slotIndex] : undefined;
+      const expected = wordTextByIndex.get(wordIndex) ?? "";
+      const prevLiveState = getBlankLiveState(
+        answers[wordIndex] ?? "",
+        expected,
+        slot?.acceptableAnswers
+      );
+      const nextLiveState = getBlankLiveState(
+        value,
+        expected,
+        slot?.acceptableAnswers
+      );
+
       const nextAnswers = { ...answers, [wordIndex]: value };
       const nextResults = { ...results };
       // Clear error state on edit so learner can retry cleanly
@@ -167,8 +298,39 @@ export default function FillInBlanksDictation({
       }
       setErrorMessage(null);
       syncState(nextAnswers, nextResults, revealedSet, null);
+
+      const isComposing =
+        composingRef.current.has(wordIndex) || isNativeComposing;
+      if (
+        !isComposing &&
+        prevLiveState !== "correct" &&
+        nextLiveState === "correct" &&
+        slotIndex !== -1
+      ) {
+        const nextValidation = validateSegmentBlanks(
+          sortedBlanks,
+          wordTextByIndex,
+          nextAnswers
+        );
+        if (!suitableForBlanks || !nextValidation.allCorrect) {
+          const nextEditable = findNextEditableBlank(slotIndex);
+          if (nextEditable) {
+            inputRefs.current.get(nextEditable.wordIndex)?.focus();
+          }
+        }
+      }
     },
-    [answers, isBlankLocked, results, revealedSet, syncState]
+    [
+      answers,
+      findNextEditableBlank,
+      isBlankLocked,
+      results,
+      revealedSet,
+      sortedBlanks,
+      suitableForBlanks,
+      syncState,
+      wordTextByIndex,
+    ]
   );
 
   const buildReconstructedSentence = useCallback(
@@ -213,6 +375,7 @@ export default function FillInBlanksDictation({
     if (
       !suitableForBlanks ||
       sortedBlanks.length === 0 ||
+      composingSet.size > 0 ||
       !validation.allCorrect ||
       isCompleted ||
       hasCompletedRef.current
@@ -228,6 +391,7 @@ export default function FillInBlanksDictation({
   }, [
     answers,
     completeSegment,
+    composingSet.size,
     isCompleted,
     sortedBlanks.length,
     suitableForBlanks,
@@ -359,9 +523,7 @@ export default function FillInBlanksDictation({
         if (e.nativeEvent.isComposing || e.keyCode === 229) {
           return;
         }
-        const nextEditable = sortedBlanks
-          .slice(idx + 1)
-          .find((b) => !isBlankLocked(b.wordIndex));
+        const nextEditable = findNextEditableBlank(idx);
 
         if (nextEditable) {
           inputRefs.current.get(nextEditable.wordIndex)?.focus();
@@ -372,9 +534,7 @@ export default function FillInBlanksDictation({
       }
 
       if (e.key === "Tab" && !e.shiftKey) {
-        const nextEditable = sortedBlanks
-          .slice(idx + 1)
-          .find((b) => !isBlankLocked(b.wordIndex));
+        const nextEditable = findNextEditableBlank(idx);
         if (nextEditable) {
           e.preventDefault();
           inputRefs.current.get(nextEditable.wordIndex)?.focus();
@@ -383,9 +543,7 @@ export default function FillInBlanksDictation({
       }
 
       if (e.key === "Tab" && e.shiftKey) {
-        const prevEditable = [...sortedBlanks.slice(0, idx)]
-          .reverse()
-          .find((b) => !isBlankLocked(b.wordIndex));
+        const prevEditable = findPrevEditableBlank(idx);
         if (prevEditable) {
           e.preventDefault();
           inputRefs.current.get(prevEditable.wordIndex)?.focus();
@@ -397,9 +555,7 @@ export default function FillInBlanksDictation({
         e.key === "Backspace" &&
         (answers[wordIndex] ?? "").length === 0
       ) {
-        const prevEditable = [...sortedBlanks.slice(0, idx)]
-          .reverse()
-          .find((b) => !isBlankLocked(b.wordIndex));
+        const prevEditable = findPrevEditableBlank(idx);
         if (prevEditable) {
           e.preventDefault();
           inputRefs.current.get(prevEditable.wordIndex)?.focus();
@@ -408,8 +564,9 @@ export default function FillInBlanksDictation({
     },
     [
       answers,
+      findNextEditableBlank,
+      findPrevEditableBlank,
       handleCommitLastBlank,
-      isBlankLocked,
       revealBlankHint,
       sortedBlanks,
     ]
@@ -460,16 +617,22 @@ export default function FillInBlanksDictation({
       className="w-full max-w-3xl mx-auto flex flex-col gap-1.5 [padding-bottom:env(safe-area-inset-bottom)]"
       data-testid="fill-in-blanks-dictation"
     >
-      {/* Inline sentence with uniform-width blank inputs */}
+      {/* Inline sentence with length-masked blank inputs */}
       <div className="rounded-xl border border-ink-200/80 dark:border-slate-700 bg-ink-50/60 dark:bg-slate-900/90 px-3 py-1.5 sm:px-4 sm:py-2 leading-8 sm:leading-9 text-sm sm:text-[15px] font-medium text-ink-900 dark:text-slate-100 flex flex-wrap items-baseline gap-y-1">
         {tokens.map((tok) => {
           if (tok.isWord && blankWordIndexSet.has(tok.wordIndex)) {
-            const blankOrder =
-              sortedBlanks.findIndex((b) => b.wordIndex === tok.wordIndex) + 1;
+            const slotIndex = sortedBlanks.findIndex(
+              (b) => b.wordIndex === tok.wordIndex
+            );
+            const blankOrder = slotIndex + 1;
+            const slot = slotIndex !== -1 ? sortedBlanks[slotIndex] : undefined;
+            const expected = wordTextByIndex.get(tok.wordIndex) ?? "";
+            const mask = expected.replace(/[a-zA-Z0-9]/g, "•");
             const result = results[tok.wordIndex];
             const isAllMatched = validation.allCorrect && !isCompleted;
-            const isCorrect = Boolean(result?.correct) || isAllMatched;
-            const isIncorrect = !isAllMatched && Boolean(result && !result.correct);
+            const isCommitCorrect = Boolean(result?.correct);
+            const isCommitIncorrect =
+              !isAllMatched && Boolean(result && !result.correct);
             const locked = isBlankLocked(tok.wordIndex);
             const isLastEditable = lastEditableWordIndex === tok.wordIndex;
             const rawAnswer = answers[tok.wordIndex];
@@ -477,14 +640,59 @@ export default function FillInBlanksDictation({
               rawAnswer && rawAnswer.length > 0
                 ? rawAnswer
                 : isCompleted
-                  ? (wordTextByIndex.get(tok.wordIndex) ?? "")
+                  ? expected
                   : "";
+            const liveState: BlankLiveState = locked
+              ? "correct"
+              : composingSet.has(tok.wordIndex)
+                ? "typing"
+                : getBlankLiveState(value, expected, slot?.acceptableAnswers);
+            const isLiveWrong =
+              !locked &&
+              !isCommitIncorrect &&
+              !isAllMatched &&
+              liveState === "wrong";
+            const isLiveCorrect =
+              !locked &&
+              !isCommitIncorrect &&
+              !isAllMatched &&
+              liveState === "correct";
+            const isInvalid = isCommitIncorrect || isLiveWrong;
+
+            const wrapperBgClass = isAllMatched || isCommitCorrect || isLiveCorrect
+              ? "bg-brand-50 dark:bg-brand-900/40"
+              : isCommitIncorrect
+                ? "bg-coral-50 dark:bg-rose-950/40"
+                : isLiveWrong
+                  ? "bg-red-50/40 dark:bg-rose-950/30"
+                  : "bg-white dark:bg-slate-800";
+
+            const inputToneClass = isAllMatched
+              ? "border-brand-500 text-brand-700 dark:text-brand-200 ring-4 ring-brand-100/80 dark:ring-brand-900/40 shadow-sm"
+              : isCommitCorrect
+                ? "border-brand-500 text-brand-700 dark:text-brand-200 cursor-default"
+                : isCommitIncorrect
+                  ? "border-coral-500 text-coral-700 dark:text-rose-200 focus:ring-4 focus:ring-coral-100 dark:focus:ring-rose-950/40"
+                  : isLiveWrong
+                    ? "border-red-400 dark:border-rose-500 text-red-600 dark:text-rose-300 focus:ring-4 focus:ring-red-50 dark:focus:ring-rose-950/40 shadow-lg shadow-red-100/50 dark:shadow-none"
+                    : isLiveCorrect
+                      ? "border-brand-500 text-brand-700 dark:text-brand-200 focus:ring-4 focus:ring-brand-100/70 dark:focus:ring-brand-900/40"
+                      : "border-ink-200 dark:border-slate-700 text-ink-900 dark:text-slate-100 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70 dark:focus:ring-brand-900/40";
 
             return (
               <span
                 key={`blank-${tok.tokenIndex}-${tok.wordIndex}`}
-                className="relative inline-flex items-center mx-1 align-baseline"
+                className={`relative inline-block mx-1 align-baseline max-w-[calc(100%-0.5rem)] min-w-0 rounded-lg ${wrapperBgClass}`}
               >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre font-mono text-base font-bold border-2 border-transparent rounded-lg py-0.5 text-ink-300 dark:text-slate-600 ${
+                    locked ? "px-2 justify-center" : "pl-2.5 pr-7 justify-start text-left"
+                  }`}
+                >
+                  <span className="invisible">{value}</span>
+                  {locked || isAllMatched || isLiveCorrect ? "" : mask.slice(value.length)}
+                </span>
                 <input
                   ref={(el) => {
                     if (el) {
@@ -499,28 +707,34 @@ export default function FillInBlanksDictation({
                   value={value}
                   readOnly={locked}
                   aria-label={`Blank ${blankOrder}`}
-                  aria-invalid={isIncorrect ? "true" : "false"}
+                  aria-invalid={isInvalid ? "true" : "false"}
                   aria-describedby={
-                    isIncorrect && errorMessage ? errorRegionId : undefined
+                    isCommitIncorrect && errorMessage ? errorRegionId : undefined
                   }
                   data-word-index={tok.wordIndex}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  onChange={(e) => handleBlankChange(tok.wordIndex, e.target.value)}
+                  style={{
+                    width: `calc(${Math.max(expected.length, 2)}ch + 2.75rem)`,
+                  }}
+                  onCompositionStart={() => handleCompositionStart(tok.wordIndex)}
+                  onCompositionEnd={(e) => handleCompositionEnd(tok.wordIndex, e)}
+                  onChange={(e) =>
+                    handleBlankChange(
+                      tok.wordIndex,
+                      e.target.value,
+                      Boolean(
+                        (e.nativeEvent as { isComposing?: boolean } | undefined)
+                          ?.isComposing
+                      )
+                    )
+                  }
                   onKeyDown={(e) => handleKeyDown(tok.wordIndex, e)}
-                  className={`w-[5.25rem] sm:w-[6rem] h-7 sm:h-8 ${
-                    locked ? "px-2 text-center" : "pl-2.5 pr-6 text-left"
-                  } py-0.5 text-sm font-bold rounded-lg border-2 outline-none transition-all ${
-                    isAllMatched
-                      ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 ring-4 ring-brand-100/80 dark:ring-brand-900/40 shadow-sm"
-                      : isCorrect
-                        ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40 text-brand-700 dark:text-brand-200 cursor-default"
-                        : isIncorrect
-                          ? "border-coral-500 bg-coral-50 dark:bg-rose-950/40 text-coral-700 dark:text-rose-200 focus:ring-4 focus:ring-coral-100 dark:focus:ring-rose-950/40"
-                          : "border-ink-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-ink-900 dark:text-slate-100 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70 dark:focus:ring-brand-900/40"
-                  }`}
+                  className={`relative max-w-full h-9 ${
+                    locked ? "px-2 text-center" : "pl-2.5 pr-7 text-left"
+                  } py-0.5 font-mono text-base font-bold bg-transparent rounded-lg border-2 outline-none transition-all ${inputToneClass}`}
                 />
                 {!locked && (
                   <button
@@ -530,7 +744,7 @@ export default function FillInBlanksDictation({
                     title="Reveal hint (Alt+H)"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => revealBlankHint(tok.wordIndex)}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md inline-flex items-center justify-center text-[11px] font-extrabold text-ink-400 dark:text-slate-400 hover:text-honey-600 dark:hover:text-amber-300 hover:bg-honey-50 dark:hover:bg-amber-950/60 focus-visible:outline-2 focus-visible:outline-brand-500 transition-colors cursor-pointer"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 z-10 w-5 h-5 rounded-md inline-flex items-center justify-center text-[11px] font-extrabold text-ink-400 dark:text-slate-400 hover:text-honey-600 dark:hover:text-amber-300 hover:bg-honey-50 dark:hover:bg-amber-950/60 focus-visible:outline-2 focus-visible:outline-brand-500 transition-colors cursor-pointer"
                   >
                     ?
                   </button>
